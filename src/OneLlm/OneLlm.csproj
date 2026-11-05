@@ -35,6 +35,11 @@
     <PackageReference Include="RecursiveAI.OneImage" />
   </ItemGroup>
 
+  <!-- The model catalog entries that ship with each provider. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Providers/Gemini/llm-provider.yaml" LogicalName="$(LibName).Providers.Gemini.llm-provider.yaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="$(LibName).Tests" />
     <InternalsVisibleTo Include="$(LibName).Conformance" />

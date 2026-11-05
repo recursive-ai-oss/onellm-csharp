@@ -27,6 +27,21 @@ public sealed class NaturalObjectJsonConverter : JsonConverter<object>
     /// <inheritdoc />
     public override void Write(Utf8JsonWriter writer, object value, JsonSerializerOptions options) => WriteValue(writer, value, 0);
 
+    /// <summary>Reads one JSON value from UTF-8 text into the plain values extension data holds.</summary>
+    /// <param name="utf8">One JSON value.</param>
+    /// <returns>The value (null, bool, long, big integer, double, string, list or dictionary).</returns>
+    /// <exception cref="JsonException">The text is not valid JSON.</exception>
+    internal static object? Parse(ReadOnlySpan<byte> utf8)
+    {
+        var reader = new Utf8JsonReader(utf8);
+        if (!reader.Read())
+        {
+            throw new JsonException("The extension payload is empty.");
+        }
+
+        return ReadValue(ref reader);
+    }
+
     private static object? ReadValue(ref Utf8JsonReader reader)
     {
         switch (reader.TokenType)

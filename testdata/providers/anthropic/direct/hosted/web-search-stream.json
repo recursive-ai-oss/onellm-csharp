@@ -1,0 +1,48 @@
+{
+  "format": 1,
+  "description": "The web search turn of hosted/web-search streamed; the result block arrives whole between the call and the answer. Written from the API reference (https://platform.claude.com/docs/en/build-with-claude/streaming); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Who won the 2025 men's final?"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "type": "web_search_20260209",
+              "name": "web_search",
+              "max_uses": 3
+            }
+          ],
+          "stream": true
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream"
+        },
+        "sse": [
+          "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"msg_01Aq9w938a90dw8q\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"claude-sonnet-5-5\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 105, \"output_tokens\": 1}}}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 0, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 0, \"delta\": {\"type\": \"text_delta\", \"text\": \"I'll search for that.\"}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 0}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 1, \"content_block\": {\"type\": \"server_tool_use\", \"id\": \"srvtoolu_01WYG3ziw53XMcoyKL4XcZmE\", \"name\": \"web_search\", \"input\": {}}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 1, \"delta\": {\"type\": \"input_json_delta\", \"partial_json\": \"{\\\"query\\\": \\\"2025 men's \"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 1, \"delta\": {\"type\": \"input_json_delta\", \"partial_json\": \"final winner\\\"}\"}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 1}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 2, \"content_block\": {\"type\": \"web_search_tool_result\", \"tool_use_id\": \"srvtoolu_01WYG3ziw53XMcoyKL4XcZmE\", \"content\": [{\"type\": \"web_search_result\", \"url\": \"https://example.com/final\", \"title\": \"Final report\", \"encrypted_content\": \"EqgfCioIARgBIiQ3YTAwMjY1Mi1mZjM5LTQ1NGUt\", \"page_age\": \"April 30, 2025\"}]}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 2}\n\nevent: content_block_start\ndata: {\"type\": \"content_block_start\", \"index\": 3, \"content_block\": {\"type\": \"text\", \"text\": \"\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 3, \"delta\": {\"type\": \"text_delta\", \"text\": \"The winner was \"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 3, \"delta\": {\"type\": \"text_delta\", \"text\": \"Alex Example.\"}}\n\nevent: content_block_delta\ndata: {\"type\": \"content_block_delta\", \"index\": 3, \"delta\": {\"type\": \"citations_delta\", \"citation\": {\"type\": \"web_search_result_location\", \"cited_text\": \"Alex Example won the final in four sets\", \"url\": \"https://example.com/final\", \"title\": \"Final report\", \"encrypted_index\": \"Eo8BCioIAhgBIiQ3\"}}}\n\nevent: content_block_stop\ndata: {\"type\": \"content_block_stop\", \"index\": 3}\n\nevent: message_delta\ndata: {\"type\": \"message_delta\", \"delta\": {\"stop_reason\": \"end_turn\", \"stop_sequence\": null}, \"usage\": {\"output_tokens\": 612, \"input_tokens\": 105, \"cache_creation_input_tokens\": 0, \"cache_read_input_tokens\": 0, \"server_tool_use\": {\"web_search_requests\": 1}}}\n\nevent: message_stop\ndata: {\"type\": \"message_stop\"}\n\n"
+        ]
+      }
+    }
+  ]
+}

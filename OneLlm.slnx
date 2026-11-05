@@ -2,11 +2,14 @@
   <Folder Name="/src/">
     <Project Path="src/OneLlm/OneLlm.csproj" />
     <Project Path="src/OneLlm.Generators/OneLlm.Generators.csproj" />
+    <Project Path="src/OneLlm.EntityFrameworkCore/OneLlm.EntityFrameworkCore.csproj" />
+    <Project Path="src/OneLlm.OneLite/OneLlm.OneLite.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OneLlm.Tests/OneLlm.Tests.csproj" />
     <Project Path="tests/OneLlm.Conformance/OneLlm.Conformance.csproj" />
     <Project Path="tests/OneLlm.TemplateParity/OneLlm.TemplateParity.csproj" />
+    <Project Path="tests/OneLlm.Stores.Tests/OneLlm.Stores.Tests.csproj" />
     <Project Path="tests/OneLlm.Generators.Tests/OneLlm.Generators.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
@@ -20,6 +23,7 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/AotSmoke/AotSmoke.csproj" />
+    <Project Path="samples/OneLiteAotSmoke/OneLiteAotSmoke.csproj" />
     <Project Path="samples/HappyPath/HappyPath.csproj" />
   </Folder>
 </Solution>

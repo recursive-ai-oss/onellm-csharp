@@ -7,9 +7,16 @@
     <PackageVersion Include="OneYaml" Version="1.2.1" />
     <PackageVersion Include="RecursiveAI.OneImage" Version="1.10.4" />
   </ItemGroup>
+  <!-- Adapter dependencies: each adapter package references core and exactly one of these. -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" />
+    <PackageVersion Include="RecursiveAI.OneLite" Version="1.0.0" />
+  </ItemGroup>
   <!-- Build-time and test-only packages. The library depends on none of these. -->
   <ItemGroup>
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.14" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
   </ItemGroup>

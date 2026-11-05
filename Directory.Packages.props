@@ -6,6 +6,7 @@
   <ItemGroup>
     <PackageVersion Include="OneYaml" Version="1.2.1" />
     <PackageVersion Include="RecursiveAI.OneImage" Version="1.10.4" />
+    <PackageVersion Include="RecursiveAI.OneHtml" Version="1.5.1" />
   </ItemGroup>
   <!-- Build-time and test-only packages. The library depends on none of these. -->
   <ItemGroup>

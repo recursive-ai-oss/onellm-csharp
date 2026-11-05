@@ -59,6 +59,8 @@ public class CatalogBench
     [GlobalSetup]
     public void Setup()
     {
+        // Providers add their shipped catalog files when first used; do that here so the catalog is the full one.
+        OneLlm.Providers.BuiltInProviders.RegisterCatalogs();
         OneLlm.Catalog.ModelCatalog c = OneLlm.Catalog.CatalogLoader.Load(null, null, _ => null);
         var first = c.Providers[0];
         _model = first.Name + ":" + first.Models![0].Name;

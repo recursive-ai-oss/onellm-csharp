@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Cli</RootNamespace>
+    <PackageId>$(PackagePrefix)$(LibName).Cli</PackageId>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>onellm</ToolCommandName>
+    <Description>The onellm command-line tool for OneLLM, the LLM inference and agent runtime for .NET: run agents, scripted flows and deciders, chat, inspect instances, costs and the model catalog. Unaffiliated with the PyPI onellm package and the OneLLM research model.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
+    <PackageTags>llm;ai;agents;cli;dotnet-tool</PackageTags>
+    <PackageReleaseNotes>See CHANGELOG.md in the repository.</PackageReleaseNotes>
+    <!-- The tool is a managed dotnet tool. Core and the tools it hosts are AOT-safe, but the tool itself is not published AOT. -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <IsTrimmable>false</IsTrimmable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <!-- The tool references core and the adapter packages it hosts (.Web and .JavaScript). -->
+  <ItemGroup>
+    <ProjectReference Include="../OneLlm/OneLlm.csproj" />
+    <ProjectReference Include="../OneLlm.Web/OneLlm.Web.csproj" />
+    <ProjectReference Include="../OneLlm.JavaScript/OneLlm.JavaScript.csproj" />
+  </ItemGroup>
+
+  <!-- The example agents ship inside the tool and run as examples/<name>. -->
+  <ItemGroup>
+    <EmbeddedResource Include="../../agents/*/agent.yaml" LogicalName="examples/%(RecursiveDir)agent.yaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="PACKAGE.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE-MIT" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE-APACHE" Pack="true" PackagePath="/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

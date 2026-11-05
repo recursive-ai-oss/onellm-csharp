@@ -3,6 +3,7 @@
     <Project Path="src/OneLlm/OneLlm.csproj" />
     <Project Path="src/OneLlm.Generators/OneLlm.Generators.csproj" />
     <Project Path="src/OneLlm.Web/OneLlm.Web.csproj" />
+    <Project Path="src/OneLlm.Cli/OneLlm.Cli.csproj" />
     <Project Path="src/OneLlm.JavaScript/OneLlm.JavaScript.csproj" />
     <Project Path="src/OneLlm.EntityFrameworkCore/OneLlm.EntityFrameworkCore.csproj" />
     <Project Path="src/OneLlm.OneLite/OneLlm.OneLite.csproj" />
@@ -11,6 +12,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/OneLlm.Tests/OneLlm.Tests.csproj" />
     <Project Path="tests/OneLlm.Web.Tests/OneLlm.Web.Tests.csproj" />
+    <Project Path="tests/OneLlm.Cli.Tests/OneLlm.Cli.Tests.csproj" />
     <Project Path="tests/OneLlm.JavaScript.Tests/OneLlm.JavaScript.Tests.csproj" />
     <Project Path="tests/OneLlm.Extensions.AI.Tests/OneLlm.Extensions.AI.Tests.csproj" />
     <Project Path="tests/OneLlm.Conformance/OneLlm.Conformance.csproj" />

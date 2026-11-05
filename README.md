@@ -75,9 +75,11 @@ All packages share one version.
 |---|---|---|
 | `RecursiveAI.OneLlm` | message model, catalog and pricing, providers and deployments, templating, runtime, agents, tools and generators, deciders, file and memory stores, JSONL and event sinks, OpenTelemetry | BCL, OneYaml, OneImage |
 | `RecursiveAI.OneLlm.Web` | `fetch_webpage_markdown` | core, OneHtml |
+| `RecursiveAI.OneLlm.JavaScript` | JavaScript tools, hooks and decider logic in a sandbox, and `run_javascript` | core, OneEcma |
 | `RecursiveAI.OneLlm.Extensions.AI` | OneLLM models as `IChatClient` and friends; any `IChatClient` as a provider; `AIFunction` and `ITool` both ways | core, Microsoft.Extensions.AI.Abstractions |
 | `RecursiveAI.OneLlm.EntityFrameworkCore` | instance store and record sink on your `DbContext` | core, EF Core |
 | `RecursiveAI.OneLlm.OneLite` | instance store and record sink on a OneLite file | core, OneLite |
+| `RecursiveAI.OneLlm.Cli` | the `onellm` command-line tool (`dotnet tool install -g RecursiveAI.OneLlm.Cli`) with eight embedded example agents | core, `.Web`, `.JavaScript` |
 
 The source generators for `[Tool]` and `[Decider]` ship inside the core package.
 
@@ -97,8 +99,8 @@ The source generators for `[Tool]` and `[Decider]` ship inside the core package.
 | [Errors and retries](docs/errors-and-retries.md) | typed errors, `Retry-After` |
 | [Microsoft.Extensions.AI bridge](docs/extensions-ai.md) | interop both ways |
 | [Reads like](docs/reads-like.md) | call-for-call tables from Microsoft.Extensions.AI, Microsoft Agent Framework and the vendor SDKs |
-| [JavaScript tools and hooks](docs/javascript.md) | arrives with the `.JavaScript` package |
-| [The `onellm` command line](docs/cli.md) | arrives with the `onellm` tool |
+| [JavaScript tools and hooks](docs/javascript.md) | tool files, hooks, decider logic, `run_javascript` |
+| [The `onellm` command line](docs/cli.md) | verbs, grants, exit codes, the example agents |
 | [`spec/`](spec/) | the file formats: definitions, instances, catalog, messages, records |
 
 ## Build

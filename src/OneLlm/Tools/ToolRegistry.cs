@@ -85,7 +85,7 @@ public sealed class ToolRegistry
     /// <summary>
     /// Creates a registry holding the agent tools (<c>task_complete</c>, <c>run_agent_async</c>, <c>await_agent</c>, ...) and the
     /// built-in tools with default options. Having a tool registered does not grant it: what it may touch is decided by the runtime's
-    /// capabilities. Packages that add tools (<c>run_decider</c>, web fetching) register theirs with <see cref="Add(ITool)"/>.
+    /// capabilities. Packages that add tools (web fetching) register theirs with <see cref="Add(ITool)"/>.
     /// </summary>
     public ToolRegistry()
     {

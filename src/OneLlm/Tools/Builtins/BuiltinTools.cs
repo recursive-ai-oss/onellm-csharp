@@ -13,7 +13,7 @@ public static class BuiltinTools
 
     /// <summary>The names of the tools <see cref="Create"/> returns when a search provider is set.</summary>
     public static IReadOnlyList<string> Names { get; } =
-        ["read_file", "write_file", "replace_string", "list_files", "search_files_regex", "apply_patch", "execute_terminal_command", "http_request", "search_web", "todo", "memory", "ask_user"];
+        ["read_file", "write_file", "replace_string", "list_files", "search_files_regex", "apply_patch", "execute_terminal_command", "http_request", "search_web", "todo", "memory", "ask_user", "run_decider"];
 
     /// <summary>Makes the built-in tools. <c>search_web</c> is included only when <see cref="BuiltinOptions.SearchProvider"/> is set.</summary>
     /// <param name="options">Limits and services, or null for the defaults.</param>
@@ -40,6 +40,7 @@ public static class BuiltinTools
         tools.Add(new TodoTool(o));
         tools.Add(new MemoryTool(o));
         tools.Add(new AskUserTool());
+        tools.Add(new RunDeciderTool());
         return tools;
     }
 

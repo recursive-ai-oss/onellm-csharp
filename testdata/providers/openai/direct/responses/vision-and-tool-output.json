@@ -1,0 +1,111 @@
+{
+  "format": 1,
+  "description": "Request translation: an image in the user turn and an image in a tool result. Written from the reference (https://developers.openai.com/api/reference/resources/responses/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "input_text",
+                  "text": "What is this?"
+                },
+                {
+                  "type": "input_image",
+                  "image_url": "data:image/png;base64,iVBORw0KGgo="
+                },
+                {
+                  "type": "input_file",
+                  "filename": "doc.pdf",
+                  "file_data": "data:application/pdf;base64,JVBERi0="
+                }
+              ]
+            },
+            {
+              "type": "function_call",
+              "call_id": "call_v1",
+              "name": "screenshot",
+              "arguments": "{}"
+            },
+            {
+              "type": "function_call_output",
+              "call_id": "call_v1",
+              "output": [
+                {
+                  "type": "input_text",
+                  "text": "Taken."
+                },
+                {
+                  "type": "input_image",
+                  "image_url": "data:image/png;base64,iVBORw0KGgo="
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": "And now?"
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "resp_v_1",
+          "object": "response",
+          "created_at": 1741476777,
+          "status": "completed",
+          "error": null,
+          "incomplete_details": null,
+          "model": "gpt-6.1-terra",
+          "output": [
+            {
+              "type": "message",
+              "id": "msg_v_1",
+              "status": "completed",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "A red square.",
+                  "annotations": [],
+                  "logprobs": []
+                }
+              ]
+            }
+          ],
+          "parallel_tool_calls": true,
+          "store": false,
+          "usage": {
+            "input_tokens": 400,
+            "input_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0
+            },
+            "output_tokens": 6,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 406
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "description": "The same call to the lmstudio preset streamed: the message must equal chat.json's. Written from the reference (https://lmstudio.ai/docs/app/api/endpoints/openai); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "qwen/qwen3-8b",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "max_tokens": 64
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "data: {\"id\":\"cmpl-lmstudio\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"",
+          "model\":\"qwen/qwen3-8b\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":",
+          "\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-lmstudio\",\"object\":\"chat.completion.",
+          "chunk\",\"created\":1741476777,\"model\":\"qwen/qwen3-8b\",\"choices\":[{\"index\":0,\"delta\":{",
+          "\"reasoning_content\":\"Thinking about \"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-l",
+          "mstudio\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"qwen/qwen3-",
+          "8b\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"a greeting.\"},\"finish_reaso",
+          "n\":null}]}\n\ndata: {\"id\":\"cmpl-lmstudio\",\"object\":\"chat.completion.chunk\",\"created\":",
+          "1741476777,\"model\":\"qwen/qwen3-8b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hel\"},",
+          "\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-lmstudio\",\"object\":\"chat.completion.chun",
+          "k\",\"created\":1741476777,\"model\":\"qwen/qwen3-8b\",\"choices\":[{\"index\":0,\"delta\":{\"con",
+          "tent\":\"lo!\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-lmstudio\",\"object\":\"chat.co",
+          "mpletion.chunk\",\"created\":1741476777,\"model\":\"qwen/qwen3-8b\",\"choices\":[{\"index\":0,",
+          "\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"cmpl-lmstudio\",\"object\":\"chat.co",
+          "mpletion.chunk\",\"created\":1741476777,\"model\":\"qwen/qwen3-8b\",\"choices\":[],\"usage\":{",
+          "\"prompt_tokens\":24,\"completion_tokens\":9,\"total_tokens\":33,\"prompt_tokens_details\":",
+          "{\"cached_tokens\":8,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens",
+          "\":3,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}",
+          "}}\n\ndata: [DONE]\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

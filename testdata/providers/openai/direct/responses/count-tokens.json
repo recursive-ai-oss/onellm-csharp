@@ -1,0 +1,55 @@
+{
+  "format": 1,
+  "description": "Input token counting. Written from the reference (https://developers.openai.com/api/reference/resources/responses/subresources/input_tokens/methods/count); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses/input_tokens",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Count me."
+            }
+          ],
+          "instructions": "You are terse.",
+          "tools": [
+            {
+              "type": "function",
+              "name": "get_weather",
+              "description": "Gets the weather for a city.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city"
+                ],
+                "additionalProperties": false
+              },
+              "strict": false
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "response.input_tokens",
+          "input_tokens": 37
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

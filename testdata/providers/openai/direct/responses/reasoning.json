@@ -1,0 +1,191 @@
+{
+  "format": 1,
+  "description": "A reasoning call with a summary and encrypted content, then the next turn replaying the reasoning item exactly. Written from the reference (https://developers.openai.com/api/reference/resources/responses/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "What is the answer?"
+            }
+          ],
+          "reasoning": {
+            "effort": "medium",
+            "summary": "auto"
+          },
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "resp_rs_1",
+          "object": "response",
+          "created_at": 1741476777,
+          "status": "completed",
+          "error": null,
+          "incomplete_details": null,
+          "model": "gpt-6.1-terra",
+          "output": [
+            {
+              "type": "reasoning",
+              "id": "rs_1",
+              "summary": [
+                {
+                  "type": "summary_text",
+                  "text": "Considering the question."
+                },
+                {
+                  "type": "summary_text",
+                  "text": "Choosing a short answer."
+                }
+              ],
+              "encrypted_content": "gAAAAA_synthetic_encrypted_content_1"
+            },
+            {
+              "type": "message",
+              "id": "msg_rs_1",
+              "status": "completed",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "42",
+                  "annotations": [],
+                  "logprobs": []
+                }
+              ]
+            }
+          ],
+          "parallel_tool_calls": true,
+          "store": false,
+          "usage": {
+            "input_tokens": 30,
+            "input_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0
+            },
+            "output_tokens": 160,
+            "output_tokens_details": {
+              "reasoning_tokens": 120
+            },
+            "total_tokens": 190
+          },
+          "reasoning": {
+            "effort": "medium",
+            "summary": "auto",
+            "context": "auto"
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "What is the answer?"
+            },
+            {
+              "type": "reasoning",
+              "id": "rs_1",
+              "summary": [
+                {
+                  "type": "summary_text",
+                  "text": "Considering the question."
+                },
+                {
+                  "type": "summary_text",
+                  "text": "Choosing a short answer."
+                }
+              ],
+              "encrypted_content": "gAAAAA_synthetic_encrypted_content_1"
+            },
+            {
+              "role": "assistant",
+              "content": "42"
+            },
+            {
+              "role": "user",
+              "content": "Why?"
+            }
+          ],
+          "reasoning": {
+            "effort": "medium",
+            "summary": "auto"
+          },
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "resp_rs_2",
+          "object": "response",
+          "created_at": 1741476777,
+          "status": "completed",
+          "error": null,
+          "incomplete_details": null,
+          "model": "gpt-6.1-terra",
+          "output": [
+            {
+              "type": "message",
+              "id": "msg_rs_2",
+              "status": "completed",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Because it is 6 times 7.",
+                  "annotations": [],
+                  "logprobs": []
+                }
+              ]
+            }
+          ],
+          "parallel_tool_calls": true,
+          "store": false,
+          "usage": {
+            "input_tokens": 210,
+            "input_tokens_details": {
+              "cached_tokens": 128,
+              "cache_write_tokens": 0
+            },
+            "output_tokens": 20,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 230
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "format": 1,
+  "description": "The remote MCP hosted tool: tool listing and a call. Written from the reference (https://developers.openai.com/api/reference/resources/responses/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Search the docs."
+            }
+          ],
+          "tools": [
+            {
+              "type": "mcp",
+              "server_label": "docs",
+              "server_url": "https://mcp.example.com/sse",
+              "require_approval": "never"
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "resp_mcp_1",
+          "object": "response",
+          "created_at": 1741476777,
+          "status": "completed",
+          "error": null,
+          "incomplete_details": null,
+          "model": "gpt-6.1-terra",
+          "output": [
+            {
+              "type": "mcp_list_tools",
+              "id": "mcpl_1",
+              "server_label": "docs",
+              "tools": [
+                {
+                  "name": "search",
+                  "description": "Search the docs.",
+                  "input_schema": {
+                    "type": "object",
+                    "properties": {
+                      "q": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "mcp_call",
+              "id": "mcp_1",
+              "server_label": "docs",
+              "name": "search",
+              "arguments": "{\"q\":\"limits\"}",
+              "output": "Limits are documented.",
+              "error": null,
+              "status": "completed"
+            },
+            {
+              "type": "message",
+              "id": "msg_mcp_1",
+              "status": "completed",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Limits are documented.",
+                  "annotations": [],
+                  "logprobs": []
+                }
+              ]
+            }
+          ],
+          "parallel_tool_calls": true,
+          "store": false,
+          "usage": {
+            "input_tokens": 140,
+            "input_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0
+            },
+            "output_tokens": 22,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 162
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

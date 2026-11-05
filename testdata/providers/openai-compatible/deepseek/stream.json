@@ -1,0 +1,62 @@
+{
+  "format": 1,
+  "description": "The same call to the deepseek preset streamed: the message must equal chat.json's. Written from the reference (https://api-docs.deepseek.com/guides/reasoning_model); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/chat/completions",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "deepseek-reasoner",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "max_tokens": 64
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          ": keep-alive\n\ndata: {\"id\":\"cmpl-deepseek\",\"object\":\"chat.completion.chunk\",\"created",
+          "\":1741476777,\"model\":\"deepseek-reasoner\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"ass",
+          "istant\",\"content\":\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-deepseek\",\"object\"",
+          ":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"deepseek-reasoner\",\"choices\"",
+          ":[{\"index\":0,\"delta\":{\"reasoning_content\":\"Thinking about \"},\"finish_reason\":null}]",
+          "}\n\ndata: {\"id\":\"cmpl-deepseek\",\"object\":\"chat.completion.chunk\",\"created\":174147677",
+          "7,\"model\":\"deepseek-reasoner\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"a",
+          " greeting.\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-deepseek\",\"object\":\"chat.co",
+          "mpletion.chunk\",\"created\":1741476777,\"model\":\"deepseek-reasoner\",\"choices\":[{\"index",
+          "\":0,\"delta\":{\"content\":\"Hel\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-deepseek\",",
+          "\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"deepseek-reasoner\",\"",
+          "choices\":[{\"index\":0,\"delta\":{\"content\":\"lo!\"},\"finish_reason\":null}]}\n\ndata: {\"id\"",
+          ":\"cmpl-deepseek\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"dee",
+          "pseek-reasoner\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: {",
+          "\"id\":\"cmpl-deepseek\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":",
+          "\"deepseek-reasoner\",\"choices\":[],\"usage\":{\"prompt_tokens\":24,\"completion_tokens\":9,",
+          "\"total_tokens\":33,\"prompt_tokens_details\":{\"cached_tokens\":0,\"audio_tokens\":0},\"com",
+          "pletion_tokens_details\":{\"reasoning_tokens\":3,\"audio_tokens\":0,\"accepted_prediction",
+          "_tokens\":0,\"rejected_prediction_tokens\":0},\"prompt_cache_hit_tokens\":8,\"prompt_cach",
+          "e_miss_tokens\":16}}\n\ndata: [DONE]\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

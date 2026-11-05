@@ -1,0 +1,67 @@
+{
+  "format": 1,
+  "description": "A plain call to the together preset. Written from the reference (https://docs.together.ai/docs/openai-api-compatibility); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "max_tokens": 64
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "cmpl-together",
+          "object": "chat.completion",
+          "created": 1741476777,
+          "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hello!",
+                "reasoning_content": "Thinking about a greeting."
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 24,
+            "completion_tokens": 9,
+            "total_tokens": 33,
+            "prompt_tokens_details": {
+              "cached_tokens": 8,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 3,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

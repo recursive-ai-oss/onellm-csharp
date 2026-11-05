@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The C# snippets in README.md and docs/getting-started.md, compiled so they cannot drift from the API. It is built, never run. -->
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>$(LibName).Samples.DocSnippets</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
+    <ProjectReference Include="../../src/OneLlm.Web/OneLlm.Web.csproj" />
+    <ProjectReference Include="../../src/OneLlm.Extensions.AI/OneLlm.Extensions.AI.csproj" />
+    <ProjectReference Include="../../src/OneLlm.Generators/OneLlm.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

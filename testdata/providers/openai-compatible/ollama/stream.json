@@ -1,0 +1,60 @@
+{
+  "format": 1,
+  "description": "The same call to the ollama preset streamed: the message must equal chat.json's. Written from the reference (https://docs.ollama.com/api/openai-compatibility); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "llama3.2",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "max_tokens": 64
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "data: {\"id\":\"cmpl-ollama\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"mo",
+          "del\":\"llama3.2\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"fi",
+          "nish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-ollama\",\"object\":\"chat.completion.chunk\",\"c",
+          "reated\":1741476777,\"model\":\"llama3.2\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning\":\"T",
+          "hinking about \"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-ollama\",\"object\":\"chat.",
+          "completion.chunk\",\"created\":1741476777,\"model\":\"llama3.2\",\"choices\":[{\"index\":0,\"de",
+          "lta\":{\"reasoning\":\"a greeting.\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-ollama\"",
+          ",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"llama3.2\",\"choices\"",
+          ":[{\"index\":0,\"delta\":{\"content\":\"Hel\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-o",
+          "llama\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"llama3.2\",\"ch",
+          "oices\":[{\"index\":0,\"delta\":{\"content\":\"lo!\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"",
+          "cmpl-ollama\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"llama3.",
+          "2\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"cmpl-ol",
+          "lama\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"llama3.2\",\"cho",
+          "ices\":[],\"usage\":{\"prompt_tokens\":24,\"completion_tokens\":9,\"total_tokens\":33,\"promp",
+          "t_tokens_details\":{\"cached_tokens\":8,\"audio_tokens\":0},\"completion_tokens_details\":",
+          "{\"reasoning_tokens\":3,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_pre",
+          "diction_tokens\":0}}}\n\ndata: [DONE]\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

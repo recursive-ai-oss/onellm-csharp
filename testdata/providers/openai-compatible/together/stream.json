@@ -1,0 +1,63 @@
+{
+  "format": 1,
+  "description": "The same call to the together preset streamed: the message must equal chat.json's. Written from the reference (https://docs.together.ai/docs/openai-api-compatibility); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "max_tokens": 64
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "data: {\"id\":\"cmpl-together\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"",
+          "model\":\"meta-llama/Llama-3.3-70B-Instruct-Turbo\",\"choices\":[{\"index\":0,\"delta\":{\"ro",
+          "le\":\"assistant\",\"content\":\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-together\",",
+          "\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"meta-llama/Llama-3.3",
+          "-70B-Instruct-Turbo\",\"choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"Thinking a",
+          "bout \"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-together\",\"object\":\"chat.complet",
+          "ion.chunk\",\"created\":1741476777,\"model\":\"meta-llama/Llama-3.3-70B-Instruct-Turbo\",\"",
+          "choices\":[{\"index\":0,\"delta\":{\"reasoning_content\":\"a greeting.\"},\"finish_reason\":nu",
+          "ll}]}\n\ndata: {\"id\":\"cmpl-together\",\"object\":\"chat.completion.chunk\",\"created\":17414",
+          "76777,\"model\":\"meta-llama/Llama-3.3-70B-Instruct-Turbo\",\"choices\":[{\"index\":0,\"delt",
+          "a\":{\"content\":\"Hel\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-together\",\"object\":",
+          "\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"meta-llama/Llama-3.3-70B-Inst",
+          "ruct-Turbo\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo!\"},\"finish_reason\":null}]}",
+          "\n\ndata: {\"id\":\"cmpl-together\",\"object\":\"chat.completion.chunk\",\"created\":1741476777",
+          ",\"model\":\"meta-llama/Llama-3.3-70B-Instruct-Turbo\",\"choices\":[{\"index\":0,\"delta\":{}",
+          ",\"finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"cmpl-together\",\"object\":\"chat.completion.c",
+          "hunk\",\"created\":1741476777,\"model\":\"meta-llama/Llama-3.3-70B-Instruct-Turbo\",\"choic",
+          "es\":[],\"usage\":{\"prompt_tokens\":24,\"completion_tokens\":9,\"total_tokens\":33,\"prompt_",
+          "tokens_details\":{\"cached_tokens\":8,\"audio_tokens\":0},\"completion_tokens_details\":{\"",
+          "reasoning_tokens\":3,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_predi",
+          "ction_tokens\":0}}}\n\ndata: [DONE]\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

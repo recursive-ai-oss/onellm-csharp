@@ -1,0 +1,104 @@
+{
+  "format": 1,
+  "description": "The file search hosted tool with a file citation. Written from the reference (https://developers.openai.com/api/reference/resources/responses/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "What does the policy say?"
+            }
+          ],
+          "tools": [
+            {
+              "type": "file_search",
+              "vector_store_ids": [
+                "vs_synthetic"
+              ]
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "resp_fs_1",
+          "object": "response",
+          "created_at": 1741476777,
+          "status": "completed",
+          "error": null,
+          "incomplete_details": null,
+          "model": "gpt-6.1-terra",
+          "output": [
+            {
+              "type": "file_search_call",
+              "id": "fs_1",
+              "status": "completed",
+              "queries": [
+                "policy summary"
+              ],
+              "results": [
+                {
+                  "file_id": "file_abc",
+                  "filename": "policy.txt",
+                  "score": 0.91,
+                  "text": "Synthetic policy text."
+                }
+              ]
+            },
+            {
+              "type": "message",
+              "id": "msg_fs_1",
+              "status": "completed",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "The policy says so.",
+                  "annotations": [
+                    {
+                      "type": "file_citation",
+                      "file_id": "file_abc",
+                      "filename": "policy.txt",
+                      "index": 21
+                    }
+                  ],
+                  "logprobs": []
+                }
+              ]
+            }
+          ],
+          "parallel_tool_calls": true,
+          "store": false,
+          "usage": {
+            "input_tokens": 210,
+            "input_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0
+            },
+            "output_tokens": 30,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 240
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

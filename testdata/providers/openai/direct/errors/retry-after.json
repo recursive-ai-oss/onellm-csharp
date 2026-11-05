@@ -1,0 +1,110 @@
+{
+  "format": 1,
+  "description": "A rate limit that asks for seven seconds, then success. Written from the reference (https://developers.openai.com/api/docs/guides/error-codes); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Hi."
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 429,
+        "body": {
+          "error": {
+            "message": "Rate limit reached",
+            "type": "requests",
+            "param": null,
+            "code": "rate_limit_exceeded"
+          }
+        },
+        "headers": {
+          "retry-after": "7",
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Hi."
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "resp_retry_1",
+          "object": "response",
+          "created_at": 1741476777,
+          "status": "completed",
+          "error": null,
+          "incomplete_details": null,
+          "model": "gpt-6.1-terra",
+          "output": [
+            {
+              "type": "message",
+              "id": "msg_retry_1",
+              "status": "completed",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Back again.",
+                  "annotations": [],
+                  "logprobs": []
+                }
+              ]
+            }
+          ],
+          "parallel_tool_calls": true,
+          "store": false,
+          "usage": {
+            "input_tokens": 10,
+            "input_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0
+            },
+            "output_tokens": 3,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 13
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

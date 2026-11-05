@@ -1,0 +1,85 @@
+{
+  "format": 1,
+  "description": "A JSON schema response format. Written from the reference (https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-4.1",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Weather as JSON."
+            }
+          ],
+          "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+              "name": "weather",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "temp_c": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "city",
+                  "temp_c"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "chatcmpl-syn4",
+          "object": "chat.completion",
+          "created": 1741476777,
+          "model": "gpt-4.1-2025-04-14",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "{\"city\":\"Paris\",\"temp_c\":14}",
+                "refusal": null
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 55,
+            "completion_tokens": 12,
+            "total_tokens": 67,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

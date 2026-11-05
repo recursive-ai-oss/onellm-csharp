@@ -251,6 +251,9 @@ public sealed record ChatResponse
     /// <summary>What the call consumed. The same object as <see cref="Messages.Message.Usage"/>.</summary>
     public Usage? Usage => Message.Usage;
 
+    /// <summary>Notices about parameters the provider stripped or changed because the model does not take them, one line each. Empty when nothing was.</summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+
     /// <summary>What the call cost, once priced from the catalog. Null until then.</summary>
     public Cost? Cost { get; init; }
 }

@@ -1,0 +1,121 @@
+{
+  "format": 1,
+  "description": "The first call of function-tools.json streamed: text, then two calls whose arguments arrive in pieces. Written from the reference (https://developers.openai.com/api/reference/resources/responses/streaming-events); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Weather and time in Paris?"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "name": "get_weather",
+              "description": "Gets the weather for a city.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "city"
+                ],
+                "additionalProperties": false
+              },
+              "strict": false
+            },
+            {
+              "type": "function",
+              "name": "get_time",
+              "description": "Gets the time in a zone.",
+              "parameters": {
+                "type": "object",
+                "properties": {
+                  "zone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "zone"
+                ],
+                "additionalProperties": false
+              },
+              "strict": true
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false,
+          "stream": true
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_fn_1\",\"object\":\"response\",\"crea",
+          "ted_at\":1741476777,\"status\":\"in_progress\",\"error\":null,\"incomplete_details\":null,\"model\":\"gpt-6.1-terra\",\"output\":[],\"parallel_tool",
+          "_calls\":true,\"store\":false,\"usage\":null}}\n\nevent: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":1,\"re",
+          "sponse\":{\"id\":\"resp_fn_1\",\"object\":\"response\",\"created_at\":1741476777,\"status\":\"in_progress\",\"error\":null,\"incomplete_details\":null",
+          ",\"model\":\"gpt-6.1-terra\",\"output\":[],\"parallel_tool_calls\":true,\"store\":false,\"usage\":null}}\n\nevent: response.created\ndata: {\"type\"",
+          ":\"response.created\",\"sequence_number\":2,\"response\":{\"id\":\"resp_fn_1\",\"object\":\"response\",\"created_at\":1741476777,\"status\":\"in_progr",
+          "ess\",\"error\":null,\"incomplete_details\":null,\"model\":\"gpt-6.1-terra\",\"output\":[],\"parallel_tool_calls\":true,\"store\":false,\"usage\":nu",
+          "ll}}\n\nevent: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":3,\"response\":{\"id\":\"resp_fn_1\",\"object\":\"r",
+          "esponse\",\"created_at\":1741476777,\"status\":\"in_progress\",\"error\":null,\"incomplete_details\":null,\"model\":\"gpt-6.1-terra\",\"output\":[],",
+          "\"parallel_tool_calls\":true,\"store\":false,\"usage\":null}}\n\nevent: response.output_item.added\ndata: {\"type\":\"response.output_item.adde",
+          "d\",\"sequence_number\":4,\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"msg_fn_1\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content",
+          "\":[]}}\n\nevent: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":5,\"item_id\":\"msg_fn_1\",\"ou",
+          "tput_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"\",\"annotations\":[],\"logprobs\":[]}}\n\nevent: response.output_tex",
+          "t.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":6,\"item_id\":\"msg_fn_1\",\"output_index\":0,\"content_index\":0,\"del",
+          "ta\":\"Let me \",\"logprobs\":[]}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":7,\"ite",
+          "m_id\":\"msg_fn_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"check.\",\"logprobs\":[]}\n\nevent: response.output_text.done\ndata: {\"type\"",
+          ":\"response.output_text.done\",\"sequence_number\":8,\"item_id\":\"msg_fn_1\",\"output_index\":0,\"content_index\":0,\"text\":\"Let me check.\",\"lo",
+          "gprobs\":[]}\n\nevent: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":9,\"item_id\":\"msg_fn_1\",",
+          "\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"Let me check.\",\"annotations\":[],\"logprobs\":[]}}\n\nevent: res",
+          "ponse.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":10,\"output_index\":0,\"item\":{\"type\":\"message\",\"id",
+          "\":\"msg_fn_1\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Let me check.\",\"annotations\":[],\"logp",
+          "robs\":[]}]}}\n\nevent: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":11,\"output_index\":1,\"i",
+          "tem\":{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_a1\",\"name\":\"get_weather\",\"arguments\":\"\",\"status\":\"in_progress\"}}\n\nevent: r",
+          "esponse.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"sequence_number\":12,\"item_id\":\"fc_1\",",
+          "\"output_index\":1,\"delta\":\"{\\\"city\\\":\"}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_argumen",
+          "ts.delta\",\"sequence_number\":13,\"item_id\":\"fc_1\",\"output_index\":1,\"delta\":\"\\\"Paris\\\"}\"}\n\nevent: response.function_call_arguments.don",
+          "e\ndata: {\"type\":\"response.function_call_arguments.done\",\"sequence_number\":14,\"item_id\":\"fc_1\",\"output_index\":1,\"name\":\"get_weather\"",
+          ",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":",
+          "15,\"output_index\":1,\"item\":{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_a1\",\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Pa",
+          "ris\\\"}\",\"status\":\"completed\"}}\n\nevent: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":16,\"",
+          "output_index\":2,\"item\":{\"type\":\"function_call\",\"id\":\"fc_2\",\"call_id\":\"call_b2\",\"name\":\"get_time\",\"arguments\":\"\",\"status\":\"in_progre",
+          "ss\"}}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"sequence_number\":17,\"i",
+          "tem_id\":\"fc_2\",\"output_index\":2,\"delta\":\"{\\\"zone\\\":\\\"Eu\"}\n\nevent: response.function_call_arguments.delta\ndata: {\"type\":\"response.fu",
+          "nction_call_arguments.delta\",\"sequence_number\":18,\"item_id\":\"fc_2\",\"output_index\":2,\"delta\":\"rope/Paris\\\"}\"}\n\nevent: response.funct",
+          "ion_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"sequence_number\":19,\"item_id\":\"fc_2\",\"output_index\":",
+          "2,\"name\":\"get_time\",\"arguments\":\"{\\\"zone\\\":\\\"Europe/Paris\\\"}\"}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_ite",
+          "m.done\",\"sequence_number\":20,\"output_index\":2,\"item\":{\"type\":\"function_call\",\"id\":\"fc_2\",\"call_id\":\"call_b2\",\"name\":\"get_time\",\"arg",
+          "uments\":\"{\\\"zone\\\":\\\"Europe/Paris\\\"}\",\"status\":\"completed\"}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"sequenc",
+          "e_number\":21,\"response\":{\"id\":\"resp_fn_1\",\"object\":\"response\",\"created_at\":1741476777,\"status\":\"completed\",\"error\":null,\"incomplete",
+          "_details\":null,\"model\":\"gpt-6.1-terra\",\"output\":[{\"type\":\"message\",\"id\":\"msg_fn_1\",\"status\":\"completed\",\"role\":\"assistant\",\"content",
+          "\":[{\"type\":\"output_text\",\"text\":\"Let me check.\",\"annotations\":[],\"logprobs\":[]}]},{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"ca",
+          "ll_a1\",\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\",\"status\":\"completed\"},{\"type\":\"function_call\",\"id\":\"fc_2\",\"call_id\":",
+          "\"call_b2\",\"name\":\"get_time\",\"arguments\":\"{\\\"zone\\\":\\\"Europe/Paris\\\"}\",\"status\":\"completed\"}],\"parallel_tool_calls\":true,\"store\":fal",
+          "se,\"usage\":{\"input_tokens\":80,\"input_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0},\"output_tokens\":45,\"output_tokens_d",
+          "etails\":{\"reasoning_tokens\":0},\"total_tokens\":125}}}\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

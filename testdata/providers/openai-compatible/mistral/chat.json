@@ -1,0 +1,66 @@
+{
+  "format": 1,
+  "description": "A plain call to the mistral preset. Written from the reference (https://docs.mistral.ai/api/); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "mistral-small-latest",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "max_tokens": 64
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "cmpl-mistral",
+          "object": "chat.completion",
+          "created": 1741476777,
+          "model": "mistral-small-latest",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hello!"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 24,
+            "completion_tokens": 9,
+            "total_tokens": 33,
+            "prompt_tokens_details": {
+              "cached_tokens": 8,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "description": "A Chat Completions call in the deployment-path form with an api-version. Written from the Azure OpenAI documentation; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/openai/deployments/my-gpt-deployment/chat/completions?api-version=2024-10-21",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-4.1",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are terse."
+            },
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "max_completion_tokens": 64,
+          "temperature": 0.2
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "chatcmpl-syn1",
+          "object": "chat.completion",
+          "created": 1741476777,
+          "model": "gpt-4.1-2025-04-14",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "Hello! How can I help?",
+                "refusal": null,
+                "annotations": []
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 24,
+            "completion_tokens": 9,
+            "total_tokens": 33,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          },
+          "service_tier": "default"
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

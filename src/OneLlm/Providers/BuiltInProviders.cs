@@ -16,6 +16,7 @@ public static class BuiltInProviders
     {
         AnthropicCatalog.Register();
         OpenAICatalog.Register();
+        TypeSafe.TypeSafeCatalog.Register();
         // The Gemini provider registers its catalog in its static constructor (the first time the type is used); running it here
         // makes the default catalog the same whether or not a Gemini client has been made yet.
         RuntimeHelpers.RunClassConstructor(typeof(GeminiProvider).TypeHandle);
@@ -41,6 +42,9 @@ public static class BuiltInProviders
 
             return new OpenAICompatibleProvider(ctx.Model.PresetName ?? OpenAICompatibleProvider.CatalogProvider, new OpenAIOptions { ApiKey = ctx.ApiKey, BaseUrl = address }, ctx.TimeProvider);
         });
+        registry.Register("typesafe", static ctx => new TypeSafe.JevProvider(
+            new TypeSafe.JevOptions { ApiKey = ctx.ApiKey ?? throw new AuthException("typesafe", "No API key. Set the environment variable TYPESAFE_API_KEY.", null) },
+            ctx.TimeProvider));
         registry.Register("gemini", static ctx => new GeminiProvider(new GeminiOptions
         {
             Time = ctx.TimeProvider,

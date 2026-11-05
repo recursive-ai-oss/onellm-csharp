@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
+using OneLlm.Deciders;
+using OneLlm.Definitions;
 using OneLlm.Instances;
 using OneLlm.Messages;
 using OneLlm.Records;
@@ -213,6 +215,96 @@ public static class Llm
         JsonElement element = JsonSerializer.SerializeToElement(inputs, inputs.GetType(), ReflectionOptions());
         return Default.RunScriptAsync(path, ToDictionary(element), cancellationToken);
     }
+
+    /// <summary>
+    /// Runs an agent definition to the end of its run: the prompts are rendered, then the model and its tools loop until a loop-ending tool
+    /// such as <c>task_complete</c> runs, the model answers without a tool, a call needs approval, or <c>maxIterations</c> is reached.
+    /// The tools the definition references must be registered on <see cref="Runtime.Tools"/>; nothing is granted by the definition.
+    /// </summary>
+    /// <param name="path">The definition file.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run; the instance is kept as <c>stopped</c> with <c>cancelled: true</c> and its partial output.</param>
+    /// <returns>The answer, usage, cost and the instance. <see cref="Agents.AgentResult.StopReason"/> says why it stopped.</returns>
+    /// <exception cref="BadDefinitionException">The file is invalid or references a tool the runtime does not offer.</exception>
+    /// <exception cref="RunCancelledException">The token was cancelled.</exception>
+    public static Task<Agents.AgentResult> RunAgentAsync(string path, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        Default.RunAgentAsync(path, inputs, null, cancellationToken);
+
+    /// <summary>Runs an agent definition with inputs from a typed value, read through its serialization metadata (trim and AOT safe).</summary>
+    /// <typeparam name="TInputs">The inputs type.</typeparam>
+    /// <param name="path">The definition file.</param>
+    /// <param name="inputs">The inputs.</param>
+    /// <param name="typeInfo">Serialization metadata for <typeparamref name="TInputs"/>.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The agent's result.</returns>
+    public static Task<Agents.AgentResult> RunAgentAsync<TInputs>(string path, TInputs inputs, JsonTypeInfo<TInputs> typeInfo, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+        JsonElement element = JsonSerializer.SerializeToElement(inputs, typeInfo);
+        return Default.RunAgentAsync(path, ToDictionary(element), null, cancellationToken);
+    }
+
+    /// <summary>Starts an agent and returns at once with a handle: follow its events, send it messages, approve or deny held tool calls, and await its result.</summary>
+    /// <param name="path">The definition file.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the start, not the running agent; use <see cref="Agents.AgentRun.CancelAsync"/> for that.</param>
+    /// <returns>The running agent.</returns>
+    public static Task<Agents.AgentRun> StartAgentAsync(string path, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        Default.StartAgentAsync(path, inputs, null, cancellationToken);
+
+    /// <summary>Starts an agent with inputs from a typed value, read through its serialization metadata (trim and AOT safe).</summary>
+    /// <typeparam name="TInputs">The inputs type.</typeparam>
+    /// <param name="path">The definition file.</param>
+    /// <param name="inputs">The inputs.</param>
+    /// <param name="typeInfo">Serialization metadata for <typeparamref name="TInputs"/>.</param>
+    /// <param name="cancellationToken">Cancels the start.</param>
+    /// <returns>The running agent.</returns>
+    public static Task<Agents.AgentRun> StartAgentAsync<TInputs>(string path, TInputs inputs, JsonTypeInfo<TInputs> typeInfo, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+        JsonElement element = JsonSerializer.SerializeToElement(inputs, typeInfo);
+        return Default.StartAgentAsync(path, ToDictionary(element), null, cancellationToken);
+    }
+
+    /// <summary>Runs a decider from a <c>decider.yaml</c> (or the directory holding it) and returns its answers and outputs.</summary>
+    /// <param name="path">The decider.yaml or its directory.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The answers, outputs, cost and the instance that recorded the run.</returns>
+    /// <exception cref="BadDefinitionException">The decider is invalid; it names file, line and column.</exception>
+    /// <exception cref="RefusedException">The engine declined to answer a question.</exception>
+    public static Task<DecisionResult> DecideAsync(string path, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        Default.DecideAsync(path, inputs, cancellationToken);
+
+    /// <summary>Runs a decider that is already loaded, such as the <c>Decider</c> property of a generated C# decider.</summary>
+    /// <param name="decider">The decider.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The answers, outputs, cost and the instance that recorded the run.</returns>
+    public static Task<DecisionResult> DecideAsync(Decider decider, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        Default.DecideAsync(decider, inputs, cancellationToken);
+
+    /// <summary>Runs a decider from a file and reads its outputs into a type through its serialization metadata (trim and AOT safe).</summary>
+    /// <typeparam name="T">The outputs type.</typeparam>
+    /// <param name="path">The decider.yaml or its directory.</param>
+    /// <param name="typeInfo">Serialization metadata for <typeparamref name="T"/>.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The outputs.</returns>
+    /// <exception cref="JsonException">The outputs do not fit <typeparamref name="T"/>.</exception>
+    public static async Task<T> DecideAsync<T>(string path, JsonTypeInfo<T> typeInfo, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        (await Default.DecideAsync(path, inputs, cancellationToken).ConfigureAwait(false)).GetOutputs(typeInfo);
+
+    /// <summary>Runs a loaded decider and reads its outputs into a type through its serialization metadata (trim and AOT safe).</summary>
+    /// <typeparam name="T">The outputs type.</typeparam>
+    /// <param name="decider">The decider.</param>
+    /// <param name="typeInfo">Serialization metadata for <typeparamref name="T"/>.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The outputs.</returns>
+    /// <exception cref="JsonException">The outputs do not fit <typeparamref name="T"/>.</exception>
+    public static async Task<T> DecideAsync<T>(Decider decider, JsonTypeInfo<T> typeInfo, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        (await Default.DecideAsync(decider, inputs, cancellationToken).ConfigureAwait(false)).GetOutputs(typeInfo);
 
     private static JsonSerializerOptions? s_reflectionOptions;
 

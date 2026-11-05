@@ -1,0 +1,13 @@
+model: dec-1
+state:
+  title: "{{ .inputs.title }}"
+questions:
+  topic:
+    type: choice
+    instructions: Which team should handle the ticket?
+    criteria:
+      billing: Charges and refunds
+      orders: Delivery and returns
+  angry:
+    type: noul
+    instructions: Is the customer angry?

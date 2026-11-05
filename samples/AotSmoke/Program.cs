@@ -40,10 +40,13 @@ ok &= catalog.Resolve("small").Name == "demo-small";
 ok &= OneLlm.AotSmoke.PricingExercise.Run() == 0;
 ok &= await OneLlm.AotSmoke.DefinitionsExercise.RunAsync();
 ok &= await OneLlm.AotSmoke.RuntimeExercise.RunAsync();
+ok &= await OneLlm.AotSmoke.DeploymentsExercise.RunAsync();
 
 ok &= OneLlm.AotSmoke.ToolExercise.Run() == 0;
 ok &= OneLlm.AotSmoke.MediaExercise.Run() == 0;
 ok &= await OneLlm.AotSmoke.BuiltinsExercise.RunAsync();
+ok &= await OneLlm.AotSmoke.AgentExercise.RunAsync();
+ok &= await OneLlm.AotSmoke.DeciderExercise.RunAsync();
 ok &= OneLlm.AotSmoke.AnthropicSmoke.Run() == 0;
 await OneLlm.AotSmoke.OpenAiExercise.RunAsync();
 await OneLlm.AotSmoke.GeminiSmoke.RunAsync();

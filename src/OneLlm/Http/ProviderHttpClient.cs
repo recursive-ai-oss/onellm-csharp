@@ -35,7 +35,7 @@ public sealed class ProviderHttpClient
     private readonly HttpClient _http;
     private readonly RetryPolicy _retry;
     private readonly TimeProvider _time;
-    private readonly Secret[] _secrets;
+    private readonly IEnumerable<Secret> _secrets;
     private readonly TimeSpan _timeout;
     private readonly Func<double> _jitter;
     private readonly ProviderErrorMapper? _mapper;
@@ -63,7 +63,8 @@ public sealed class ProviderHttpClient
         _time = time ?? throw new ArgumentNullException(nameof(time));
         _http = http ?? SharedHttpClient.Instance;
         _retry = retry ?? RetryPolicy.Default;
-        _secrets = secrets is null ? [] : [.. secrets];
+        // A live set is kept by reference so tokens minted later are scrubbed too; anything else is copied.
+        _secrets = secrets as LiveSecrets ?? (secrets is null ? [] : [.. secrets]);
         _timeout = timeout ?? TimeSpan.FromMinutes(10);
         // Jitter only spreads out retries; it needs no unpredictability.
         _jitter = jitter ?? (() => Random.Shared.NextDouble());

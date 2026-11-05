@@ -1,0 +1,21 @@
+{
+  "description": "Signing a Bedrock InvokeModel request. Expected values computed with an independent implementation of the documented algorithm (Python hmac and hashlib), not with this library.",
+  "url": "https://bedrock-runtime.us-east-1.amazonaws.com/model/us.anthropic.claude-sonnet-4-5-20250929-v1%3A0/invoke",
+  "time": "2026-01-15T10:20:30Z",
+  "region": "us-east-1",
+  "service": "bedrock",
+  "accessKeyId": "AKIDEXAMPLE",
+  "secretAccessKey": "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+  "body": "{\"anthropic_version\":\"bedrock-2023-05-31\",\"max_tokens\":16,\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}]}",
+  "sessionToken": "EXAMPLE-SESSION-TOKEN",
+  "plain": {
+    "canonicalRequest": "POST\n/model/us.anthropic.claude-sonnet-4-5-20250929-v1%253A0/invoke\n\naccept:application/json\ncontent-type:application/json\nhost:bedrock-runtime.us-east-1.amazonaws.com\nx-amz-date:20260115T102030Z\n\naccept;content-type;host;x-amz-date\nf94cc877ef68ce9eecb36d6e8ced75006e95b30524af956903e5921eef6f5997",
+    "stringToSign": "AWS4-HMAC-SHA256\n20260115T102030Z\n20260115/us-east-1/bedrock/aws4_request\n94a8c18ef713082a723592ce6d8c8969e3b292da51e0a8f1e23f069674b72696",
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260115/us-east-1/bedrock/aws4_request, SignedHeaders=accept;content-type;host;x-amz-date, Signature=c7699a6903bfb0eb562d364c59a99ba6dc1e0fc6144366c5a24dbd6cb1508c98"
+  },
+  "withSessionToken": {
+    "canonicalRequest": "POST\n/model/us.anthropic.claude-sonnet-4-5-20250929-v1%253A0/invoke\n\naccept:application/json\ncontent-type:application/json\nhost:bedrock-runtime.us-east-1.amazonaws.com\nx-amz-date:20260115T102030Z\nx-amz-security-token:EXAMPLE-SESSION-TOKEN\n\naccept;content-type;host;x-amz-date;x-amz-security-token\nf94cc877ef68ce9eecb36d6e8ced75006e95b30524af956903e5921eef6f5997",
+    "stringToSign": "AWS4-HMAC-SHA256\n20260115T102030Z\n20260115/us-east-1/bedrock/aws4_request\n453004e99c07e84c6e2db28e604af39f68755474354c14f7879479a743e5f675",
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20260115/us-east-1/bedrock/aws4_request, SignedHeaders=accept;content-type;host;x-amz-date;x-amz-security-token, Signature=39beed25b90c3eeb61caa2b96d8ce6ec10ffd97701107b45c4c4ff43a59cb66e"
+  }
+}

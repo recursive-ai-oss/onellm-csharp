@@ -5,6 +5,7 @@ displayName: OpenAI
 apiKeyEnvVar: OPENAI_API_KEY
 modelPatterns: ["gpt-*", "o3*", "chatgpt-*", "text-embedding-*"]
 aliases:
+  openai-decisions: gpt-6-luna-decisions
   embedding-small: text-embedding-3-small
   embedding-large: text-embedding-3-large
 capabilities:
@@ -15,6 +16,7 @@ capabilities:
   tools: true
   structuredOutput: true
   batch: true
+  decisions: true
   embeddings: true
   tokenCounting: true
 models:
@@ -187,6 +189,29 @@ models:
           label: long context
       multipliers:
         batch: 0.5
+  # The Decisions API (POST /v1/decisions) answers typed questions about a state. Its only model is gpt-6-luna, which the chat entry below also
+  # names, so the decisions entry has its own catalog name and sends the wire name from properties.wireModel. Pricing from
+  # https://developers.openai.com/api/docs/guides/decisions: uncached input $0.10 per million, output not charged, cache reads and writes at
+  # the model's standard caching rates.
+  - name: gpt-6-luna-decisions
+    displayName: GPT-6 Luna (Decisions API)
+    kind: decision
+    contextWindow: 1050000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: false
+    supportsTemperature: false
+    properties:
+      wireModel: gpt-6-luna
+      maxQuestions: 400
+      maxImages: 0
+    pricing:
+      inputPerMillion: 0.1
+      outputPerMillion: 0
+      cacheReadPerMillion: 0.01
+      cacheCreationPerMillion: 0.125
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/guides/decisions
   - name: gpt-6-luna
     displayName: GPT-6 Luna
     kind: chat

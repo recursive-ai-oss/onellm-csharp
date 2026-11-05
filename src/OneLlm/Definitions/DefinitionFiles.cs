@@ -168,6 +168,7 @@ internal static class DefinitionFiles
 
     private static void ValidateAndGrant(string yaml, string? source, AgentDefinition def, DefinitionLoadOptions options)
     {
+        LocateReferences(yaml, def);
         if (def.MissingKey is not (null or "default" or "error"))
         {
             Problem(yaml, source, def, options, "missingKey", $"missingKey must be 'default' or 'error', not '{def.MissingKey}'.");
@@ -211,6 +212,31 @@ internal static class DefinitionFiles
 
         (int line, int column) = Locate(yaml, pointer);
         throw new BadDefinitionException(message, source, line, column);
+    }
+
+    // Each reference remembers where it was written, so a runtime that cannot offer it can point at the line.
+    private static void LocateReferences(string yaml, AgentDefinition def)
+    {
+        if (def.References.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            using YamlDocument doc = YamlDocument.Parse(yaml);
+            YamlNode list = doc.Root["references"];
+            for (int i = 0; i < def.References.Count; i++)
+            {
+                YamlPosition p = list[i].Position;
+                def.References[i].Line = p.Line;
+                def.References[i].Column = p.Column;
+            }
+        }
+        catch (Exception e) when (e is YamlException or KeyNotFoundException or InvalidOperationException or ArgumentException)
+        {
+            // Positions are only a convenience for error messages.
+        }
     }
 
     private static (int Line, int Column) Locate(string yaml, string pointer)

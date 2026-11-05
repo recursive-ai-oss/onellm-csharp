@@ -1,0 +1,56 @@
+{
+  "format": 1,
+  "description": "The whole-response form of the streamed answer, to check that both build the same message. Written from the Bedrock InvokeModel and InvokeModelWithResponseStream references; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5-5/invoke",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 1024,
+          "system": "You are terse.",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Say hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01StreamTxt",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "Hello, caf\u00e9 \ud83d\ude00\n\"quoted\" \\ done."
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 12,
+            "output_tokens": 15
+          }
+        }
+      }
+    }
+  ]
+}

@@ -160,9 +160,22 @@ public sealed class ContentFilterException : ProviderException
     {
     }
 
+    /// <summary>
+    /// What the provider's filter reported for each category it evaluated, when the error carried that (Azure OpenAI does: hate, sexual, violence,
+    /// self_harm, jailbreak, protected material ...). Empty when the provider gave only a message.
+    /// </summary>
+    public IReadOnlyList<ContentFilterCategory> Categories { get; init; } = [];
+
     /// <inheritdoc />
     public override bool IsTransient => false;
 }
+
+/// <summary>One category a provider's content filter evaluated.</summary>
+/// <param name="Name">The category as the provider names it, for example <c>hate</c> or <c>self_harm</c>.</param>
+/// <param name="Filtered">True when this category caused the block.</param>
+/// <param name="Severity">The severity level the provider reported (<c>safe</c>, <c>low</c>, <c>medium</c>, <c>high</c>), or null for the binary categories.</param>
+/// <param name="Detected">For the binary categories (jailbreak, protected material), whether the content matched; null for the severity categories.</param>
+public sealed record ContentFilterCategory(string Name, bool Filtered, string? Severity = null, bool? Detected = null);
 
 /// <summary>The provider refused the request as malformed or unsupported (HTTP 400, 404, 413, 422), other than a context overflow.</summary>
 public sealed class BadRequestException : ProviderException

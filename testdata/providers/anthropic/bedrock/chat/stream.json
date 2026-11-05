@@ -1,0 +1,38 @@
+{
+  "format": 1,
+  "description": "A streamed chat call through InvokeModelWithResponseStream; each Messages event arrives in a base64 chunk of the AWS event stream. Written from the Bedrock InvokeModel and InvokeModelWithResponseStream references; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5-5/invoke-with-response-stream",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 1024,
+          "system": "You are terse.",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Say hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/vnd.amazon.eventstream"
+        },
+        "bodyBase64": "AAABrAAAAEv6p+ZDCzpldmVudC10eXBlBwAFY2h1bmsNOmNvbnRlbnQtdHlwZQcAEGFwcGxpY2F0aW9uL2pzb24NOm1lc3NhZ2UtdHlwZQcABWV2ZW50eyJieXRlcyI6ICJleUowZVhCbElqb2dJbTFsYzNOaFoyVmZjM1JoY25RaUxDQWliV1Z6YzJGblpTSTZJSHNpYVdRaU9pQWliWE5uWHpBeFUzUnlaV0Z0VkhoMElpd2dJblI1Y0dVaU9pQWliV1Z6YzJGblpTSXNJQ0p5YjJ4bElqb2dJbUZ6YzJsemRHRnVkQ0lzSUNKamIyNTBaVzUwSWpvZ1cxMHNJQ0p0YjJSbGJDSTZJQ0pqYkdGMVpHVXRjMjl1Ym1WMExUVXROU0lzSUNKemRHOXdYM0psWVhOdmJpSTZJRzUxYkd3c0lDSnpkRzl3WDNObGNYVmxibU5sSWpvZ2JuVnNiQ3dnSW5WellXZGxJam9nZXlKcGJuQjFkRjkwYjJ0bGJuTWlPaUF4TWl3Z0ltOTFkSEIxZEY5MGIydGxibk1pT2lBeGZYMTkifVYa3ZkAAADgAAAAS6z4gK4LOmV2ZW50LXR5cGUHAAVjaHVuaw06Y29udGVudC10eXBlBwAQYXBwbGljYXRpb24vanNvbg06bWVzc2FnZS10eXBlBwAFZXZlbnR7ImJ5dGVzIjogImV5SjBlWEJsSWpvZ0ltTnZiblJsYm5SZllteHZZMnRmYzNSaGNuUWlMQ0FpYVc1a1pYZ2lPaUF3TENBaVkyOXVkR1Z1ZEY5aWJHOWpheUk2SUhzaWRIbHdaU0k2SUNKMFpYaDBJaXdnSW5SbGVIUWlPaUFpSW4xOSJ9FtyCpgAAAIAAAABLNcr34ws6ZXZlbnQtdHlwZQcABWNodW5rDTpjb250ZW50LXR5cGUHABBhcHBsaWNhdGlvbi9qc29uDTptZXNzYWdlLXR5cGUHAAVldmVudHsiYnl0ZXMiOiAiZXlKMGVYQmxJam9nSW5CcGJtY2lmUT09In1CqKewAAAA5AAAAEtZeCZuCzpldmVudC10eXBlBwAFY2h1bmsNOmNvbnRlbnQtdHlwZQcAEGFwcGxpY2F0aW9uL2pzb24NOm1lc3NhZ2UtdHlwZQcABWV2ZW50eyJieXRlcyI6ICJleUowZVhCbElqb2dJbU52Ym5SbGJuUmZZbXh2WTJ0ZlpHVnNkR0VpTENBaWFXNWtaWGdpT2lBd0xDQWlaR1ZzZEdFaU9pQjdJblI1Y0dVaU9pQWlkR1Y0ZEY5a1pXeDBZU0lzSUNKMFpYaDBJam9nSWtobGJHeHZJbjE5In3yRdEiAAAA8AAAAEvMGBcsCzpldmVudC10eXBlBwAFY2h1bmsNOmNvbnRlbnQtdHlwZQcAEGFwcGxpY2F0aW9uL2pzb24NOm1lc3NhZ2UtdHlwZQcABWV2ZW50eyJieXRlcyI6ICJleUowZVhCbElqb2dJbU52Ym5SbGJuUmZZbXh2WTJ0ZlpHVnNkR0VpTENBaWFXNWtaWGdpT2lBd0xDQWlaR1ZzZEdFaU9pQjdJblI1Y0dVaU9pQWlkR1Y0ZEY5a1pXeDBZU0lzSUNKMFpYaDBJam9nSWl3Z1kyRm1YSFV3TUdVNUlDSjlmUT09In3yGCsNAAABDAAAAEuKgHnVCzpldmVudC10eXBlBwAFY2h1bmsNOmNvbnRlbnQtdHlwZQcAEGFwcGxpY2F0aW9uL2pzb24NOm1lc3NhZ2UtdHlwZQcABWV2ZW50eyJieXRlcyI6ICJleUowZVhCbElqb2dJbU52Ym5SbGJuUmZZbXh2WTJ0ZlpHVnNkR0VpTENBaWFXNWtaWGdpT2lBd0xDQWlaR1ZzZEdFaU9pQjdJblI1Y0dVaU9pQWlkR1Y0ZEY5a1pXeDBZU0lzSUNKMFpYaDBJam9nSWx4MVpEZ3paRngxWkdVd01GeHVYQ0p4ZFc5MFpXUmNJaUJjWENCa2IyNWxMaUo5ZlE9PSJ9LV0rygAAAKAAAABL9AvY5ws6ZXZlbnQtdHlwZQcABWNodW5rDTpjb250ZW50LXR5cGUHABBhcHBsaWNhdGlvbi9qc29uDTptZXNzYWdlLXR5cGUHAAVldmVudHsiYnl0ZXMiOiAiZXlKMGVYQmxJam9nSW1OdmJuUmxiblJmWW14dlkydGZjM1J2Y0NJc0lDSnBibVJsZUNJNklEQjkifcHERZUAAAEIAAAAS38A3xULOmV2ZW50LXR5cGUHAAVjaHVuaw06Y29udGVudC10eXBlBwAQYXBwbGljYXRpb24vanNvbg06bWVzc2FnZS10eXBlBwAFZXZlbnR7ImJ5dGVzIjogImV5SjBlWEJsSWpvZ0ltMWxjM05oWjJWZlpHVnNkR0VpTENBaVpHVnNkR0VpT2lCN0luTjBiM0JmY21WaGMyOXVJam9nSW1WdVpGOTBkWEp1SWl3Z0luTjBiM0JmYzJWeGRXVnVZMlVpT2lCdWRXeHNmU3dnSW5WellXZGxJam9nZXlKdmRYUndkWFJmZEc5clpXNXpJam9nTVRWOWZRPT0ifUNEAPMAAACIAAAASwW6vCILOmV2ZW50LXR5cGUHAAVjaHVuaw06Y29udGVudC10eXBlBwAQYXBwbGljYXRpb24vanNvbg06bWVzc2FnZS10eXBlBwAFZXZlbnR7ImJ5dGVzIjogImV5SjBlWEJsSWpvZ0ltMWxjM05oWjJWZmMzUnZjQ0o5In0R39X9"
+      }
+    }
+  ]
+}

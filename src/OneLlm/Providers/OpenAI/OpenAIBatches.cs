@@ -184,6 +184,7 @@ internal sealed class OpenAIBatches(OpenAIWire wire)
 
     private async Task<string> UploadAsync(ReadOnlyMemory<byte> jsonl, CancellationToken cancellationToken)
     {
+        await wire.Endpoint.PrepareAsync(cancellationToken).ConfigureAwait(false);
         using HttpResponseMessage response = await wire.Http.SendAsync(
             () =>
             {

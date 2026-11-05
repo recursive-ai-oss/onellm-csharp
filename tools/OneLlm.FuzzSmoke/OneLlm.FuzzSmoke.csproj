@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>$(LibName).Fuzz</AssemblyName>
+    <RootNamespace>$(LibName).FuzzSmoke</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- A test tool: generic catches are the point. -->
+    <NoWarn>$(NoWarn);CA1031;CA1812;CA1303;CA2201;CA5394;CA1859</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
+  </ItemGroup>
+
+</Project>

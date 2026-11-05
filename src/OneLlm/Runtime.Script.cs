@@ -140,7 +140,7 @@ public sealed partial class Runtime
         }
     }
 
-    private TemplateRenderOptions RenderOptions(AgentDefinition definition, CancellationToken cancellationToken)
+    internal TemplateRenderOptions RenderOptions(AgentDefinition definition, CancellationToken cancellationToken)
     {
         var sources = new List<IEmbedSource>();
         string? rootKey = null;
@@ -163,7 +163,7 @@ public sealed partial class Runtime
         };
     }
 
-    private static bool EvaluateWhen(string? when, Func<string, string, string> render, string where)
+    internal static bool EvaluateWhen(string? when, Func<string, string, string> render, string where)
     {
         if (string.IsNullOrEmpty(when))
         {
@@ -184,7 +184,7 @@ public sealed partial class Runtime
         return text.Trim().ToLowerInvariant() is not ("" or "false" or "0" or "no" or "off");
     }
 
-    private Message RenderPrompt(Message prompt, Func<string, string, string> render, string where)
+    internal Message RenderPrompt(Message prompt, Func<string, string, string> render, string where)
     {
         List<Part> Map(IReadOnlyList<Part> parts, string kind)
         {

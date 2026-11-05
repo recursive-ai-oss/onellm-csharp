@@ -58,7 +58,7 @@ public class FileToolTests
 
         for (int i = 0; i < 60; i++)
         {
-            File.WriteAllText(s.In($"many/f{i:00}.txt"), "");
+            s.Write($"many/f{i:00}.txt", "");
         }
 
         string many = Kit.Text(await Kit.Run("read_file", """{"path":"many"}""", caps));
@@ -333,7 +333,7 @@ public class ListAndSearchToolTests
     {
         using Scratch s = Tree();
         Capabilities caps = Capabilities.Files(s.Root);
-        Assert.Equal("1 matches found:\n**src/util/helper.cs**\n", Kit.Text(await Kit.Run("search_files_regex", """{"path":"src","pattern":"helper\\.cs$","search_file_names_only":true}""", caps)));
+        Assert.Equal("1 matches found:\n**util/helper.cs**\n", Kit.Text(await Kit.Run("search_files_regex", """{"path":"src","pattern":"helper\\.cs$","search_file_names_only":true}""", caps)));
         Assert.Equal("No matches found.", Kit.Text(await Kit.Run("search_files_regex", """{"path":"docs","pattern":"zzzz"}""", caps)));
         ToolResult bad = await Kit.Run("search_files_regex", """{"path":"docs","pattern":"(unclosed"}""", caps);
         Assert.True(bad.IsError);

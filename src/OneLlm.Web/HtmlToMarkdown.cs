@@ -157,7 +157,7 @@ public static class HtmlToMarkdown
                     }
                     else
                     {
-                        inline.Append(Inline(child, baseUri, depth + 1));
+                        InlineElement(inline, child, baseUri, depth + 1);
                     }
 
                     break;
@@ -184,60 +184,67 @@ public static class HtmlToMarkdown
                 continue;
             }
 
-            if (depth >= MaxDepth)
-            {
-                sb.Append(Collapse(child.TextContent.AsSpan()));
-                continue;
-            }
-
-            switch (child.LocalName)
-            {
-                case "br":
-                    sb.Append('\n');
-                    break;
-                case "a":
-                    string text = Tidy(Inline(child, baseUri, depth + 1)).Replace('\n', ' ');
-                    string? href = Resolve(child.GetAttribute("href"), baseUri);
-                    sb.Append(href is null || text.Length == 0 ? text : $"[{text}]({href})");
-                    break;
-                case "strong" or "b":
-                    Wrap(sb, "**", Inline(child, baseUri, depth + 1));
-                    break;
-                case "em" or "i":
-                    Wrap(sb, "*", Inline(child, baseUri, depth + 1));
-                    break;
-                case "del" or "s" or "strike":
-                    Wrap(sb, "~~", Inline(child, baseUri, depth + 1));
-                    break;
-                case "code" or "kbd" or "samp" or "tt":
-                    string literal = child.TextContent ?? "";
-                    if (literal.Trim().Length > 0)
-                    {
-                        string ticks = literal.Contains('`', StringComparison.Ordinal) ? "``" : "`";
-                        sb.Append(ticks).Append(literal.Replace('\n', ' ').Trim()).Append(ticks);
-                    }
-
-                    break;
-                case "img":
-                    string? src = Resolve(child.GetAttribute("src"), baseUri);
-                    string alt = (child.GetAttribute("alt") ?? "").Trim();
-                    if (src is not null)
-                    {
-                        sb.Append("![").Append(alt).Append("](").Append(src).Append(')');
-                    }
-                    else if (alt.Length > 0)
-                    {
-                        sb.Append(alt);
-                    }
-
-                    break;
-                default:
-                    sb.Append(Inline(child, baseUri, depth + 1));
-                    break;
-            }
+            InlineElement(sb, child, baseUri, depth);
         }
 
         return sb.ToString();
+    }
+
+    // One inline element appended to sb. Shared by Inline (children of an inline context) and Blocks (inline elements met among blocks).
+    private static void InlineElement(StringBuilder sb, Node child, Uri? baseUri, int depth)
+    {
+        if (depth >= MaxDepth)
+        {
+            sb.Append(Collapse(child.TextContent.AsSpan()));
+            return;
+        }
+
+        switch (child.LocalName)
+        {
+            case "br":
+                sb.Append('\n');
+                break;
+            case "a":
+                string text = Tidy(Inline(child, baseUri, depth + 1)).Replace('\n', ' ');
+                string? href = Resolve(child.GetAttribute("href"), baseUri);
+                sb.Append(href is null || text.Length == 0 ? text : $"[{text}]({href})");
+                break;
+            case "strong" or "b":
+                Wrap(sb, "**", Inline(child, baseUri, depth + 1));
+                break;
+            case "em" or "i":
+                Wrap(sb, "*", Inline(child, baseUri, depth + 1));
+                break;
+            case "del" or "s" or "strike":
+                Wrap(sb, "~~", Inline(child, baseUri, depth + 1));
+                break;
+            case "code" or "kbd" or "samp" or "tt":
+                string literal = child.TextContent ?? "";
+                if (literal.Trim().Length > 0)
+                {
+                    string ticks = literal.Contains('`', StringComparison.Ordinal) ? "``" : "`";
+                    sb.Append(ticks).Append(literal.Replace('\n', ' ').Trim()).Append(ticks);
+                }
+
+                break;
+            case "img":
+                string? src = Resolve(child.GetAttribute("src"), baseUri);
+                string alt = (child.GetAttribute("alt") ?? "").Trim();
+                if (src is not null)
+                {
+                    sb.Append("![").Append(alt).Append("](").Append(src).Append(')');
+                }
+                else if (alt.Length > 0)
+                {
+                    sb.Append(alt);
+                }
+
+                break;
+            default:
+                sb.Append(Inline(child, baseUri, depth + 1));
+                break;
+        }
+    
     }
 
     private static string List(Node list, bool ordered, Uri? baseUri, int depth)

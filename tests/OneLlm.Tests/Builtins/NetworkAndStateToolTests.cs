@@ -202,7 +202,7 @@ public class ReferenceGrantTests
         ToolReferenceResolver r = Resolver(Capabilities.Files(s.Root));
         var e = Assert.Throws<BadDefinitionException>(() => AgentDefinition.Parse(Agent, "a.yaml", r.Strict));
         Assert.Contains("execute-terminal-command", e.Message, StringComparison.Ordinal);
-        Assert.Equal(6, e.Line);
+        Assert.Equal(5, e.Line);
     }
 
     [Fact]

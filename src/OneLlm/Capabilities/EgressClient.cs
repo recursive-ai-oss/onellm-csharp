@@ -80,6 +80,8 @@ public static class EgressClient
                 request.Content = new StringContent(currentBody, Encoding.UTF8);
                 if (contentType is not null)
                 {
+                    // StringContent already carries a default text/plain type; replace it rather than send two values.
+                    request.Content.Headers.Remove("Content-Type");
                     request.Content.Headers.TryAddWithoutValidation("Content-Type", contentType);
                 }
             }

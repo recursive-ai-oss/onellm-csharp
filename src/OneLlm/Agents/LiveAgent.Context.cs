@@ -81,6 +81,7 @@ internal sealed partial class LiveAgent
                     DateTime = now,
                     Source = new MessageSource { Kind = "runtime", Reason = "compaction" },
                 };
+                ReplacedCost(record, older);
                 Instance.Messages.RemoveRange(0, cut);
                 Instance.Messages.Insert(0, summaryMessage);
                 record.ReplacedMessageIds = ids;
@@ -115,6 +116,7 @@ internal sealed partial class LiveAgent
                     return;
                 }
 
+                ReplacedCost(record, Instance.Messages);
                 Instance.Messages.Clear();
                 Instance.Messages.AddRange(compacted.Messages);
                 record.ReplacedMessageIds = ids;
@@ -127,13 +129,35 @@ internal sealed partial class LiveAgent
         await Runtime.Store.SaveAsync(Instance, token).ConfigureAwait(false);
         await Runtime.WriteRecordAsync(new CompactionRecord { InstanceId = Instance.InstanceId, Time = now, Compaction = record }, token).ConfigureAwait(false);
         Emit(AgentEventKind.Compacted, detail: record.Strategy);
-        if (record.Cost is > 0m && Setup.Hooks.Has(HookPoints.OnCost))
+        if (record.Cost is > 0m)
         {
             var cost = new Cost([new CostLine { Counter = "compaction", Quantity = 1m, UnitPrice = record.Cost.Value, Amount = record.Cost.Value, Label = record.Strategy }]);
             _segmentCosts.Add(cost);
-            await Setup.Hooks.EmitCostAsync(new CostHookContext(Instance, _turns, "compaction", cost), token).ConfigureAwait(false);
+            if (Setup.Hooks.Has(HookPoints.OnCost))
+            {
+                await Setup.Hooks.EmitCostAsync(new CostHookContext(Instance, _turns, "compaction", cost), token).ConfigureAwait(false);
+            }
         }
     }
+
+    // Messages that a compaction removes took money to make; the record keeps their cost so the instance's total does not shrink.
+    private static void ReplacedCost(Compaction record, IEnumerable<Message> replaced)
+    {
+        decimal total = 0m;
+        foreach (Message m in replaced)
+        {
+            total += m.Usage?.Cost ?? 0m;
+            foreach (ToolCall c in m.ToolCalls)
+            {
+                total += c.Cost;
+            }
+        }
+
+        // A string, so the decimal survives any YAML number reader exactly.
+        (record.ExtensionData ??= [])[ReplacedCostKey] = total.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    internal const string ReplacedCostKey = "replacedCost";
 
     private async Task<bool> VetoedAsync(string strategy, IReadOnlyList<string> ids, CancellationToken token)
     {

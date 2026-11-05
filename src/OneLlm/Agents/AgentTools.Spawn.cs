@@ -50,22 +50,9 @@ internal sealed class RunAgentAsyncTool : ITool
         string action;
         if (agentId.Length > 0)
         {
-            LiveAgent? existing = await rt.AgentHost.GetAsync(agentId, cancellationToken).ConfigureAwait(false);
-            if (existing is null)
+            if (await Deliver(rt, agentId, prompt, context, cancellationToken).ConfigureAwait(false) is { } failure)
             {
-                return AgentTools.Err($"Failed to send message to agent: there is no instance '{agentId}'");
-            }
-
-            try
-            {
-                await existing.DeliverAsync(
-                    prompt,
-                    new MessageSource { Kind = "agent", InstanceId = context.InstanceId, ToolCallId = context.ToolCallId },
-                    cancellationToken).ConfigureAwait(false);
-            }
-            catch (OneLlmException ex)
-            {
-                return AgentTools.Err($"Failed to send message to agent: {ex.Message}");
+                return failure;
             }
 
             instanceId = agentId;
@@ -125,6 +112,33 @@ internal sealed class RunAgentAsyncTool : ITool
         string target = reference.Length > 0 ? reference : instanceId;
         return ToolResult.FromText(
             $"Agent {action}: {target}\nInstance Id: {instanceId}\nCall the `await_agent` tool with this instance id to get the response. To supervise it meanwhile, arm `monitor_agent` on it (context size, turns, finish, elapsed time).");
+    }
+
+    /// <summary>
+    /// Hands a message to an instance: a running one takes it at its next turn boundary, a resting one is resumed by it.
+    /// Returns an error result, or null when delivered.
+    /// </summary>
+    internal static async ValueTask<ToolResult?> Deliver(Runtime rt, string agentId, string prompt, ToolContext context, CancellationToken cancellationToken)
+    {
+        LiveAgent? existing = await rt.AgentHost.GetAsync(agentId, cancellationToken).ConfigureAwait(false);
+        if (existing is null)
+        {
+            return AgentTools.Err($"Failed to send message to agent: there is no instance '{agentId}'");
+        }
+
+        try
+        {
+            await existing.DeliverAsync(
+                prompt,
+                new MessageSource { Kind = "agent", InstanceId = context.InstanceId, ToolCallId = context.ToolCallId },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OneLlmException ex)
+        {
+            return AgentTools.Err($"Failed to send message to agent: {ex.Message}");
+        }
+
+        return null;
     }
 
     // A registered name wins. A path is read only when it lies under a folder the calling agent may read, after symlinks are followed.

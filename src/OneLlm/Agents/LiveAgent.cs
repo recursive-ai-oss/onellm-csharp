@@ -350,10 +350,18 @@ internal sealed partial class LiveAgent
             {
                 lock (_gate)
                 {
-                    // A segment that just ended in failure is reported once more to a late waiter.
-                    if (_segment is { Task.IsFaulted: true } failed && Instance.State == InstanceStates.Error)
+                    // The latest segment already ended (a quick run can finish before anyone waits): report what it reported.
+                    if (_segment is { Task.IsCompleted: true } last)
                     {
-                        return failed.Task.GetAwaiter().GetResult();
+                        if (last.Task.IsFaulted && Instance.State == InstanceStates.Error)
+                        {
+                            return last.Task.GetAwaiter().GetResult();
+                        }
+
+                        if (last.Task.IsCompletedSuccessfully)
+                        {
+                            return last.Task.Result;
+                        }
                     }
                 }
 
@@ -410,33 +418,37 @@ internal sealed partial class LiveAgent
 
     private async Task SegmentMainAsync(bool initial, TaskCompletionSource<AgentResult> done, CancellationToken token)
     {
+        AgentResult? result = null;
+        Exception? failure = null;
         try
         {
-            AgentResult result = await RunSegmentAsync(initial, token).ConfigureAwait(false);
-            lock (_gate)
-            {
-                _stopping = true;
-            }
-
-            done.TrySetResult(result);
+            result = await RunSegmentAsync(initial, token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            done.TrySetException(ex);
+            failure = ex;
         }
-        finally
-        {
-            lock (_gate)
-            {
-                _running = false;
-                _stopping = false;
-            }
 
-            // A message that arrived while the run was settling gets its own segment.
-            if (Instance.State != InstanceStates.Error)
+        // The run stops being "running" in the same step that its waiters are released (their continuations are queued, never inline),
+        // so a caller that gets the result can approve, message or start again at once without finding the agent still busy.
+        lock (_gate)
+        {
+            _running = false;
+            _stopping = false;
+            if (failure is not null)
             {
-                ResumeIfInboxWaiting();
+                done.TrySetException(failure);
             }
+            else
+            {
+                done.TrySetResult(result!);
+            }
+        }
+
+        // A message that arrived while the run was settling gets its own segment.
+        if (Instance.State != InstanceStates.Error)
+        {
+            ResumeIfInboxWaiting();
         }
     }
 
@@ -449,6 +461,15 @@ internal sealed partial class LiveAgent
     public static decimal OwnCostOf(Instance instance)
     {
         decimal total = 0m;
+        foreach (Compaction c in instance.Compactions)
+        {
+            if (c.ExtensionData is { } d && d.TryGetValue(ReplacedCostKey, out object? v) && v is string text
+                && decimal.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out decimal replaced))
+            {
+                total += replaced;
+            }
+        }
+
         foreach (Message m in instance.Messages)
         {
             total += m.Usage?.Cost ?? 0m;

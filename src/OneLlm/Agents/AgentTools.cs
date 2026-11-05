@@ -83,16 +83,49 @@ internal sealed class TaskCompleteTool : ITool
     }
 }
 
-/// <summary>Kept for definitions that still list it: it always answers that messaging goes through <c>run_agent_async</c>.</summary>
+/// <summary>
+/// Sends a message to an existing instance, like <c>run_agent_async</c> with <c>agentId</c>. Called with no arguments it gives
+/// the pointer text older definitions expect.
+/// </summary>
 internal sealed class MessageAgentTool : ITool
 {
     public ToolSpec Definition { get; } = new(
         "message_agent",
-        "Error: deprecated. Use run_agent_async to message agents instead.\n\nTo send a follow-up message to a previously started agent, call run_agent_async with the existing instance ID passed as `agentId` and the new message as `prompt`. The agent resumes from its existing conversation history with full context intact.",
-        AgentTools.Schema("""{"type":"object","properties":{}}"""));
+        "Send a follow-up message to a previously started agent instance. A running agent reads it at its next turn boundary; a waiting or stopped agent resumes from its existing conversation history. Pass the instance id as `agentId` and the message as `prompt`. Equivalent to `run_agent_async` with `agentId`.",
+        AgentTools.Schema("""
+            {"type":"object","properties":{
+              "agentId":{"type":"string","description":"Instance id of the agent to message."},
+              "prompt":{"type":"string","description":"The message to deliver."}}}
+            """));
 
-    public ValueTask<ToolResult> InvokeAsync(JsonObject inputs, ToolContext context, CancellationToken cancellationToken) =>
-        AgentTools.Done(ToolResult.Error("Error: deprecated. Use run_agent_async to message agents instead"));
+    public async ValueTask<ToolResult> InvokeAsync(JsonObject inputs, ToolContext context, CancellationToken cancellationToken)
+    {
+        string agentId = ToolArgs.String(inputs, "agentId") ?? "";
+        string prompt = ToolArgs.String(inputs, "prompt") ?? "";
+        if (agentId.Length == 0 && prompt.Length == 0)
+        {
+            return ToolResult.Error("Error: deprecated. Use run_agent_async to message agents instead");
+        }
+
+        Runtime? rt = context.Runtime;
+        if (rt is null)
+        {
+            return AgentTools.NoRuntime();
+        }
+
+        if (agentId.Length == 0 || prompt.Length == 0)
+        {
+            return AgentTools.Err("agentId and prompt are both required");
+        }
+
+        if (await RunAgentAsyncTool.Deliver(rt, agentId, prompt, context, cancellationToken).ConfigureAwait(false) is { } failure)
+        {
+            return failure;
+        }
+
+        return ToolResult.FromText(
+            $"Agent messaged: {agentId}\nInstance Id: {agentId}\nCall the `await_agent` tool with this instance id to get the response. To supervise it meanwhile, arm `monitor_agent` on it (context size, turns, finish, elapsed time).");
+    }
 }
 
 internal sealed class ListAgentInstancesTool : ITool

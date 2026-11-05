@@ -1,0 +1,58 @@
+{
+  "format": 1,
+  "description": "An embeddings call in the deployment-path form. Written from the Azure OpenAI documentation; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/openai/deployments/my-embedding-deployment/embeddings?api-version=2024-10-21",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "text-embedding-3-small",
+          "input": [
+            "first",
+            "second"
+          ],
+          "dimensions": 3,
+          "encoding_format": "float"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "list",
+          "model": "text-embedding-3-small",
+          "data": [
+            {
+              "object": "embedding",
+              "index": 1,
+              "embedding": [
+                0.5,
+                -0.25,
+                0.125
+              ]
+            },
+            {
+              "object": "embedding",
+              "index": 0,
+              "embedding": [
+                0.0625,
+                0.25,
+                -0.5
+              ]
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "total_tokens": 9
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "format": 1,
+  "description": "A streamed Responses call on the v1 API. Written from the Azure OpenAI documentation; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "instructions": "You are terse.",
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false,
+          "stream": true,
+          "max_output_tokens": 64
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_chat_1\",\"obje",
+          "ct\":\"response\",\"created_at\":1741476777,\"status\":\"in_progress\",\"error\":null,\"incomplete_details\":null,\"model\":\"gpt",
+          "-6.1-terra\",\"output\":[],\"parallel_tool_calls\":true,\"store\":false,\"usage\":null}}\n\nevent: response.in_progress\ndata",
+          ": {\"type\":\"response.in_progress\",\"sequence_number\":1,\"response\":{\"id\":\"resp_chat_1\",\"object\":\"response\",\"created_",
+          "at\":1741476777,\"status\":\"in_progress\",\"error\":null,\"incomplete_details\":null,\"model\":\"gpt-6.1-terra\",\"output\":[],",
+          "\"parallel_tool_calls\":true,\"store\":false,\"usage\":null}}\n\nevent: response.output_item.added\ndata: {\"type\":\"respons",
+          "e.output_item.added\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"msg_chat_1\",\"status\":\"in",
+          "_progress\",\"role\":\"assistant\",\"content\":[]}}\n\nevent: response.content_part.added\ndata: {\"type\":\"response.content_",
+          "part.added\",\"sequence_number\":3,\"item_id\":\"msg_chat_1\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_",
+          "text\",\"text\":\"\",\"annotations\":[],\"logprobs\":[]}}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.outpu",
+          "t_text.delta\",\"sequence_number\":4,\"item_id\":\"msg_chat_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"Hel\",\"logpro",
+          "bs\":[]}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_i",
+          "d\":\"msg_chat_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"lo! How\",\"logprobs\":[]}\n\nevent: response.output_text.",
+          "delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":6,\"item_id\":\"msg_chat_1\",\"output_index\":0,\"con",
+          "tent_index\":0,\"delta\":\" can I help?\",\"logprobs\":[]}\n\nevent: response.output_text.done\ndata: {\"type\":\"response.out",
+          "put_text.done\",\"sequence_number\":7,\"item_id\":\"msg_chat_1\",\"output_index\":0,\"content_index\":0,\"text\":\"Hello! How c",
+          "an I help?\",\"logprobs\":[]}\n\nevent: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequenc",
+          "e_number\":8,\"item_id\":\"msg_chat_1\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"Hello!",
+          " How can I help?\",\"annotations\":[],\"logprobs\":[]}}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.outp",
+          "ut_item.done\",\"sequence_number\":9,\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"msg_chat_1\",\"status\":\"completed",
+          "\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hello! How can I help?\",\"annotations\":[],\"logprobs\"",
+          ":[]}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":10,\"response\":{\"id\":\"resp",
+          "_chat_1\",\"object\":\"response\",\"created_at\":1741476777,\"status\":\"completed\",\"error\":null,\"incomplete_details\":null,",
+          "\"model\":\"gpt-6.1-terra\",\"output\":[{\"type\":\"message\",\"id\":\"msg_chat_1\",\"status\":\"completed\",\"role\":\"assistant\",\"co",
+          "ntent\":[{\"type\":\"output_text\",\"text\":\"Hello! How can I help?\",\"annotations\":[],\"logprobs\":[]}]}],\"parallel_tool_c",
+          "alls\":true,\"store\":false,\"usage\":{\"input_tokens\":24,\"input_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens",
+          "\":0},\"output_tokens\":9,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":33},\"service_tier\":\"default\"",
+          "}}\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

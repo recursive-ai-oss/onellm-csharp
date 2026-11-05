@@ -1,0 +1,38 @@
+{
+  "format": 1,
+  "description": "A streamed call (streamGenerateContent with alt=sse). Written from the Vertex AI documentation; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Greet the world."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream; charset=utf-8"
+        },
+        "sse": [
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Hel\"}]},\"index\":0}],\"modelVersion\":\"gemini-3.5-flash-lite\",\"responseId\":\"resp-0002\"}\n\n",
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"lo, wor\"}]},\"index\":0}],\"modelVersion\":\"gemini-3.5-flash-lite\",\"responseId\":\"resp-0002\"}\n\n",
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ld!\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":9,\"candidatesTokenCount\":5,\"totalTokenCount\":14},\"modelVersion\":\"gemini-3.5-flash-lite\",\"responseId\":\"resp-0002\"}\n\n"
+        ]
+      }
+    }
+  ]
+}

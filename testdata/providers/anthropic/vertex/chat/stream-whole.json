@@ -1,0 +1,55 @@
+{
+  "format": 1,
+  "description": "The whole-response form of the streamed answer, to check that both build the same message. Written from the Vertex AI documentation; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/projects/my-project/locations/us-east5/publishers/anthropic/models/claude-sonnet-5-5:rawPredict",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "anthropic_version": "vertex-2023-10-16",
+          "max_tokens": 1024,
+          "system": "You are terse.",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Say hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01StreamTxt",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "Hello, café 😀\n\"quoted\" \\ done."
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 12,
+            "output_tokens": 15
+          }
+        }
+      }
+    }
+  ]
+}

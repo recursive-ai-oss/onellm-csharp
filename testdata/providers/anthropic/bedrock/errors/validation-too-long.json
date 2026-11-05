@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "description": "An input longer than the model accepts: HTTP 400 ValidationException. Written from the Bedrock InvokeModel and InvokeModelWithResponseStream references; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5-5/invoke",
+        "headers": {
+          "content-type": "application/json",
+          "x-amz-date": "20260101T000000Z",
+          "accept": "application/json"
+        },
+        "body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 1024,
+          "system": "You are terse.",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Say hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json",
+          "x-amzn-errortype": "ValidationException"
+        },
+        "body": {
+          "message": "Input is too long for requested model."
+        }
+      }
+    }
+  ]
+}

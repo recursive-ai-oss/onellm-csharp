@@ -22,6 +22,14 @@ public abstract class OpenAIEndpoint
     /// <param name="request">The request.</param>
     public abstract void Authenticate(HttpRequestMessage request);
 
+    /// <summary>
+    /// An asynchronous step run once per call before the first attempt, for endpoints whose credentials need a fetch (a short-lived bearer token).
+    /// <see cref="Authenticate"/> then runs synchronously for each attempt. The default does nothing.
+    /// </summary>
+    /// <param name="cancellationToken">Cancels the step.</param>
+    /// <returns>A task that completes when requests can be authenticated.</returns>
+    public virtual ValueTask PrepareAsync(CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
     /// <summary>The secrets this endpoint sends, so error text and logs can have them removed.</summary>
     public virtual IEnumerable<Secret> Secrets => [];
 

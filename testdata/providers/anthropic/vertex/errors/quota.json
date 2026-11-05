@@ -1,0 +1,44 @@
+{
+  "format": 1,
+  "description": "A call over quota: HTTP 429 in the Google error shape. Written from the Vertex AI documentation; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/projects/my-project/locations/us-east5/publishers/anthropic/models/claude-sonnet-5-5:rawPredict",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "anthropic_version": "vertex-2023-10-16",
+          "max_tokens": 1024,
+          "system": "You are terse.",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Say hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "error": {
+            "code": 429,
+            "message": "Quota exceeded for aiplatform.googleapis.com/online_prediction_requests_per_base_model.",
+            "status": "RESOURCE_EXHAUSTED"
+          }
+        }
+      }
+    }
+  ]
+}

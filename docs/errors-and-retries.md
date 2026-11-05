@@ -12,6 +12,7 @@ status). API keys are held in `Secret` and removed from every message.
 | `OverloadedException` | 503, 529; carries `RetryAfter`. |
 | `ContextOverflowException` | The request is larger than the model's context window. |
 | `ContentFilterException` | The provider's safety filter blocked the request or response. |
+| `SpendLimitReachedException` | The account's own spending limit at the provider was reached (Anthropic: a 400 whose message starts "You have reached your specified API usage limits"). Never retried. |
 | `BadRequestException` | 400, 404, 409, 413, 422: the request is wrong. Never retried. |
 | `TransportException` | The connection failed or timed out. |
 | `MalformedResponseException` | The response is not what the API documents. |

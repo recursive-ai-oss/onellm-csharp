@@ -44,6 +44,8 @@ If a `decider.schema.json` sits beside the definition and declares `inputs`, the
 The checker enforces `type`, `properties`, `required`, `additionalProperties`, `items`, `enum`, `const`, `minimum`, `maximum` and `anyOf`, and ignores
 every other keyword; it is a guard against wrong inputs, not a general JSON Schema validator.
 
+The same checker validates the outputs when the file declares `outputs`: what the logic returns (the answers, for a decider with no logic) is checked before the run completes, and a mismatch throws `DeciderOutputException` naming the path (`outputs.route`). `Decider.OutputSchema` and `WithOutputSchema` are the counterparts of `InputSchema` and `WithInputSchema`.
+
 ## Logic in C#
 
 Mark a partial class and add the definition as an additional file:

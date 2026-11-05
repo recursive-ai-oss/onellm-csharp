@@ -292,20 +292,22 @@ internal sealed class OpenAIWire
     public async Task<EmbeddingResponse> EmbedAsync(EmbeddingRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ReadOnlyMemory<byte> body = WriteEmbeddings(request);
+        var warnings = new List<ResponseWarning>();
+        ReadOnlyMemory<byte> body = WriteEmbeddings(request, warnings);
         using HttpResponseMessage response = await PostAsync("embeddings", request.Model, body, stream: false, cancellationToken).ConfigureAwait(false);
         byte[] bytes = await Http.ReadBodyAsync(response, MaxBodyBytes, cancellationToken).ConfigureAwait(false);
-        return ParseEmbeddings(bytes, request.Model);
+        EmbeddingResponse decoded = ParseEmbeddings(bytes, request.Model);
+        return warnings.Count == 0 ? decoded : decoded with { Warnings = warnings };
     }
 
-    public ReadOnlyMemory<byte> WriteEmbeddings(EmbeddingRequest request)
+    public ReadOnlyMemory<byte> WriteEmbeddings(EmbeddingRequest request, List<ResponseWarning>? warnings = null)
     {
         if (request.Inputs.Count == 0)
         {
             throw new ArgumentException("An embeddings request needs at least one input.", nameof(request));
         }
 
-        RequestPolicy policy = PolicyFor(request.Model);
+        RequestPolicy policy = PolicyFor(request.Model, warnings);
         using var body = new BodyWriter(request.ExtraParameters);
         Utf8JsonWriter w = body.Writer;
         if (body.Field("model"))

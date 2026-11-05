@@ -85,8 +85,8 @@ internal sealed class EventStreamReader
         }
 
         int rest = (int)totalLength - PreludeBytes;
-        byte[] body = new byte[rest];
-        if (await FillAsync(body, rest, cancellationToken).ConfigureAwait(false) < rest)
+        byte[]? body = await ReadBodyAsync(rest, cancellationToken).ConfigureAwait(false);
+        if (body is null)
         {
             throw Bad("the event stream ended inside a message.");
         }
@@ -206,15 +206,43 @@ internal sealed class EventStreamReader
         return slice;
     }
 
-    private async ValueTask<int> FillAsync(byte[] buffer, int count, CancellationToken cancellationToken)
+    // The declared length comes from the wire, so the buffer grows as bytes actually arrive (doubling from 64 KiB) instead of being sized by it:
+    // a hostile or corrupt length then costs only what the peer really sends.
+    private async ValueTask<byte[]?> ReadBodyAsync(int count, CancellationToken cancellationToken)
     {
+        byte[] buffer = new byte[Math.Min(count, 64 * 1024)];
+        int total = 0;
+        while (total < count)
+        {
+            if (total == buffer.Length)
+            {
+                Array.Resize(ref buffer, (int)Math.Min((long)buffer.Length * 2, count));
+            }
+
+            int want = buffer.Length - total;
+            int got = await FillAsync(buffer.AsMemory(total, want), cancellationToken).ConfigureAwait(false);
+            total += got;
+            if (got < want)
+            {
+                return null;
+            }
+        }
+
+        return buffer;
+    }
+
+    private ValueTask<int> FillAsync(byte[] buffer, int count, CancellationToken cancellationToken) => FillAsync(buffer.AsMemory(0, count), cancellationToken);
+
+    private async ValueTask<int> FillAsync(Memory<byte> buffer, CancellationToken cancellationToken)
+    {
+        int count = buffer.Length;
         int total = 0;
         while (total < count)
         {
             int read;
             try
             {
-                read = await _stream.ReadAsync(buffer.AsMemory(total, count - total), cancellationToken).ConfigureAwait(false);
+                read = await _stream.ReadAsync(buffer.Slice(total), cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e) when (e is IOException or HttpRequestException)
             {

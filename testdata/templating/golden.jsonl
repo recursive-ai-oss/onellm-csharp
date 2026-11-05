@@ -197,3 +197,6 @@
 {"name":"fuzz-date-hour-and-offset","t":"{{date \u002215\u0022 \u00222024-03-05T4:07:09Z\u0022}}","data":{},"missingKey":"default","embeds":{},"ok":true,"out":"04"}
 {"name":"fuzz-date-offset-one-digit","t":"{{date \u002215\u0022 \u00221999-01-01T00:00:00-8:00\u0022}}","data":{},"missingKey":"default","embeds":{},"ok":false,"stage":"exec"}
 {"name":"fuzz-date-offset-colon","t":"{{date \u00222006-01-02 15:04\u0022 \u00221999-01-01T10:30:00\u002B05:30\u0022}}","data":{},"missingKey":"default","embeds":{},"ok":true,"out":"1999-01-01 10:30"}
+{"name":"index-missing-key-then-field","t":"[{{(index .m \u0022z\u0022)}}] [{{(index .m \u0022z\u0022).x}}] [{{(index .m \u0022z\u0022).x.y}}]","data":{"m":{}},"missingKey":"default","embeds":{},"ok":true,"out":"[\u003Cno value\u003E] [\u003Cno value\u003E] [\u003Cno value\u003E]"}
+{"name":"index-missing-key-then-field-error","t":"[{{(index .m \u0022z\u0022).x}}]","data":{"m":{}},"missingKey":"error","embeds":{},"ok":false,"stage":"exec"}
+{"name":"index-null-value-then-field","t":"[{{(index .m \u0022k\u0022).x}}]","data":{"m":{"k":null}},"missingKey":"default","embeds":{},"ok":true,"out":"[\u003Cno value\u003E]"}

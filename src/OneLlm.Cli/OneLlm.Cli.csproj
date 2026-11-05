@@ -5,6 +5,8 @@
     <RootNamespace>$(LibName).Cli</RootNamespace>
     <PackageId>$(PackagePrefix)$(LibName).Cli</PackageId>
     <IsPackable>true</IsPackable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>onellm</ToolCommandName>
     <Description>The onellm command-line tool for OneLLM, the LLM inference and agent runtime for .NET: run agents, scripted flows and deciders, chat, inspect instances, costs and the model catalog. Unaffiliated with the PyPI onellm package and the OneLLM research model.</Description>

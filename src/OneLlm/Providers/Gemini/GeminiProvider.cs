@@ -220,7 +220,7 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
     public async Task<TokenCount> CountTokensAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        byte[] body = _writer.CountTokens(request, SpecFor(request.Model), _endpoint.ModelResourceName(request.Model));
+        byte[] body = _writer.CountTokens(request, SpecFor(request.Model), _endpoint.ModelResourceName(request.Model), _endpoint.UsesVertexBodies);
         using HttpResponseMessage response = await PostAsync(_endpoint.Model(request.Model, "countTokens"), body, cancellationToken).ConfigureAwait(false);
         byte[] bytes = await _http.ReadBodyAsync(response, MaxResponseBytes, cancellationToken).ConfigureAwait(false);
         using JsonDocument doc = ParseDocument(bytes);

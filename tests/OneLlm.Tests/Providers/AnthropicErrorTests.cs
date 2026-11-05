@@ -119,9 +119,11 @@ public class AnthropicErrorTests
     }
 
     [Fact]
-    public async Task A_user_set_spend_limit_is_a_bad_request_that_keeps_the_message()
+    public async Task A_user_set_spend_limit_is_told_apart_from_a_malformed_request()
     {
-        BadRequestException e = await Fails<BadRequestException>("errors/user-spend-limit");
+        SpendLimitReachedException e = await Fails<SpendLimitReachedException>("errors/user-spend-limit");
+        Assert.Equal(400, e.StatusCode);
+        Assert.False(e.IsTransient);
         Assert.Contains("specified API usage limits", e.Message, StringComparison.Ordinal);
     }
 

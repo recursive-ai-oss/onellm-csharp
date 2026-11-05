@@ -1,0 +1,23 @@
+{
+  "format": 1,
+  "description": "countTokens on Vertex AI: the generation members at the top level, no generateContentRequest wrapper. Written from the Vertex AI REST reference (publishers.models.countTokens); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-3.5-flash-lite:countTokens",
+        "headers": { "Content-Type": "application/json" },
+        "body": {
+          "model": "projects/my-project/locations/us-central1/publishers/google/models/gemini-3.5-flash-lite",
+          "systemInstruction": { "parts": [ { "text": "Be brief." } ] },
+          "contents": [ { "role": "user", "parts": [ { "text": "Count these words." } ] } ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json; charset=utf-8" },
+        "body": { "totalTokens": 9, "totalBillableCharacters": 26 }
+      }
+    }
+  ]
+}

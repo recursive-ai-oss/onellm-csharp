@@ -26,8 +26,9 @@ public sealed class GoogleBearerAuth : GeminiAuth
 
 /// <summary>
 /// Where Gemini's methods live on Vertex AI: <c>/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:{method}</c>. The
-/// request and response shapes are the Gemini API's. What Vertex does not offer at these addresses (files, embeddings and batch, whose Vertex
-/// forms have different shapes, and token counting, whose body differs) is refused with a <see cref="BadRequestException"/> before anything is sent.
+/// request and response shapes are the Gemini API's, except <c>countTokens</c> and <c>embedContent</c>, which take Vertex's bodies (see
+/// <see cref="GeminiEndpoint.UsesVertexBodies"/>). What Vertex does not offer at these addresses (files, and batch, whose Vertex forms are
+/// different jobs) is refused with a <see cref="BadRequestException"/> before anything is sent.
 /// </summary>
 public sealed class VertexGeminiEndpoint : GeminiEndpoint
 {
@@ -48,9 +49,12 @@ public sealed class VertexGeminiEndpoint : GeminiEndpoint
     }
 
     /// <inheritdoc />
+    public override bool UsesVertexBodies => true;
+
+    /// <inheritdoc />
     public override Uri Model(string model, string method, bool sse = false)
     {
-        if (method is "countTokens" or "embedContent" or "batchEmbedContents" or "batchGenerateContent")
+        if (method is "batchEmbedContents" or "batchGenerateContent")
         {
             throw NotOffered(method);
         }

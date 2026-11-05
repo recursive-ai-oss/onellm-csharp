@@ -44,12 +44,13 @@ public sealed class Decider
     private int _functionsVersion = -1;
     private TemplateFunctions? _functionsSource;
 
-    private Decider(string name, DeciderDefinition definition, IDeciderLogic? logic, JsonElement? inputSchema = null)
+    private Decider(string name, DeciderDefinition definition, IDeciderLogic? logic, JsonElement? inputSchema = null, JsonElement? outputSchema = null)
     {
         Name = name;
         Definition = definition;
         Logic = logic;
         InputSchema = inputSchema;
+        OutputSchema = outputSchema;
     }
 
     /// <summary>
@@ -59,6 +60,13 @@ public sealed class Decider
     /// <c>maximum</c> and <c>anyOf</c> are enforced.
     /// </summary>
     public JsonElement? InputSchema { get; }
+
+    /// <summary>
+    /// The JSON Schema of the outputs, read from the same <c>decider.schema.json</c> when it declares one, else null. What the logic returns (or the
+    /// answers, for a decider without logic) is checked against it before the run completes; see <see cref="DeciderOutputException"/>. The same
+    /// keywords as for <see cref="InputSchema"/> are enforced.
+    /// </summary>
+    public JsonElement? OutputSchema { get; }
 
     /// <summary>The decider's name: its directory's name, or what the creator gave. Names the instances its runs create.</summary>
     public string Name { get; }
@@ -86,7 +94,7 @@ public sealed class Decider
 
         string full = Path.GetFullPath(file);
         string name = Path.GetFileName(Path.GetDirectoryName(full)) ?? "decider";
-        return new Decider(name, DeciderDefinition.Parse(File.ReadAllText(full), full), logic, ReadInputSchema(Path.Combine(Path.GetDirectoryName(full)!, "decider.schema.json")));
+        return new Decider(name, DeciderDefinition.Parse(File.ReadAllText(full), full), logic, ReadSchema(Path.Combine(Path.GetDirectoryName(full)!, "decider.schema.json"), "inputs"), ReadSchema(Path.Combine(Path.GetDirectoryName(full)!, "decider.schema.json"), "outputs"));
     }
 
     /// <summary>Reads a decider from YAML text.</summary>
@@ -105,14 +113,19 @@ public sealed class Decider
     /// <summary>The same decider with logic attached (or replaced).</summary>
     /// <param name="logic">The logic.</param>
     /// <returns>A new decider over the same definition.</returns>
-    public Decider WithLogic(IDeciderLogic? logic) => new(Name, Definition, logic, InputSchema);
+    public Decider WithLogic(IDeciderLogic? logic) => new(Name, Definition, logic, InputSchema, OutputSchema);
 
     /// <summary>The same decider with an input schema attached (or removed).</summary>
     /// <param name="schema">A JSON Schema for the inputs, or null.</param>
     /// <returns>A new decider over the same definition.</returns>
-    public Decider WithInputSchema(JsonElement? schema) => new(Name, Definition, Logic, schema);
+    public Decider WithInputSchema(JsonElement? schema) => new(Name, Definition, Logic, schema, OutputSchema);
 
-    private static JsonElement? ReadInputSchema(string file)
+    /// <summary>The same decider with an output schema attached (or removed).</summary>
+    /// <param name="schema">A JSON Schema for the outputs, or null.</param>
+    /// <returns>A new decider over the same definition.</returns>
+    public Decider WithOutputSchema(JsonElement? schema) => new(Name, Definition, Logic, InputSchema, schema);
+
+    private static JsonElement? ReadSchema(string file, string member)
     {
         if (!File.Exists(file))
         {
@@ -121,13 +134,13 @@ public sealed class Decider
 
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(file));
         JsonElement root = doc.RootElement;
-        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("inputs", out JsonElement inputs) || inputs.ValueKind != JsonValueKind.Object)
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty(member, out JsonElement inputs) || inputs.ValueKind != JsonValueKind.Object)
         {
             return null;
         }
 
-        // The build writes inputsDeclared: false when the logic never described its inputs; then there is nothing to enforce.
-        if (root.TryGetProperty("inputsDeclared", out JsonElement declared) && declared.ValueKind == JsonValueKind.False)
+        // The build writes inputsDeclared / outputsDeclared: false when the logic never described them; then there is nothing to enforce.
+        if (root.TryGetProperty(member + "Declared", out JsonElement declared) && declared.ValueKind == JsonValueKind.False)
         {
             return null;
         }

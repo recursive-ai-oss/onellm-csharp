@@ -304,6 +304,11 @@ public sealed partial class Runtime
                     ? await logic.DecideAsync(answersElement, prepared, cancellationToken).ConfigureAwait(false)
                     : answersElement;
 
+                if (decider.OutputSchema is { } outputSchema && InputSchema.Check(outputSchema, outputs, "outputs") is { } outputProblem)
+                {
+                    throw new DeciderOutputException("The decider's outputs do not fit its schema: " + outputProblem, "outputs");
+                }
+
                 Cost cost = Cost.Sum(output.Calls.Select(static c => c.Usage?.ToCost()));
                 Usage? total = TotalUsage(output.Calls, output.Model, cost);
                 TimeSpan elapsed = TimeProvider.GetElapsedTime(started);

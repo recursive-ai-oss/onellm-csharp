@@ -58,7 +58,8 @@ var gemini = new GeminiProvider(new GeminiOptions
 - **Service account:** an RS256-signed JWT (`iss`, `scope`, `aud`, `iat`, `exp` one hour out, optional `sub`) is exchanged at the token URI with the `urn:ietf:params:oauth:grant-type:jwt-bearer` grant (RFC 7523). Tokens are cached and refreshed five minutes before expiry; 5xx and 429 on the token endpoint are retried. A token delegate can replace the exchange.
 - **Claude:** `…/projects/{p}/locations/{l}/publishers/anthropic/models/{model}:rawPredict` or `:streamRawPredict`, `anthropic_version: vertex-2023-10-16` in the body, no `model` member, `stream` kept. The `@date` form of model ids is handled. Location `global` uses `aiplatform.googleapis.com`; others `{location}-aiplatform.googleapis.com`.
 - **Gemini:** `…/publishers/google/models/{model}:generateContent` (and `:streamGenerateContent?alt=sse`) over the same codec as the Gemini API.
-- **Refused before sending** (`BadRequestException`): Claude batches and token counting; Gemini `countTokens`, embeddings, batch and files (their Vertex request shapes differ from the Gemini API's and are not mapped yet).
+- **Gemini `countTokens` and `embedContent`:** Vertex's bodies, from the Vertex AI REST reference. `countTokens` takes `model`, `contents`, `systemInstruction`, `tools` and `generationConfig` at the top level (no `generateContentRequest` wrapper; other members are left out). `embedContent` embeds one input per call (a list of inputs is sent as several calls and joined in order), with `taskType` and `outputDimensionality` under `embedContentConfig`.
+- **Refused before sending** (`BadRequestException`): Claude batches and token counting; Gemini batch and files (Vertex has them only as separate job and storage APIs, which are not mapped).
 - Project, region and location strings are validated as plain names, so they cannot redirect a request to another host; base addresses must be https (loopback excepted, for tests).
 
 ## Conformance

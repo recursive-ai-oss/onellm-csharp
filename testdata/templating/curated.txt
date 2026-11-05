@@ -1047,3 +1047,18 @@ tmpl:
 data: {}
 tmpl:
 {{date "2006-01-02 15:04" "1999-01-01T10:30:00+05:30"}}
+
+### index-missing-key-then-field
+data: {"m": {}}
+tmpl:
+[{{(index .m "z")}}] [{{(index .m "z").x}}] [{{(index .m "z").x.y}}]
+
+### index-missing-key-then-field-error [missingkey=error]
+data: {"m": {}}
+tmpl:
+[{{(index .m "z").x}}]
+
+### index-null-value-then-field
+data: {"m": {"k": null}}
+tmpl:
+[{{(index .m "k").x}}]

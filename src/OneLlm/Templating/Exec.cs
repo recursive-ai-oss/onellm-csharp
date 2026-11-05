@@ -426,6 +426,10 @@ internal sealed class Exec
                 }
 
                 object? recv = EvalArg(dot, ArgKind.Any, c.Inner);
+
+                // Observed from Go 1.26: a parenthesised pipeline that yields nil (a missing map key through index, a JSON null) hands the
+                // field access "no value" rather than a nil pointer, so (index .m "z").x prints <no value>; a bare .nul.x still fails.
+                recv ??= V.Missing;
                 return EvalFieldChain(dot, recv, c, c.Fields, cmd.Args, hasFinal, final);
             }
 
@@ -766,6 +770,10 @@ internal sealed class Exec
                 }
 
                 object? recv = EvalArg(dot, ArgKind.Any, c.Inner);
+
+                // Observed from Go 1.26: a parenthesised pipeline that yields nil (a missing map key through index, a JSON null) hands the
+                // field access "no value" rather than a nil pointer, so (index .m "z").x prints <no value>; a bare .nul.x still fails.
+                recv ??= V.Missing;
                 return Coerce(kind, EvalFieldChain(dot, recv, c, c.Fields, new[] { n }, false, null), n);
             }
 

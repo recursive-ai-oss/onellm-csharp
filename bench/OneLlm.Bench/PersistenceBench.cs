@@ -6,8 +6,8 @@ namespace OneLlm.Bench;
 
 /// <summary>
 /// The cost of persisting one more turn of a long instance (about 200,000 tokens of conversation, 800 KB of YAML): serialize the
-/// instance and replace its file atomically with a flush to disk. "Append" is the steady state of a run; "Cold" is a first save
-/// of an instance just loaded, with nothing cached.
+/// instance and replace its file atomically with a flush to disk. "Append" is the steady state of a run; "Cold" serializes an instance whose messages have never been
+/// written (loading primes the cache, so a first save after a load is as cheap as an appended turn).
 /// </summary>
 [MemoryDiagnoser]
 public class PersistenceBench
@@ -34,7 +34,7 @@ public class PersistenceBench
     public void Cleanup() => Directory.Delete(_dir, recursive: true);
 
     [IterationSetup(Target = nameof(SaveCold))]
-    public void ColdSetup() => _cold = Instance.Parse(_text);
+    public void ColdSetup() => _cold = Build();
 
     /// <summary>Add one turn, save, then take the turn off again so every run measures the same size.</summary>
     [Benchmark]
@@ -58,6 +58,7 @@ public class PersistenceBench
     [Benchmark]
     public string SaveCold() => _cold.ToYaml();
 
+    /// <summary>Parse the file; includes priming the cache with the text of every message.</summary>
     [Benchmark]
     public Instance Load() => Instance.Parse(_text);
 

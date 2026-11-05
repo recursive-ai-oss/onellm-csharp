@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <!-- Shipped dependencies of the core package: Recursive AI libraries only. -->
+  <ItemGroup>
+    <PackageVersion Include="OneYaml" Version="1.2.1" />
+    <PackageVersion Include="RecursiveAI.OneImage" Version="1.10.4" />
+  </ItemGroup>
+  <!-- Build-time and test-only packages. The library depends on none of these. -->
+  <ItemGroup>
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+  </ItemGroup>
+</Project>

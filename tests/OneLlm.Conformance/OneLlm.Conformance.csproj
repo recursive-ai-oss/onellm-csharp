@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The recorded-fixture harness: a replaying HttpMessageHandler, a recording handler and the scrubber. It has no
+       dependency beyond the base class library, so provider tests and the mock server can share it. -->
+  <PropertyGroup>
+    <RootNamespace>$(LibName).Conformance</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="System.Net.Http" />
+  </ItemGroup>
+
+</Project>

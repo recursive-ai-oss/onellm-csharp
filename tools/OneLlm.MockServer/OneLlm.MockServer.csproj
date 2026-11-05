@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- A local HTTP server that replays recorded or synthetic provider responses and SSE streams, for benchmarks. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).MockServer</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../tests/OneLlm.Conformance/OneLlm.Conformance.csproj" />
+  </ItemGroup>
+
+</Project>

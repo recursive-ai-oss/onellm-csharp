@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OneLlm/OneLlm.csproj" />
+    <Project Path="src/OneLlm.Generators/OneLlm.Generators.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OneLlm.Tests/OneLlm.Tests.csproj" />
+    <Project Path="tests/OneLlm.Conformance/OneLlm.Conformance.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/OneLlm.MockServer/OneLlm.MockServer.csproj" />
+  </Folder>
+  <Folder Name="/bench/">
+    <Project Path="bench/OneLlm.Bench/OneLlm.Bench.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/AotSmoke/AotSmoke.csproj" />
+  </Folder>
+</Solution>

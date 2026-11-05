@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>$(LibName).OneLite</AssemblyName>
+    <RootNamespace>$(LibName).OneLite</RootNamespace>
+    <PackageId>$(PackagePrefix)$(LibName).OneLite</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>LLM inference and agent runtime for .NET: an instance store and a record sink for OneLLM on a OneLite database file. Unaffiliated with the PyPI onellm package and the OneLLM research model.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
+    <PackageTags>llm;ai;agents;entityframeworkcore;onelite;sqlite;persistence</PackageTags>
+    <PackageReleaseNotes>See CHANGELOG.md in the repository.</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OneLlm/OneLlm.csproj" />
+    <PackageReference Include="RecursiveAI.OneLite" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../PACKAGE.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE-MIT" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE-APACHE" Pack="true" PackagePath="/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

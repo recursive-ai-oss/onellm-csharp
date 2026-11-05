@@ -1,6 +1,6 @@
 # The `onellm` command line
 
-`onellm` runs OneLLM definitions from a terminal. It is a .NET tool (`RecursiveAI.OneLlm.Cli`, command `onellm`) built on the same `Runtime` the library exposes, and it is line-oriented: no full-screen interface, results on standard output, progress on standard error, so it composes in pipes and scripts.
+`onellm` runs OneLLM definitions from a terminal. It is a .NET tool (`RecursiveAI.OneLlm.Cli`, command `onellm`; it hosts the core, `.Web` and `.JavaScript` packages) built on the same `Runtime` the library exposes, and it is line-oriented: no full-screen interface, results on standard output, progress on standard error, so it composes in pipes and scripts.
 
 ```
 dotnet tool install -g RecursiveAI.OneLlm.Cli
@@ -30,13 +30,14 @@ API keys are read from the environment only (`ANTHROPIC_API_KEY`, `OPENAI_API_KE
 | `examples/<name>` | The embedded example agent of that name |
 | `*.yaml` (and a directory holding `agent.yaml`) | Agent: the tool loop |
 | `*.flow` | Scripted: the prompts in order, one model call each, no tools |
-| a directory holding `decider.yaml`, or that file | Decider: asks its questions, prints its outputs as JSON |
+| a directory holding `decider.yaml`, or that file | Decider: asks its questions, prints its outputs as JSON. A `decider.js` beside it supplies the logic. |
 
 Options of `run`:
 
 - `--input k=v` (repeatable) sets an input; `k=@file` reads the value from a file. `--input-json '{...}'` (or `@file`) sets several, with types.
 - `--prompt text` is an agent's first user message (agents only). `--model name` replaces the definition's model.
 - `--max-cost usd` stops a run that would spend more.
+- `--tools file-or-folder` (repeatable, every command that runs agents) loads JavaScript tool files (`.js`, with an optional `.tool.yaml`) so definitions can list them by name under `references`. A tool file is code you chose to load; what it may touch is still decided by the grants.
 - `--yes` approves every held tool call without asking. `--quiet` hides the tool-call lines on standard error.
 - Common to every command: `--root dir` (default: the current directory) and `--state dir` (below).
 
@@ -58,6 +59,10 @@ Definitions never grant anything. The tool grants only what its flags say:
 A definition that references a tool the grants do not cover (a shell tool without `--allow-shell`, `http_request` without `--allow-net`) does not load: the run stops with exit code 3 naming the tool and the missing grant, before any model call. Sub-agents hold at most what their parent holds.
 
 When a tool call needs approval (a tool marked `requiresApproval`, or a hook asking), the terminal asks `Approve <tool> <inputs>? [y/N]`. The default is no, and so is end of input. The held call is saved with the instance, so a run can also be left and answered later with `onellm instances resume <id>`.
+
+## JavaScript
+
+The tool includes the `.JavaScript` package. `run_javascript` is always offered to agents that list it (the code is sandboxed and can use only the grants of the run). Hook files listed in a definition's `hooks:` run as interceptors and observers, and a `decider.js` next to a `decider.yaml` is the decider's logic. See [JavaScript tools and hooks](javascript.md).
 
 ## Where things are kept
 
@@ -85,4 +90,5 @@ Under `<root>/.onellm/` unless `--state` says otherwise:
 
 - The tool is a managed .NET tool, not published as NativeAOT; the library it hosts is trim- and AOT-safe.
 - `onellm catalog` shows the effective catalog: set `ONELLM_CATALOG` to a file or directory of `llm-provider.yaml` files to add a user layer.
+- `decider.ts` is not supported yet (see the JavaScript page).
 - Web search (`search_web`) is available to agents when `BRAVE_API_KEY` is set; fetching pages (`fetch_webpage_markdown`) needs `--allow-net`.

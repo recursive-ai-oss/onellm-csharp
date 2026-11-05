@@ -26,10 +26,11 @@
     <Using Include="System.Threading.Tasks" />
   </ItemGroup>
 
-  <!-- The tool references core and the adapter packages it hosts. -->
+  <!-- The tool references core and the adapter packages it hosts (.Web and .JavaScript). -->
   <ItemGroup>
     <ProjectReference Include="../OneLlm/OneLlm.csproj" />
     <ProjectReference Include="../OneLlm.Web/OneLlm.Web.csproj" />
+    <ProjectReference Include="../OneLlm.JavaScript/OneLlm.JavaScript.csproj" />
   </ItemGroup>
 
   <!-- The example agents ship inside the tool and run as examples/<name>. -->
@@ -38,7 +39,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="../../PACKAGE.md" Pack="true" PackagePath="/" />
+    <None Include="PACKAGE.md" Pack="true" PackagePath="/" />
     <None Include="../../LICENSE-MIT" Pack="true" PackagePath="/" />
     <None Include="../../LICENSE-APACHE" Pack="true" PackagePath="/" />
     <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />

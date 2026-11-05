@@ -5,6 +5,7 @@ using OneLlm.Agents;
 using OneLlm.Deciders;
 using OneLlm.Definitions;
 using OneLlm.Instances;
+using OneLlm.JavaScript;
 
 namespace OneLlm.Cli;
 
@@ -49,7 +50,7 @@ internal sealed partial class CliApp
         {
             case Kind.Decider:
             {
-                DecisionResult r = await rt.DecideAsync(Decider.Load(path), inputs, cancellationToken).ConfigureAwait(false);
+                DecisionResult r = await rt.DecideAsync(JsDeciderLogic.LoadDecider(Directory.Exists(path) ? path : Path.GetDirectoryName(path)!), inputs, cancellationToken).ConfigureAwait(false);
                 _out.WriteLine(Pretty(r.Outputs.GetRawText()));
                 Note($"decider {r.Instance.InstanceId} · {r.Engine} {r.Model} · cost {Usd(r.Cost.Total)}");
                 return ExitCodes.Ok;

@@ -303,6 +303,70 @@ public class VerbTests
         Assert.DoesNotContain("Approve hold", env.Err);
     }
 
+    private const string ShoutTool = "export const tool = { name: 'shout', description: 'Upper-cases text.', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } };\nexport function invoke({ text }) { return text.toUpperCase(); }\n";
+
+    private static string ShowOf(string output, string tool) =>
+        output.Split('\n').First(l => l.StartsWith("[tool] " + tool, StringComparison.Ordinal));
+
+    [Fact]
+    public async Task A_JavaScript_tool_file_named_with_tools_runs_for_an_agent()
+    {
+        using var env = new CliEnv();
+        Directory.CreateDirectory(Path.Combine(env.Root, "tools"));
+        File.WriteAllText(Path.Combine(env.Root, "tools", "shout.js"), ShoutTool);
+        WriteAgent(env, "shout, task_complete");
+        env.Provider.Enqueue(CliEnv.Calls(("s1", "shout", """{"text":"hello"}""")), CliEnv.Complete("ok"));
+
+        Assert.Equal(0, await env.RunAsync("", "run", "agent.yaml", "--prompt", "go", "--tools", "tools"));
+        string id = IdFrom(env.Err);
+        await env.RunAsync("", "instances", "show", id);
+        Assert.Contains("HELLO", ShowOf(env.Out, "shout"));
+
+        // Without --tools the reference does not load.
+        Assert.Equal(ExitCodes.Setup, await env.RunAsync("", "run", "agent.yaml", "--prompt", "go"));
+        Assert.Equal(ExitCodes.Setup, await env.RunAsync("", "run", "agent.yaml", "--tools", "nowhere"));
+    }
+
+    [Fact]
+    public async Task A_JavaScript_hook_listed_in_the_definition_blocks_a_tool_call()
+    {
+        using var env = new CliEnv();
+        Directory.CreateDirectory(Path.Combine(env.Root, "hooks"));
+        File.WriteAllText(Path.Combine(env.Root, "hooks", "gate.js"), "export function beforeToolCall(s) { return s.call.tool === 'shout' ? { action: 'block', reason: 'not today' } : undefined; }\n");
+        File.WriteAllText(Path.Combine(env.Root, "shout.js"), ShoutTool);
+        File.WriteAllText(
+            Path.Combine(env.Root, "agent.yaml"),
+            "name: probe\nmodel: demo\nsystemPrompt: You probe.\nreferences:\n  - tools: [shout, task_complete]\nhooks:\n  - file: hooks/gate.js\n    points: [beforeToolCall]\n");
+        env.Provider.Enqueue(CliEnv.Calls(("s1", "shout", """{"text":"hello"}""")), CliEnv.Complete("ok"));
+
+        Assert.Equal(0, await env.RunAsync("", "run", "agent.yaml", "--prompt", "go", "--tools", "shout.js"));
+        string id = IdFrom(env.Err);
+        await env.RunAsync("", "instances", "show", id);
+        string shown = ShowOf(env.Out, "shout");
+        Assert.Contains("not today", shown);
+        Assert.DoesNotContain("HELLO", shown);
+    }
+
+    [Fact]
+    public async Task The_js_tool_writer_writes_a_tool_file_and_checks_it_with_run_javascript()
+    {
+        using var env = new CliEnv();
+        string write = new JsonObject { ["path"] = "tools/shout.js", ["content"] = ShoutTool }.ToJsonString();
+        string check = new JsonObject { ["code"] = "return input.text.toUpperCase();", ["input"] = new JsonObject { ["text"] = "abc" } }.ToJsonString();
+        env.Provider.Enqueue(CliEnv.Calls(("w1", "write_file", write)), CliEnv.Calls(("j1", "run_javascript", check)), CliEnv.Complete("tool written"));
+
+        Assert.Equal(0, await env.RunAsync("", "run", "examples/js-tool-writer", "--model", "demo", "--prompt", "write shout"));
+        string writerId = IdFrom(env.Err);
+        Assert.True(File.Exists(Path.Combine(env.Root, "tools", "shout.js")));
+        await env.RunAsync("", "instances", "show", writerId);
+        Assert.Contains("ABC", ShowOf(env.Out, "run_javascript"));
+
+        // The file the agent wrote loads as a tool.
+        WriteAgent(env, "shout, task_complete");
+        env.Provider.Enqueue(CliEnv.Calls(("s1", "shout", """{"text":"hey"}""")), CliEnv.Complete("ok"));
+        Assert.Equal(0, await env.RunAsync("", "run", "agent.yaml", "--prompt", "go", "--tools", "tools"));
+    }
+
     [Fact]
     public async Task A_flow_runs_scripted_with_inputs_and_prints_the_last_answer()
     {

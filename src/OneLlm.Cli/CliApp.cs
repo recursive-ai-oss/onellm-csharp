@@ -9,7 +9,9 @@ using OneLlm.Definitions;
 using OneLlm.Instances;
 using OneLlm.Messages;
 using OneLlm.Records;
+using OneLlm.Tools;
 using OneLlm.Tools.Builtins;
+using OneLlm.JavaScript;
 using OneLlm.Web;
 
 namespace OneLlm.Cli;
@@ -39,7 +41,7 @@ internal static class ExitCodes
 /// <summary>The <c>onellm</c> command line: parses a verb and runs it on a <see cref="Runtime"/> built from the flags.</summary>
 internal sealed partial class CliApp
 {
-    private static readonly string[] s_common = ["root", "state", "max-cost"];
+    private static readonly string[] s_common = ["root", "state", "max-cost", "tools"];
 
     private readonly TextReader _in;
     private readonly TextWriter _out;
@@ -146,7 +148,31 @@ internal sealed partial class CliApp
                 : throw new UsageException("--max-cost needs a positive amount in US dollars, for example 0.50.");
         }
 
+        // JavaScript: run_javascript is always offered (it is sandboxed and holds only the grants the run has); tool files are loaded
+        // only when named with --tools, and hook files listed in a definition run on the runtime's clock.
+        rt.Tools.Add(JsTools.RunJavaScript());
         ConfigureRuntime?.Invoke(rt);
+        rt.DefinitionHooks ??= new JsHookSource(timeProvider: rt.TimeProvider, baseDirectory: root);
+        foreach (string tools in args.GetAll("tools"))
+        {
+            string full = Path.GetFullPath(tools, WorkingDirectory);
+            if (Directory.Exists(full))
+            {
+                foreach (ITool tool in JsTools.LoadDirectory(full, timeProvider: rt.TimeProvider))
+                {
+                    rt.Tools.Add(tool);
+                }
+            }
+            else if (File.Exists(full))
+            {
+                rt.Tools.Add(JsTools.Load(full, timeProvider: rt.TimeProvider));
+            }
+            else
+            {
+                throw new FileNotFoundException($"--tools: there is no file or directory '{tools}'.");
+            }
+        }
+
         return rt;
     }
 

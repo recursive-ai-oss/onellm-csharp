@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
     <ProjectReference Include="../../src/OneLlm.Web/OneLlm.Web.csproj" />
+    <ProjectReference Include="../../src/OneLlm.JavaScript/OneLlm.JavaScript.csproj" />
   </ItemGroup>
 
   <!-- The tool is an executable, which a test executable cannot reference, so the tests compile the tool's sources and embedded examples. -->

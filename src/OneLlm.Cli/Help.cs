@@ -21,6 +21,7 @@ internal static class Help
           --root <dir>          The directory tools may read and write (default: the current directory).
           --state <dir>         Where instances (instances/) and records (records/) are kept (default: <root>/.onellm).
           --max-cost <usd>      Stop a run that would spend more than this.
+          --tools <file|dir>    Load JavaScript tool files (repeatable) so definitions can list them.
           -h, --help            Help for the command.
 
         Grants (run, instances resume): files under --root are always granted; nothing else is unless you say so.
@@ -42,7 +43,7 @@ internal static class Help
         "run" => """
             Usage: onellm run <definition> [--input k=v]... [--input-json '{...}'] [--prompt text] [--model name]
                               [--allow-shell[=cmds]] [--allow-net[=hosts]] [--root dir] [--state dir]
-                              [--max-cost usd] [--yes] [--quiet]
+                              [--max-cost usd] [--tools file|dir]... [--yes] [--quiet]
 
             The file decides the mode: examples/<name> and agent YAML run the tool loop; a .flow file runs its prompts in
             order, one model call each; a decider directory (or its decider.yaml) asks its questions and prints its outputs.

@@ -39,15 +39,16 @@ foreach (string line in File.ReadLines(args[0]))
 
 var report = new StringBuilder();
 report.AppendLine($"onellm-corpus report, {DateTime.UtcNow:yyyy-MM-dd}");
-long files = 0, lossless = 0, bytesEqual = 0, errors = 0;
+long files = 0, lossless = 0, bytesEqual = 0, errors = 0, invalid = 0;
 foreach ((string name, Stratum s) in strata)
 {
     files += s.Files;
     lossless += s.Lossless;
     bytesEqual += s.ByteEqual;
     errors += s.ParseErrors;
+    invalid += s.InvalidInput;
     report.AppendLine();
-    report.AppendLine($"[{name}] files={s.Files} lossless={s.Lossless} lossy={s.Lossy} parseErrors={s.ParseErrors} unchangedByteEqual={s.ByteEqual} orderIndexAdded={s.OrderIndex}");
+    report.AppendLine($"[{name}] files={s.Files} lossless={s.Lossless} lossy={s.Lossy} parseErrors={s.ParseErrors} (invalidInput={s.InvalidInput}) unchangedByteEqual={s.ByteEqual} orderIndexAdded={s.OrderIndex}");
     foreach ((string key, int count) in s.ErrorKinds.OrderByDescending(k => k.Value).Take(10))
     {
         report.AppendLine($"  parse error: {key} x{count}");
@@ -60,7 +61,7 @@ foreach ((string name, Stratum s) in strata)
 }
 
 report.AppendLine();
-report.AppendLine($"TOTAL files={files} lossless={lossless} lossy={files - lossless - errors} parseErrors={errors} unchangedByteEqual={bytesEqual}");
+report.AppendLine($"TOTAL files={files} lossless={lossless} lossy={files - lossless - errors} parseErrors={errors} (invalidInput={invalid}) unchangedByteEqual={bytesEqual}");
 File.WriteAllText(args[1], report.ToString());
 WriteExamples(args[1]);
 Console.WriteLine($"files={files} lossless={lossless} lossy={files - lossless - errors} parseErrors={errors} unchangedByteEqual={bytesEqual}");
@@ -109,6 +110,13 @@ static void Check(string kind, string path, Stratum st)
     }
     catch (Exception e)
     {
+        // A raw U+FEFF inside a block or plain scalar is invalid YAML (YAML 1.2.2 production [27], nb-char), so such files
+        // are invalid input rather than a round-trip loss; they are counted on their own and excluded from lossy.
+        if (e is BadDefinitionException bom && bom.Message.Contains("byte order mark", StringComparison.OrdinalIgnoreCase))
+        {
+            st.InvalidInput++;
+        }
+
         st.ParseErrors++;
         string key = e.GetType().Name + (e is BadDefinitionException b ? $" ({FirstWords(StripLocation(b))})" : e is YamlException y ? $" ({y.Category})" : "");
         st.ErrorKinds[key] = st.ErrorKinds.GetValueOrDefault(key) + 1;
@@ -314,7 +322,7 @@ internal static class Examples
 
 internal sealed class Stratum
 {
-    public int Files, Lossless, Lossy, ParseErrors, ByteEqual, OrderIndex;
+    public int Files, Lossless, Lossy, ParseErrors, InvalidInput, ByteEqual, OrderIndex;
     public readonly Dictionary<string, int> Diffs = new();
     public readonly Dictionary<string, int> ErrorKinds = new();
 }

@@ -19,7 +19,12 @@
                 }
               ]
             }
-          ]
+          ],
+          "generationConfig": {
+            "thinkingConfig": {
+              "thinkingBudget": 0
+            }
+          }
         }
       },
       "response": {

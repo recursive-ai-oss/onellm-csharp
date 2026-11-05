@@ -4,6 +4,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>$(LibName).MockServer</RootNamespace>
+    <AssemblyName>onellm-mockserver</AssemblyName>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 

@@ -1,0 +1,64 @@
+{
+  "format": 1,
+  "description": "Hand-written sample for the replay harness: one JSON call and one streamed call to a made-up chat API.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat",
+        "headers": {
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "sample-model",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "max_tokens": 64
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "resp_sample_1",
+          "text": "Hello!",
+          "usage": {
+            "input_tokens": 9,
+            "output_tokens": 2
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat?stream=true",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "sample-model",
+          "stream": true
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/event-stream"
+        },
+        "sse": [
+          "event: delta\ndata: {\"text\":\"Hel",
+          "lo\"}\n\nevent: delta\ndata: {\"text\":\" there\"}\n\n",
+          "event: done\ndata: {}\n\n"
+        ]
+      }
+    }
+  ]
+}

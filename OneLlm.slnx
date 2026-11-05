@@ -3,12 +3,17 @@
     <Project Path="src/OneLlm/OneLlm.csproj" />
     <Project Path="src/OneLlm.Generators/OneLlm.Generators.csproj" />
     <Project Path="src/OneLlm.Web/OneLlm.Web.csproj" />
+    <Project Path="src/OneLlm.EntityFrameworkCore/OneLlm.EntityFrameworkCore.csproj" />
+    <Project Path="src/OneLlm.OneLite/OneLlm.OneLite.csproj" />
+    <Project Path="src/OneLlm.Extensions.AI/OneLlm.Extensions.AI.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OneLlm.Tests/OneLlm.Tests.csproj" />
     <Project Path="tests/OneLlm.Web.Tests/OneLlm.Web.Tests.csproj" />
+    <Project Path="tests/OneLlm.Extensions.AI.Tests/OneLlm.Extensions.AI.Tests.csproj" />
     <Project Path="tests/OneLlm.Conformance/OneLlm.Conformance.csproj" />
     <Project Path="tests/OneLlm.TemplateParity/OneLlm.TemplateParity.csproj" />
+    <Project Path="tests/OneLlm.Stores.Tests/OneLlm.Stores.Tests.csproj" />
     <Project Path="tests/OneLlm.Generators.Tests/OneLlm.Generators.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
@@ -22,5 +27,8 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/AotSmoke/AotSmoke.csproj" />
+    <Project Path="samples/OneLiteAotSmoke/OneLiteAotSmoke.csproj" />
+    <Project Path="samples/AotSmoke.Extensions/AotSmoke.Extensions.csproj" />
+    <Project Path="samples/HappyPath/HappyPath.csproj" />
   </Folder>
 </Solution>

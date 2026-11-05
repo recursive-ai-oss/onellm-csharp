@@ -85,6 +85,9 @@ public enum StreamEventKind
     /// <see cref="StreamEvent.Extension"/> the JSON object.
     /// </summary>
     MessageExtension = 15,
+
+    /// <summary>A notice about the request, such as a parameter removed because the model does not take it: <see cref="StreamEvent.Notice"/>. Carries no content; it can arrive at any point, usually first.</summary>
+    Warning = 16,
 }
 
 /// <summary>
@@ -142,6 +145,9 @@ public readonly struct StreamEvent
 
     /// <summary>The usage carried by <see cref="StreamEventKind.Usage"/>.</summary>
     public Usage? Usage => _payload as Usage;
+
+    /// <summary>The notice of a <see cref="StreamEventKind.Warning"/> event.</summary>
+    public Providers.ResponseWarning? Notice => _payload as Providers.ResponseWarning;
 
     /// <summary>The replay payload carried by <see cref="StreamEventKind.ReasoningEnd"/>.</summary>
     public JsonObject? Data => _payload as JsonObject;
@@ -249,6 +255,11 @@ public readonly struct StreamEvent
     /// <param name="part">The whole part.</param>
     /// <returns>The event.</returns>
     public static StreamEvent PartAdded(int index, Part part) => new(StreamEventKind.PartAdded, index, default, null, null, part, default);
+
+    /// <summary>Creates a <see cref="StreamEventKind.Warning"/> event.</summary>
+    /// <param name="warning">The notice.</param>
+    /// <returns>The event.</returns>
+    public static StreamEvent Warning(Providers.ResponseWarning warning) => new(StreamEventKind.Warning, 0, default, null, null, warning ?? throw new ArgumentNullException(nameof(warning)), default);
 
     /// <summary>Creates a <see cref="StreamEventKind.Usage"/> event.</summary>
     /// <param name="usage">The usage reported so far.</param>

@@ -8,6 +8,7 @@
     <Project Path="tests/OneLlm.Conformance/OneLlm.Conformance.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/OneLlm.CostParity/OneLlm.CostParity.csproj" />
     <Project Path="tools/OneLlm.MockServer/OneLlm.MockServer.csproj" />
   </Folder>
   <Folder Name="/bench/">

@@ -256,4 +256,7 @@ public sealed record ChatResponse
 
     /// <summary>What the call cost, once priced from the catalog. Null until then.</summary>
     public Cost? Cost { get; init; }
+
+    /// <summary>Notices about the request, such as parameters removed because the model does not take them. Empty when there are none.</summary>
+    public IReadOnlyList<ResponseWarning> Warnings { get; init; } = [];
 }

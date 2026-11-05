@@ -417,7 +417,7 @@ public sealed partial class Runtime
     }
 
     // Image parts in the inputs become placeholder strings the templates carry, and the images travel beside the request.
-    private IReadOnlyDictionary<string, object?>? ReplaceAssets(IReadOnlyDictionary<string, object?>? inputs, List<DecisionImage> images)
+    private Dictionary<string, object?>? ReplaceAssets(IReadOnlyDictionary<string, object?>? inputs, List<DecisionImage> images)
     {
         if (inputs is null)
         {

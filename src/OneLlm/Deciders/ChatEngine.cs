@@ -313,19 +313,90 @@ internal static class ChatEngine
 
     private static string StateBlock(string stateJson)
     {
-        string pretty;
         try
         {
             using JsonDocument doc = JsonDocument.Parse(stateJson);
-            pretty = JsonSerializer.Serialize(doc.RootElement, PrettyOptions.Value);
         }
         catch (JsonException)
         {
-            pretty = stateJson;
+            return "# STATE\n" + stateJson;
         }
 
-        return "# STATE\n" + pretty;
+        return "# STATE\n" + Indent(stateJson);
     }
+
+    // Same layout as Go's json.Indent with a two-space indent: tokens are kept as written, empty containers stay "{}" / "[]".
+    private static string Indent(string json)
+    {
+        var sb = new StringBuilder(json.Length * 2);
+        int depth = 0;
+        bool inString = false;
+        for (int i = 0; i < json.Length; i++)
+        {
+            char c = json[i];
+            if (inString)
+            {
+                sb.Append(c);
+                if (c == '\\')
+                {
+                    sb.Append(json[++i]);
+                }
+                else if (c == '"')
+                {
+                    inString = false;
+                }
+
+                continue;
+            }
+
+            switch (c)
+            {
+                case '"':
+                    inString = true;
+                    sb.Append(c);
+                    break;
+                case '{':
+                case '[':
+                    sb.Append(c);
+                    if (i + 1 < json.Length && (json[i + 1] == '}' || json[i + 1] == ']'))
+                    {
+                        sb.Append(json[++i]);
+                    }
+                    else
+                    {
+                        depth++;
+                        NewLine(sb, depth);
+                    }
+
+                    break;
+                case '}':
+                case ']':
+                    depth--;
+                    NewLine(sb, depth);
+                    sb.Append(c);
+                    break;
+                case ',':
+                    sb.Append(c);
+                    NewLine(sb, depth);
+                    break;
+                case ':':
+                    sb.Append(": ");
+                    break;
+                case ' ':
+                case '\t':
+                case '\n':
+                case '\r':
+                    break;
+                default:
+                    sb.Append(c);
+                    break;
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static void NewLine(StringBuilder sb, int depth) => sb.Append('\n').Append(' ', depth * 2);
 
     private static string QuestionPrompt(Question q)
     {
@@ -337,7 +408,7 @@ internal static class ChatEngine
                 sb.Append("\nOPTIONS\n");
                 for (int i = 0; i < q.Keys.Length; i++)
                 {
-                    sb.Append("- ").Append(JsonSerializer.Serialize(q.Keys[i], PrettyOptions.Plain)).Append(": ").Append(q.Descriptions[i]).Append('\n');
+                    sb.Append("- ").Append(Quote(q.Keys[i])).Append(": ").Append(q.Descriptions[i]).Append('\n');
                 }
 
                 break;
@@ -382,7 +453,7 @@ internal static class ChatEngine
                     sb.Append(", ");
                 }
 
-                sb.Append(JsonSerializer.Serialize(q.Keys[i], PrettyOptions.Plain)).Append(": _");
+                sb.Append(Quote(q.Keys[i])).Append(": _");
             }
 
             sb.Append("}}");
@@ -391,10 +462,11 @@ internal static class ChatEngine
         return sb.ToString();
     }
 
-    private static class PrettyOptions
+    private static string Quote(string value)
     {
-        public static readonly JsonSerializerOptions Value = new() { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-        public static readonly JsonSerializerOptions Plain = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+        var sb = new StringBuilder();
+        OneLlm.Providers.GoJson.AppendString(sb, value);
+        return sb.ToString();
     }
 
     // ---- reading the model's answer (strict: off-schema output is never nudged into shape) ----

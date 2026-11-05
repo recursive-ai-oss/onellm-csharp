@@ -156,6 +156,7 @@ internal static class DecisionEngine
         }
 
         bool fits = (budget == 0 || need <= budget) && (maxQuestions == 0 || wireCount <= maxQuestions);
+        bool rejected = false;
         if (fits)
         {
             try
@@ -166,6 +167,7 @@ internal static class DecisionEngine
             catch (ContextOverflowException) when (wireCount > 1)
             {
                 // The engine counted more tokens than the estimate: split below.
+                rejected = true;
             }
             catch (ContextOverflowException)
             {
@@ -183,10 +185,15 @@ internal static class DecisionEngine
         int half = (EstimateTokens(questionsBytes) + 1) / 2;
         if (budget == 0 || half < avail)
         {
-            // Reached with a fitting estimate only when the engine already rejected the whole set: at least halve it.
-            if (budget == 0 || need <= budget)
+            // When the engine already rejected the whole set, at least halve it. A set that only exceeds the per-request question cap
+            // keeps the full budget and is cut at the cap below.
+            if (rejected)
             {
                 avail = half;
+            }
+            else if (budget == 0)
+            {
+                avail = int.MaxValue;
             }
         }
 

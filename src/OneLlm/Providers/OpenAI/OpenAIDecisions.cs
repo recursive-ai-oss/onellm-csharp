@@ -39,7 +39,7 @@ internal sealed class OpenAIDecisions
         var questions = new JsonArray();
         foreach (WireQuestion q in request.Questions)
         {
-            questions.Add(WriteQuestion(q, images));
+            questions.Add((JsonNode)WriteQuestion(q, images));
         }
 
         JsonArray content = StateParts(request.State, images);
@@ -48,7 +48,7 @@ internal sealed class OpenAIDecisions
             // The reference lets only text and image parts carry a breakpoint; a trailing newline part marks the end of the state.
             if (content.Count == 0 || content[^1] is not JsonObject last || (string?)last["type"] == "input_json")
             {
-                content.Add(new JsonObject { ["type"] = "input_text", ["text"] = "\n" });
+                content.Add((JsonNode)new JsonObject { ["type"] = "input_text", ["text"] = "\n" });
             }
 
             ((JsonObject)content[^1]!)["prompt_cache_breakpoint"] = new JsonObject { ["mode"] = "explicit" };
@@ -93,16 +93,16 @@ internal sealed class OpenAIDecisions
         switch (node)
         {
             case JsonObject obj:
-                parts.Add(new JsonObject { ["type"] = "input_json", ["data"] = obj });
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_json", ["data"] = obj });
                 break;
             case JsonArray arr when arr.All(static n => n is JsonObject):
-                parts.Add(new JsonObject { ["type"] = "input_json", ["data"] = arr });
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_json", ["data"] = arr });
                 break;
             case JsonValue v when v.TryGetValue(out string? text):
-                parts.Add(new JsonObject { ["type"] = "input_text", ["text"] = text });
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_text", ["text"] = text });
                 break;
             default:
-                parts.Add(new JsonObject { ["type"] = "input_text", ["text"] = node?.ToJsonString() ?? "null" });
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_text", ["text"] = node?.ToJsonString() ?? "null" });
                 break;
         }
 
@@ -161,7 +161,7 @@ internal sealed class OpenAIDecisions
                             choice["description"] = description;
                         }
 
-                        choices.Add(choice);
+                        choices.Add((JsonNode)choice);
                     }
 
                     result["choices"] = choices;
@@ -178,7 +178,7 @@ internal sealed class OpenAIDecisions
                     {
                         foreach (JsonProperty level in criteria.EnumerateObject())
                         {
-                            levels.Add(new JsonObject { ["label"] = level.Name, ["description"] = Text(level.Value) });
+                            levels.Add((JsonNode)new JsonObject { ["label"] = level.Name, ["description"] = Text(level.Value) });
                         }
                     }
                     else
@@ -187,7 +187,7 @@ internal sealed class OpenAIDecisions
                         {
                             // A plain string is its own label and its own description.
                             string text = Text(level);
-                            levels.Add(new JsonObject { ["label"] = text, ["description"] = text });
+                            levels.Add((JsonNode)new JsonObject { ["label"] = text, ["description"] = text });
                         }
                     }
 
@@ -218,22 +218,22 @@ internal sealed class OpenAIDecisions
                     return JsonValue.Create(text)!;
                 }
 
-                parts.Add(new JsonObject { ["type"] = "input_text", ["text"] = text });
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_text", ["text"] = text });
                 break;
             case JsonObject obj:
-                parts.Add(new JsonObject { ["type"] = "input_json", ["data"] = obj.DeepClone() });
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_json", ["data"] = obj.DeepClone() });
                 break;
             case JsonArray arr when arr.All(static n => n is JsonObject):
-                parts.Add(new JsonObject { ["type"] = "input_json", ["data"] = arr.DeepClone() });
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_json", ["data"] = arr.DeepClone() });
                 break;
             default:
-                parts.Add(new JsonObject { ["type"] = "input_text", ["text"] = instructions.ToJsonString() });
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_text", ["text"] = instructions.ToJsonString() });
                 break;
         }
 
         if (clarification is not null)
         {
-            parts.Add(new JsonObject { ["type"] = "input_text", ["text"] = clarification });
+            parts.Add((JsonNode)new JsonObject { ["type"] = "input_text", ["text"] = clarification });
         }
 
         if (parts.Count == 0)
@@ -321,7 +321,7 @@ internal sealed class OpenAIDecisions
 
     private static long Long(JsonElement e, string name) => e.TryGetProperty(name, out JsonElement v) && v.TryGetInt64(out long n) ? n : 0;
 
-    private static JsonNode ReadAnswer(JsonElement answer, WireQuestion q)
+    private static JsonObject ReadAnswer(JsonElement answer, WireQuestion q)
     {
         string type = answer.TryGetProperty("type", out JsonElement t) ? t.GetString() ?? "" : "";
         switch (type)
@@ -427,10 +427,10 @@ internal sealed class OpenAIDecisions
                 found = true;
                 if (best > at)
                 {
-                    parts.Add(new JsonObject { ["type"] = "input_text", ["text"] = text[at..best] });
+                    parts.Add((JsonNode)new JsonObject { ["type"] = "input_text", ["text"] = text[at..best] });
                 }
 
-                parts.Add(Image(_images[bestIndex]));
+                parts.Add((JsonNode)Image(_images[bestIndex]));
                 at = best + _images[bestIndex].Reference.Length;
             }
 
@@ -441,7 +441,7 @@ internal sealed class OpenAIDecisions
 
             if (at < text.Length)
             {
-                parts.Add(new JsonObject { ["type"] = "input_text", ["text"] = text[at..] });
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_text", ["text"] = text[at..] });
             }
 
             return true;
@@ -490,8 +490,8 @@ internal sealed class OpenAIDecisions
         {
             for (int n = 0; n < _used.Count; n++)
             {
-                parts.Add(new JsonObject { ["type"] = "input_text", ["text"] = $"\nImage {(n + 1).ToString(CultureInfo.InvariantCulture)}:" });
-                parts.Add(Image(_images[_used[n]]));
+                parts.Add((JsonNode)new JsonObject { ["type"] = "input_text", ["text"] = $"\nImage {(n + 1).ToString(CultureInfo.InvariantCulture)}:" });
+                parts.Add((JsonNode)Image(_images[_used[n]]));
             }
         }
 

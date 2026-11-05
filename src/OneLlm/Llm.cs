@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
+using OneLlm.Deciders;
+using OneLlm.Definitions;
 using OneLlm.Instances;
 using OneLlm.Messages;
 using OneLlm.Records;
@@ -213,6 +215,46 @@ public static class Llm
         JsonElement element = JsonSerializer.SerializeToElement(inputs, inputs.GetType(), ReflectionOptions());
         return Default.RunScriptAsync(path, ToDictionary(element), cancellationToken);
     }
+
+    /// <summary>Runs a decider from a <c>decider.yaml</c> (or the directory holding it) and returns its answers and outputs.</summary>
+    /// <param name="path">The decider.yaml or its directory.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The answers, outputs, cost and the instance that recorded the run.</returns>
+    /// <exception cref="BadDefinitionException">The decider is invalid; it names file, line and column.</exception>
+    /// <exception cref="RefusedException">The engine declined to answer a question.</exception>
+    public static Task<DecisionResult> DecideAsync(string path, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        Default.DecideAsync(path, inputs, cancellationToken);
+
+    /// <summary>Runs a decider that is already loaded, such as the <c>Decider</c> property of a generated C# decider.</summary>
+    /// <param name="decider">The decider.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The answers, outputs, cost and the instance that recorded the run.</returns>
+    public static Task<DecisionResult> DecideAsync(Decider decider, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        Default.DecideAsync(decider, inputs, cancellationToken);
+
+    /// <summary>Runs a decider from a file and reads its outputs into a type through its serialization metadata (trim and AOT safe).</summary>
+    /// <typeparam name="T">The outputs type.</typeparam>
+    /// <param name="path">The decider.yaml or its directory.</param>
+    /// <param name="typeInfo">Serialization metadata for <typeparamref name="T"/>.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The outputs.</returns>
+    /// <exception cref="JsonException">The outputs do not fit <typeparamref name="T"/>.</exception>
+    public static async Task<T> DecideAsync<T>(string path, JsonTypeInfo<T> typeInfo, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        (await Default.DecideAsync(path, inputs, cancellationToken).ConfigureAwait(false)).GetOutputs(typeInfo);
+
+    /// <summary>Runs a loaded decider and reads its outputs into a type through its serialization metadata (trim and AOT safe).</summary>
+    /// <typeparam name="T">The outputs type.</typeparam>
+    /// <param name="decider">The decider.</param>
+    /// <param name="typeInfo">Serialization metadata for <typeparamref name="T"/>.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The outputs.</returns>
+    /// <exception cref="JsonException">The outputs do not fit <typeparamref name="T"/>.</exception>
+    public static async Task<T> DecideAsync<T>(Decider decider, JsonTypeInfo<T> typeInfo, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        (await Default.DecideAsync(decider, inputs, cancellationToken).ConfigureAwait(false)).GetOutputs(typeInfo);
 
     private static JsonSerializerOptions? s_reflectionOptions;
 

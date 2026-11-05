@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using OneYaml;
+using OneLlm.Deciders;
 
 namespace OneLlm.Definitions;
 
@@ -148,7 +149,7 @@ public sealed class DeciderDefinition
         {
             if (q.ForEach is not null && !(q.ForEach is string each && Deciders.DecisionTemplate.IsWholeAction(each)))
             {
-                Fail("questions/" + id + "/forEach", $"'forEach' of question '{id}' must be one {{{{ ... }}}} action that gives a list, such as "{{{{ .inputs.items }}}}".");
+                Fail("questions/" + id + "/forEach", $"'forEach' of question '{id}' must be one {{{{ ... }}}} action that gives a list, such as '{{{{ .inputs.items }}}}'.");
             }
 
             string at = "questions/" + id;

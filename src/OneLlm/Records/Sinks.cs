@@ -95,6 +95,21 @@ public sealed class JsonlRecordSink : IRecordSink
         _directory = Path.GetFullPath(directory);
     }
 
+    /// <summary>Serializes a record to its one-line JSON form, without a trailing newline. Other sinks store this text so every sink reads back the same shape.</summary>
+    /// <param name="record">The record.</param>
+    /// <returns>A JSON object.</returns>
+    public static string ToJsonLine(AuditRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        var buffer = new ArrayBufferWriter<byte>(512);
+        using (var w = new Utf8JsonWriter(buffer))
+        {
+            RecordJson.Write(w, record);
+        }
+
+        return System.Text.Encoding.UTF8.GetString(buffer.WrittenSpan);
+    }
+
     /// <summary>The path of the file for an instance (or the runtime file for an empty id).</summary>
     /// <param name="instanceId">The instance id, or empty.</param>
     /// <returns>The file path.</returns>
@@ -144,6 +159,23 @@ public sealed record RecordEntry(string Kind, DateTimeOffset Time, string Instan
 /// <summary>Reads record files written by <see cref="JsonlRecordSink"/>.</summary>
 public static class RecordReader
 {
+    /// <summary>Parses one record line, as written by <see cref="JsonlRecordSink"/> or <see cref="JsonlRecordSink.ToJsonLine"/>.</summary>
+    /// <param name="line">One JSON object.</param>
+    /// <returns>The entry.</returns>
+    /// <exception cref="JsonException">The line is not valid JSON or lacks <c>kind</c> or <c>time</c>.</exception>
+    public static RecordEntry ParseLine(string line)
+    {
+        ArgumentNullException.ThrowIfNull(line);
+        using JsonDocument doc = JsonDocument.Parse(line);
+        JsonElement root = doc.RootElement.Clone();
+        return new RecordEntry(
+            root.GetProperty("kind").GetString() ?? "",
+            DateTimeOffset.Parse(root.GetProperty("time").GetString()!, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+            root.TryGetProperty("instanceId", out JsonElement i) ? i.GetString() ?? "" : "",
+            root.TryGetProperty("messageId", out JsonElement m) ? m.GetString() : null,
+            root);
+    }
+
     /// <summary>Reads every line of a record file.</summary>
     /// <param name="path">The file path.</param>
     /// <returns>The entries in file order. A missing file gives an empty list.</returns>
@@ -163,14 +195,7 @@ public static class RecordReader
                 continue;
             }
 
-            using JsonDocument doc = JsonDocument.Parse(line);
-            JsonElement root = doc.RootElement.Clone();
-            list.Add(new RecordEntry(
-                root.GetProperty("kind").GetString() ?? "",
-                DateTimeOffset.Parse(root.GetProperty("time").GetString()!, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
-                root.TryGetProperty("instanceId", out JsonElement i) ? i.GetString() ?? "" : "",
-                root.TryGetProperty("messageId", out JsonElement m) ? m.GetString() : null,
-                root));
+            list.Add(ParseLine(line));
         }
 
         return list;

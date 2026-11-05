@@ -219,8 +219,46 @@ public class InstanceTests : IDisposable
         Instance i = Instance.Create("bom");
         i.Messages.Add(Message.FromUser("first line\n\uFEFF<Project>\n  body\n", "x"));
         string yaml = i.ToYaml();
-        Assert.DoesNotContain("\uFEFF", yaml);
+        // Ordinal: a culture-aware search treats U+FEFF as ignorable and would match any text.
+        Assert.DoesNotContain("\uFEFF", yaml, StringComparison.Ordinal);
         Assert.Equal("first line\n\uFEFF<Project>\n  body\n", Instance.Parse(yaml).Messages[0].GetUserText());
+    }
+
+    [Fact]
+    public void No_character_that_nb_char_excludes_is_ever_written_raw_in_instances_definitions_or_messages()
+    {
+        // Controls other than tab and line feed, DEL, the C1 controls, U+2028/2029, U+FEFF, U+FFFE and U+FFFF.
+        string nasty = "head\n\uFEFFa\u0001b\u007Fc\u0085d\u009Fe\u2028f\u2029g\uFFFEh\uFFFFi\u001B[0mj\tk\n\uFEFF\n";
+        Instance i = Instance.Create("nasty");
+        i.SystemPrompt = nasty;
+        i.RenderedSystemPrompt = nasty;
+        i.Inputs = new() { ["text"] = nasty };
+        i.Messages.Add(Message.FromUser(nasty, "u"));
+        i.Messages.Add(new Message { Id = "a", ToolCalls = [new ToolCall("c", "t") { Result = [new TextPart(nasty)] }] });
+        string yaml = i.ToYaml();
+        AssertNoExcludedCharacters(yaml);
+        Instance back = Instance.Parse(yaml);
+        Assert.Equal(nasty, back.SystemPrompt);
+        Assert.Equal(nasty, back.RenderedSystemPrompt);
+        Assert.Equal(nasty, back.Inputs!["text"]);
+        Assert.Equal(nasty, back.Messages[0].GetUserText());
+        Assert.Equal(nasty, ((TextPart)back.Messages[1].ToolCalls[0].Result[0]).Text);
+        Assert.Equal(yaml, back.ToYaml());
+
+        var def = new AgentDefinition { Name = nasty, SystemPrompt = nasty, Model = "m" };
+        string dyaml = def.ToYaml();
+        AssertNoExcludedCharacters(dyaml);
+        Assert.Equal(nasty, AgentDefinition.Parse(dyaml).SystemPrompt);
+        Assert.Equal(nasty, AgentDefinition.Parse(dyaml).Name);
+    }
+
+    private static void AssertNoExcludedCharacters(string yaml)
+    {
+        foreach (char c in yaml)
+        {
+            bool bad = c < ' ' && c is not ('\t' or '\n') || c is >= '\u007F' and <= '\u009F' || c is '\u2028' or '\u2029' or '\uFEFF' or '\uFFFE' or '\uFFFF';
+            Assert.False(bad, $"U+{(int)c:X4} was written raw");
+        }
     }
 
     private static async Task<List<T>> ToListAsync<T>(IAsyncEnumerable<T> source)

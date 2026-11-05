@@ -631,7 +631,7 @@ internal sealed class GeminiResponseParser
                     Inputs = new JsonObject { ["language"] = body["language"]?.DeepClone(), ["code"] = body["code"]?.DeepClone() },
                 };
                 int index = _next++;
-                _pending.Add(new PendingHosted(index, part, [rawPart], "code"));
+                _pending.Add(new PendingHosted(index, part, [(JsonNode)rawPart], "code"));
                 events.Add(StreamEvent.HostedToolCallStart(index, WithReplay(part, [rawPart.DeepClone()])));
                 break;
             }
@@ -641,7 +641,7 @@ internal sealed class GeminiResponseParser
                 string tool = ToolName(body["toolType"]?.GetValue<string>(), body["toolName"]?.GetValue<string>());
                 var part = new HostedToolCallPart(tool) { Provider = _provider, Id = id, Inputs = body["args"] as JsonObject ?? new JsonObject() };
                 int index = _next++;
-                _pending.Add(new PendingHosted(index, part, [rawPart], "tool"));
+                _pending.Add(new PendingHosted(index, part, [(JsonNode)rawPart], "tool"));
                 events.Add(StreamEvent.HostedToolCallStart(index, WithReplay(part, [rawPart.DeepClone()])));
                 break;
             }

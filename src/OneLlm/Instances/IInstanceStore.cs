@@ -92,9 +92,12 @@ public sealed class InstanceLockedException : OneLlmException
     public string InstanceId { get; }
 }
 
-/// <summary>Checks instance ids, which become file names.</summary>
-internal static class InstanceIds
+/// <summary>Checks instance ids, which become file names. Store implementations call it so every store accepts the same ids.</summary>
+public static class InstanceIds
 {
+    /// <summary>Throws unless the id is 1 to 128 letters, digits, <c>-</c> or <c>_</c>.</summary>
+    /// <param name="id">The id to check.</param>
+    /// <exception cref="ArgumentException">The id is empty, too long or has other characters.</exception>
     public static void Validate(string id)
     {
         if (id is null || id.Length is 0 or > 128)

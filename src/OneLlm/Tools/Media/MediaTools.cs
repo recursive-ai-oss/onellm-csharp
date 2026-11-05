@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using OneLlm.Messages;
 using OneLlm.Providers;
+using OneLlm.Tools.Builtins;
 
 namespace OneLlm.Tools.Media;
 
@@ -166,8 +167,11 @@ internal static class MediaToolSupport
 }
 
 /// <summary>Makes images from a prompt, or edits images the run may read, and returns them as asset parts.</summary>
-public sealed class GenerateImageTool : ITool
+public sealed class GenerateImageTool : ICapabilityTool
 {
+    /// <summary>Nothing: the tool reads files only when the model names input files, and then only under a granted read root.</summary>
+    public ToolCapability Requires => ToolCapability.None;
+
     private readonly IImageProvider _provider;
     private readonly string _model;
     private readonly MediaToolOptions _options;
@@ -231,7 +235,7 @@ public sealed class GenerateImageTool : ITool
         var edits = new List<ImageInput>();
         foreach (string path in MediaToolSupport.StringList(inputs, "images"))
         {
-            (byte[] data, string type, _) = await GrantedFiles.ReadAsync(context.Capabilities, "images", path, _options.MaxInputBytes, cancellationToken).ConfigureAwait(false);
+            (byte[] data, string type, _) = await MediaInputFile.ReadAsync(context.Capabilities, "images", path, _options.MaxInputBytes, cancellationToken).ConfigureAwait(false);
             edits.Add(new ImageInput(data, type));
         }
 
@@ -243,7 +247,7 @@ public sealed class GenerateImageTool : ITool
                 throw new ToolInputException("mask", "needs at least one image to edit");
             }
 
-            (byte[] data, string type, _) = await GrantedFiles.ReadAsync(context.Capabilities, "mask", maskPath, _options.MaxInputBytes, cancellationToken).ConfigureAwait(false);
+            (byte[] data, string type, _) = await MediaInputFile.ReadAsync(context.Capabilities, "mask", maskPath, _options.MaxInputBytes, cancellationToken).ConfigureAwait(false);
             mask = new ImageInput(data, type);
         }
 
@@ -281,8 +285,11 @@ public sealed class GenerateImageTool : ITool
 }
 
 /// <summary>Turns text into speech and returns the audio as an asset part.</summary>
-public sealed class SpeakTool : ITool
+public sealed class SpeakTool : ICapabilityTool
 {
+    /// <summary>Nothing: the tool reads files only when the model names input files, and then only under a granted read root.</summary>
+    public ToolCapability Requires => ToolCapability.None;
+
     private readonly ITextToSpeechProvider _provider;
     private readonly string _model;
     private readonly MediaToolOptions _options;
@@ -346,8 +353,11 @@ public sealed class SpeakTool : ITool
 }
 
 /// <summary>Transcribes an audio file the run may read and returns the text.</summary>
-public sealed class TranscribeTool : ITool
+public sealed class TranscribeTool : ICapabilityTool
 {
+    /// <summary>Reading the audio file under a granted read root.</summary>
+    public ToolCapability Requires => ToolCapability.FileRead;
+
     private readonly ISpeechToTextProvider _provider;
     private readonly string _model;
     private readonly MediaToolOptions _options;
@@ -389,7 +399,7 @@ public sealed class TranscribeTool : ITool
         ArgumentNullException.ThrowIfNull(context);
         MediaToolSupport.RejectUnknown(inputs, "path", "language", "prompt", "translate");
         string path = MediaToolSupport.RequireString(inputs, "path");
-        (byte[] data, string type, string name) = await GrantedFiles.ReadAsync(context.Capabilities, "path", path, _options.MaxInputBytes, cancellationToken).ConfigureAwait(false);
+        (byte[] data, string type, string name) = await MediaInputFile.ReadAsync(context.Capabilities, "path", path, _options.MaxInputBytes, cancellationToken).ConfigureAwait(false);
         TranscriptionResponse response = await _provider.TranscribeAsync(
             new TranscriptionRequest
             {
@@ -409,8 +419,11 @@ public sealed class TranscribeTool : ITool
 }
 
 /// <summary>Checks texts, and images the run may read, for policy violations and returns the verdicts as JSON.</summary>
-public sealed class ModerateTool : ITool
+public sealed class ModerateTool : ICapabilityTool
 {
+    /// <summary>Nothing: the tool reads files only when the model names input files, and then only under a granted read root.</summary>
+    public ToolCapability Requires => ToolCapability.None;
+
     private readonly IModerationProvider _provider;
     private readonly string _model;
     private readonly MediaToolOptions _options;
@@ -463,7 +476,7 @@ public sealed class ModerateTool : ITool
         var images = new List<ImageInput>();
         foreach (string path in MediaToolSupport.StringList(inputs, "images"))
         {
-            (byte[] data, string type, _) = await GrantedFiles.ReadAsync(context.Capabilities, "images", path, _options.MaxInputBytes, cancellationToken).ConfigureAwait(false);
+            (byte[] data, string type, _) = await MediaInputFile.ReadAsync(context.Capabilities, "images", path, _options.MaxInputBytes, cancellationToken).ConfigureAwait(false);
             images.Add(new ImageInput(data, type));
         }
 
@@ -495,6 +508,9 @@ public sealed class ModerateTool : ITool
 /// <summary>Registers the media tools together.</summary>
 public static class MediaTools
 {
+    /// <summary>The names of the tools <see cref="Create"/> makes when every model is given.</summary>
+    public static IReadOnlyList<string> Names { get; } = ["generate_image", "speak", "transcribe", "moderate"];
+
     /// <summary>Makes the four media tools over the clients a provider implements. A tool whose capability the provider lacks, or whose model is null, is left out.</summary>
     /// <param name="provider">The provider.</param>
     /// <param name="imageModel">The image model, or null for no <c>generate_image</c>.</param>

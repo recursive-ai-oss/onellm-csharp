@@ -270,7 +270,7 @@ public class MediaToolTests : IDisposable
     {
         ToolResult r = await Run("transcribe", """{"path":"talk.wav"}""", NoCapabilities.Instance);
         Assert.True(r.IsError);
-        Assert.Contains("no file access", TextOf(r), StringComparison.Ordinal);
+        Assert.Contains("no directory is granted", TextOf(r), StringComparison.Ordinal);
         Assert.Null(_provider.Transcription);
     }
 

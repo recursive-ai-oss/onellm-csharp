@@ -1,3 +1,6 @@
+using System.Net;
+using OneLlm.Access;
+
 namespace OneLlm.Tools;
 
 /// <summary>
@@ -16,6 +19,42 @@ public interface ICapabilities
     /// <param name="uri">The absolute URI a tool is about to request.</param>
     /// <returns>True when network egress to that host is granted.</returns>
     bool IsNetworkAllowed(Uri uri);
+
+    /// <summary>The directories file tools may read under. Defaults to <see cref="FileRoots"/>; a read-only grant lists its roots here only.</summary>
+    IReadOnlyList<string> ReadRoots => FileRoots;
+
+    /// <summary>The directories file tools may write under. Defaults to <see cref="FileRoots"/>.</summary>
+    IReadOnlyList<string> WriteRoots => FileRoots;
+
+    /// <summary>The directory relative paths and commands start from. Defaults to the first file root; null when there is none.</summary>
+    string? WorkingDirectory => FileRoots.Count > 0 ? FileRoots[0] : null;
+
+    /// <summary>What shell commands may run. Defaults to open when <see cref="ShellEnabled"/> and off otherwise.</summary>
+    ShellPolicy ShellAccess => ShellEnabled ? ShellPolicy.Open : ShellPolicy.Off;
+
+    /// <summary>True when any network egress is granted at all. Defaults to false.</summary>
+    bool NetworkEnabled => false;
+
+    /// <summary>
+    /// Whether a connection to <paramref name="address"/> may be made for a request to <paramref name="uri"/>. It is asked after the host name has been
+    /// resolved, so a name that resolves to a loopback, private or link-local address can be refused. The default refuses those ranges.
+    /// </summary>
+    /// <param name="uri">The URI of the request.</param>
+    /// <param name="address">An address the host resolved to.</param>
+    /// <returns>True when connecting is allowed.</returns>
+    bool IsAddressAllowed(Uri uri, IPAddress address) => !EgressPolicy.IsSpecialAddress(address);
+
+    /// <summary>Resolves <paramref name="path"/> for reading: symlinks and <c>..</c> are resolved first, then the result must lie under a read root.</summary>
+    /// <param name="path">An absolute path, or one relative to <see cref="WorkingDirectory"/>.</param>
+    /// <returns>The real, absolute path to open.</returns>
+    /// <exception cref="CapabilityMissingException">The path is outside every read root, or no file access is granted.</exception>
+    string ResolveRead(string path) => PathGuard.Resolve(ReadRoots, WorkingDirectory, path, write: false);
+
+    /// <summary>Resolves <paramref name="path"/> for writing. The last component may not exist yet; its parent chain is resolved and must lie under a write root.</summary>
+    /// <param name="path">An absolute path, or one relative to <see cref="WorkingDirectory"/>.</param>
+    /// <returns>The real, absolute path to open.</returns>
+    /// <exception cref="CapabilityMissingException">The path is outside every write root, or no write access is granted.</exception>
+    string ResolveWrite(string path) => PathGuard.Resolve(WriteRoots, WorkingDirectory, path, write: true);
 }
 
 /// <summary>Grants nothing: no file roots, no shell, no network. The safe default for a context built without a runtime.</summary>

@@ -1,0 +1,13 @@
+model: gpt-6-luna
+systemPrompt: |
+  You write git commit messages. Reply with one subject line of at most 72 characters, a blank line, then a short body.
+  Today is {{ .time.today }}.
+initialPrompts:
+  - user:
+      - text: |
+          Summarize what this change does in one sentence:
+
+          {{ .inputs.diff }}
+  - user:
+      - text: |
+          Now write the commit message. Base it on your summary: {{ (index .turns 0).text }}

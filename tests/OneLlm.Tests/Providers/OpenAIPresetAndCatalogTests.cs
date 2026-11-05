@@ -153,7 +153,12 @@ public class OpenAICatalogTests
             PricingSpec p = Assert.IsType<PricingSpec>(m.Pricing);
             Assert.Matches(@"^\d{4}-\d{2}-\d{2}$", p.AsOf);
             Assert.StartsWith("https://", p.Source, StringComparison.Ordinal);
-            Assert.NotNull(p.InputPerMillion);
+            if (m.Kind is null or "chat")
+            {
+                // Media models (speech, transcription, moderation) are priced by items instead.
+                Assert.NotNull(p.InputPerMillion);
+            }
+
             foreach (PriceItem item in p.Items ?? [])
             {
                 Assert.Matches(@"^\d{4}-\d{2}-\d{2}$", item.AsOf);

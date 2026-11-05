@@ -74,7 +74,14 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
     private async IAsyncEnumerable<StreamEvent> StreamCoreAsync(ChatRequest request, MessageDecoder decoder, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        (ReadOnlyMemory<byte> body, string model) = await BuildChatBodyAsync(request, BodyMode.Stream, cancellationToken).ConfigureAwait(false);
+        var warnings = new List<ResponseWarning>();
+        (ReadOnlyMemory<byte> body, string model) = await BuildChatBodyAsync(request, BodyMode.Stream, cancellationToken, warnings).ConfigureAwait(false);
+        // A stream has no response object to carry notices about the request, so they go out first, as events.
+        foreach (ResponseWarning w in warnings)
+        {
+            yield return StreamEvent.Warning(w);
+        }
+
         var info = new AnthropicRequestInfo(AnthropicOperation.Messages, model, true, null);
         using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, body), cancellationToken).ConfigureAwait(false);
         Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);

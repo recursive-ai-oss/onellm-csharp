@@ -43,8 +43,10 @@ whether a person must approve each call, and the timeout (five minutes).
 - **Cost.** A tool adds the provider's cost lines to its `ToolContext`; the invoker puts them on the `ToolResult`.
 - **Outputs.** Images and audio come back as asset parts with inline data (storage `inline`); the runtime's asset store decides where they live. The
   tools write no files. `moderate` returns JSON with the flagged categories and scores per input.
-- **Files.** Paths in `images`, `mask` and `path` are read only when, with every symbolic link followed, they lie inside one of the granted file
-  roots (`ICapabilities.FileRoots`). A path outside the roots, a run with no file grant, a file over the size limit and a missing file are error
-  results that name the argument, before any provider call. The read is two steps (check, then open); do not grant directories an attacker can write to.
+- **Files.** Paths in `images`, `mask` and `path` are read through the runtime's file grant, the same way the built-in file tools read: the path is
+  resolved with symbolic links followed and must lie under a read root (`ICapabilities.ResolveRead`), and the file is opened with the built-ins'
+  double check (`docs/capabilities.md`). A path outside the roots, a run with no file grant, a file over the size limit and a missing file are error
+  results that name the argument, before any provider call. `transcribe` declares the file-read grant (`ICapabilityTool`); the other tools need no
+  grant unless the model names an input file. The tools write no files and fetch no URLs, so the write roots and the egress policy are not involved.
 - **Network.** The call to the provider is the use of the network the host chose when it gave the tool a client. It is not tool network egress:
   `ICapabilities.IsNetworkAllowed` governs tools that open connections of their own, such as `http_request`, and is not consulted here.

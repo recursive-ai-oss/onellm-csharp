@@ -99,7 +99,7 @@ internal sealed class AgentEnv : IDisposable
     /// <summary>An agent definition naming the given tools (which must be registered), with extra top-level YAML.</summary>
     public static AgentDefinition Def(string name, string[] tools, string extra = "", string system = "You are an agent.")
     {
-        string refs = tools.Length == 0 ? "references: []\n" : $"references:\n  - routine: tools/{name}\n    tools: [{string.Join(", ", tools)}]\n";
+        string refs = tools.Length == 0 ? "references: []\n" : $"references:\n  - tools: [{string.Join(", ", tools)}]\n";
         return AgentDefinition.Parse($"name: {name}\nmodel: demo\nsystemPrompt: {system}\n{extra}\n{refs}", name + ".yaml");
     }
 

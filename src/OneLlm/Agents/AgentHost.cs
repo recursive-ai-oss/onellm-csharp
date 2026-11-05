@@ -7,6 +7,7 @@ using OneLlm.Messages;
 using OneLlm.Providers;
 using OneLlm.Runners;
 using OneLlm.Tools;
+using OneLlm.Tools.Builtins;
 
 namespace OneLlm.Agents;
 
@@ -154,14 +155,23 @@ internal sealed class AgentHost
     {
         ResolvedModelPair pair = ResolvedModelPair.Of(_runtime, instance.Model!);
         var warnings = new List<string>();
-        IReadOnlyList<ITool> fromRefs = _runtime.Tools.Resolve(instance.References, out IReadOnlyList<UnresolvedReference> unresolved);
-        foreach (UnresolvedReference u in unresolved)
+        // The same resolver the definition loader offers decides what is granted, so a reference the runtime's grants do not cover
+        // fails the load (strict) or is dropped with a warning (lenient).
+        ToolReferenceResolver resolver = _runtime.Tools.CreateResolver(caps, instance.References);
+        var fromRefs = new List<ITool>();
+        foreach (ToolReference reference in instance.References)
         {
-            string what = u.Name.Length > 0 ? $"'{u.Name}'" : "an empty reference";
-            string text = $"The definition asks for the tool source {what}, which this runtime does not offer. Register it on Runtime.Tools, or remove the reference.";
+            ReferenceCheck check = resolver.Check(reference);
+            fromRefs.AddRange(check.GrantedTools);
+            if (check.IsGranted)
+            {
+                continue;
+            }
+
+            string text = "This runtime does not grant the tool source " + (reference.Routine ?? reference.Swarm ?? "(no source)") + ": " + string.Join("; ", check.Problems) + ".";
             if (!lenient)
             {
-                throw new BadDefinitionException(text, instance.DefinitionPath ?? instance.SourceName, u.Reference.Line, u.Reference.Column);
+                throw new BadDefinitionException(text, instance.DefinitionPath ?? instance.SourceName, reference.Line, reference.Column);
             }
 
             warnings.Add(text + " It was left out.");

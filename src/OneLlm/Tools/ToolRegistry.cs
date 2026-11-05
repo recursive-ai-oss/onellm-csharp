@@ -1,17 +1,20 @@
 using OneLlm.Definitions;
+using OneLlm.Tools.Builtins;
 
 namespace OneLlm.Tools;
 
 /// <summary>
-/// The grants two <see cref="ICapabilities"/> have in common: a path is allowed only under a root both allow, shell only if both enable
-/// it, and a host only if both allow it. Sub-agents get their parent's grants intersected with whatever they ask for, so a child can
-/// never hold more than its parent.
+/// The grants two <see cref="ICapabilities"/> have in common: a path is allowed only under a root both allow, shell only as far as both
+/// allow it, and a host only if both allow it. Sub-agents get their parent's grants intersected with whatever they ask for, so a child
+/// can never hold more than its parent. Two <see cref="Capabilities"/> intersect with <see cref="Capabilities.Intersect"/>; this type
+/// covers grants a host implemented itself.
 /// </summary>
 public sealed class CapabilityIntersection : ICapabilities
 {
     private readonly ICapabilities _a;
     private readonly ICapabilities _b;
-    private readonly IReadOnlyList<string> _roots;
+    private readonly string[] _read;
+    private readonly string[] _write;
 
     /// <summary>Creates the intersection.</summary>
     /// <param name="a">One set of grants.</param>
@@ -20,70 +23,53 @@ public sealed class CapabilityIntersection : ICapabilities
     {
         _a = a ?? throw new ArgumentNullException(nameof(a));
         _b = b ?? throw new ArgumentNullException(nameof(b));
-        _roots = IntersectRoots(a.FileRoots, b.FileRoots);
+        _read = Capabilities.IntersectRoots(a.ReadRoots, b.ReadRoots);
+        _write = Capabilities.IntersectRoots(a.WriteRoots, b.WriteRoots);
     }
 
     /// <summary>Intersects two sets of grants, returning one of them unchanged when the other is the same object.</summary>
     /// <param name="a">One set of grants.</param>
     /// <param name="b">The other.</param>
     /// <returns>The common grants.</returns>
-    public static ICapabilities Of(ICapabilities a, ICapabilities b) => ReferenceEquals(a, b) ? a : new CapabilityIntersection(a, b);
+    public static ICapabilities Of(ICapabilities a, ICapabilities b)
+    {
+        ArgumentNullException.ThrowIfNull(a);
+        ArgumentNullException.ThrowIfNull(b);
+        if (ReferenceEquals(a, b))
+        {
+            return a;
+        }
+
+        return a is Capabilities ca && b is Capabilities cb ? ca.Intersect(cb) : new CapabilityIntersection(a, b);
+    }
 
     /// <inheritdoc />
-    public IReadOnlyList<string> FileRoots => _roots;
+    public IReadOnlyList<string> FileRoots => _write;
 
     /// <inheritdoc />
-    public bool ShellEnabled => _a.ShellEnabled && _b.ShellEnabled;
+    public IReadOnlyList<string> ReadRoots => _read;
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> WriteRoots => _write;
+
+    /// <inheritdoc />
+    public string? WorkingDirectory => new[] { _a.WorkingDirectory, _b.WorkingDirectory }.FirstOrDefault(d => d is not null && _read.Any(r => Access.PathGuard.IsUnder(d, r))) ?? _read.FirstOrDefault();
+
+    /// <inheritdoc />
+    public ShellPolicy ShellAccess => _a.ShellAccess.Intersect(_b.ShellAccess);
+
+    /// <inheritdoc />
+    public bool ShellEnabled => ShellAccess.Enabled;
+
+    /// <inheritdoc />
+    public bool NetworkEnabled => _a.NetworkEnabled && _b.NetworkEnabled;
 
     /// <inheritdoc />
     public bool IsNetworkAllowed(Uri uri) => _a.IsNetworkAllowed(uri) && _b.IsNetworkAllowed(uri);
 
-    private static List<string> IntersectRoots(IReadOnlyList<string> a, IReadOnlyList<string> b)
-    {
-        var result = new List<string>();
-        foreach (string x in a)
-        {
-            foreach (string y in b)
-            {
-                string fx = Normalize(x);
-                string fy = Normalize(y);
-                // The deeper of two nested roots is the part both allow; unrelated roots share nothing.
-                string? common = IsUnder(fx, fy) ? fx : IsUnder(fy, fx) ? fy : null;
-                if (common is not null && !result.Contains(common, PathComparer))
-                {
-                    result.Add(common);
-                }
-            }
-        }
-
-        return result;
-    }
-
-    private static StringComparer PathComparer => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-
-    private static string Normalize(string path)
-    {
-        string full = Path.GetFullPath(path);
-        string root = Path.GetPathRoot(full) ?? "";
-        return full.Length > root.Length ? full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : full;
-    }
-
-    private static bool IsUnder(string candidate, string root)
-    {
-        if (PathComparer.Equals(candidate, root))
-        {
-            return true;
-        }
-
-        string prefix = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
-        return candidate.StartsWith(prefix, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-    }
+    /// <inheritdoc />
+    public bool IsAddressAllowed(Uri uri, System.Net.IPAddress address) => _a.IsAddressAllowed(uri, address) && _b.IsAddressAllowed(uri, address);
 }
-
-/// <summary>A tool reference the registry could not turn into tools.</summary>
-/// <param name="Reference">The reference from the definition.</param>
-/// <param name="Name">The tool name or routine that did not resolve.</param>
-public sealed record UnresolvedReference(ToolReference Reference, string Name);
 
 /// <summary>
 /// The tools a runtime can offer agents, by name, plus the routine paths and swarm names definitions use to ask for them. A definition's
@@ -96,10 +82,19 @@ public sealed class ToolRegistry
     private readonly Dictionary<string, ITool> _tools = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<string>> _routines = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Creates a registry holding the agent tools (<c>task_complete</c>, <c>run_agent_async</c>, <c>await_agent</c>, ...).</summary>
+    /// <summary>
+    /// Creates a registry holding the agent tools (<c>task_complete</c>, <c>run_agent_async</c>, <c>await_agent</c>, ...) and the
+    /// built-in tools with default options. Having a tool registered does not grant it: what it may touch is decided by the runtime's
+    /// capabilities. Packages that add tools (<c>run_decider</c>, web fetching) register theirs with <see cref="Add(ITool)"/>.
+    /// </summary>
     public ToolRegistry()
     {
         foreach (ITool tool in Agents.AgentTools.All)
+        {
+            _tools[tool.Definition.Name] = tool;
+        }
+
+        foreach (ITool tool in BuiltinTools.Create())
         {
             _tools[tool.Definition.Name] = tool;
         }
@@ -182,81 +177,77 @@ public sealed class ToolRegistry
         }
     }
 
-    /// <summary>
-    /// Turns a definition's references into tools. A reference with a <c>tools:</c> list asks for those names; otherwise a
-    /// <c>routine:</c> path matches a registered routine, or its last segment (hyphens as underscores) a tool name; a <c>swarm:</c>
-    /// matches a registered routine group.
-    /// </summary>
-    /// <param name="references">The references, in file order.</param>
-    /// <param name="unresolved">The references that matched nothing.</param>
-    /// <returns>The tools, each once, in first-mention order.</returns>
-    public IReadOnlyList<ITool> Resolve(IEnumerable<ToolReference> references, out IReadOnlyList<UnresolvedReference> unresolved)
+    /// <summary>Every registered tool, in name order.</summary>
+    public IReadOnlyList<ITool> All
     {
-        ArgumentNullException.ThrowIfNull(references);
-        var tools = new List<ITool>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var missing = new List<UnresolvedReference>();
-
-        void Take(ITool tool)
+        get
         {
-            if (seen.Add(tool.Definition.Name))
+            lock (_gate)
             {
-                tools.Add(tool);
+                return [.. _tools.OrderBy(static p => p.Key, StringComparer.Ordinal).Select(static p => p.Value)];
             }
         }
+    }
 
+    /// <summary>Replaces the built-in tools with ones made from these options (a search provider, another state directory, output limits).</summary>
+    /// <param name="options">The options.</param>
+    /// <returns>This registry.</returns>
+    public ToolRegistry UseBuiltins(BuiltinOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
         lock (_gate)
         {
+            foreach (string name in BuiltinTools.Names)
+            {
+                _tools.Remove(name);
+            }
+        }
+
+        foreach (ITool tool in BuiltinTools.Create(options))
+        {
+            Add(tool);
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// Makes the resolver that decides which of a definition's references this runtime grants, for the given grants. Routine paths the
+    /// registry knows (<see cref="AddRoutine"/>, or a path whose last segment is a registered tool's name, hyphens as underscores, so
+    /// <c>/agents/runtime/await-agent</c> finds <c>await_agent</c>) are mapped on top of the built-in tool groups.
+    /// </summary>
+    /// <param name="capabilities">What the agent may do.</param>
+    /// <param name="references">The references that will be checked.</param>
+    /// <returns>The resolver.</returns>
+    public ToolReferenceResolver CreateResolver(ICapabilities capabilities, IEnumerable<ToolReference> references)
+    {
+        ArgumentNullException.ThrowIfNull(references);
+        ToolReferenceResolver resolver;
+        lock (_gate)
+        {
+            resolver = new ToolReferenceResolver(_tools.Values, capabilities);
+            foreach ((string uri, List<string> names) in _routines)
+            {
+                resolver.MapSource(uri, [.. names]);
+            }
+
             foreach (ToolReference r in references)
             {
-                if (r.Tools is { } names)
+                string? source = r.Routine ?? r.Swarm;
+                if (source is null || _routines.ContainsKey(source) || BuiltinTools.ToolsForRoutine(source) is not null)
                 {
-                    foreach (string name in names)
-                    {
-                        if (_tools.TryGetValue(name, out ITool? t))
-                        {
-                            Take(t);
-                        }
-                        else
-                        {
-                            missing.Add(new UnresolvedReference(r, name));
-                        }
-                    }
-
                     continue;
                 }
 
-                string? uri = r.Routine ?? r.Swarm;
-                if (uri is null)
-                {
-                    missing.Add(new UnresolvedReference(r, ""));
-                    continue;
-                }
-
-                if (_routines.TryGetValue(uri, out List<string>? group))
-                {
-                    foreach (string name in group)
-                    {
-                        Take(_tools[name]);
-                    }
-
-                    continue;
-                }
-
-                string last = uri.TrimEnd('/');
+                string last = source.TrimEnd('/');
                 last = last[(last.LastIndexOf('/') + 1)..].Replace('-', '_');
-                if (r.Routine is not null && _tools.TryGetValue(last, out ITool? byName))
+                if (r.Routine is not null && _tools.ContainsKey(last))
                 {
-                    Take(byName);
-                }
-                else
-                {
-                    missing.Add(new UnresolvedReference(r, uri));
+                    resolver.MapSource(source, last);
                 }
             }
         }
 
-        unresolved = missing;
-        return tools;
+        return resolver;
     }
 }

@@ -47,17 +47,17 @@ public class AgentToolShapeTests
     }
 
     [Fact]
-    public void Task_complete_ends_the_loop_and_the_others_do_not()
+    public void Task_complete_ends_the_loop_and_the_other_agent_tools_do_not()
     {
         var registry = new ToolRegistry();
-        foreach (string name in registry.Names)
+        string[] agentTools = ["await_agent", "await_monitor", "list_agent_instances", "message_agent", "monitor_agent", "query_agent", "run_agent_async", "task_complete"];
+        foreach (string name in agentTools)
         {
-            registry.TryGet(name, out ITool t);
+            Assert.True(registry.TryGet(name, out ITool t));
             Assert.Equal(name == "task_complete", t.Definition.EndsLoop);
         }
 
-        Assert.Equal(
-            ["await_agent", "await_monitor", "list_agent_instances", "message_agent", "monitor_agent", "query_agent", "run_agent_async", "task_complete"],
-            registry.Names);
+        // The built-in tools sit in the same registry.
+        Assert.All(["read_file", "write_file", "execute_terminal_command", "todo", "memory", "ask_user"], n => Assert.Contains(n, registry.Names));
     }
 }

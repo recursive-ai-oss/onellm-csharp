@@ -22,9 +22,9 @@ public sealed partial class Runtime
 
     /// <summary>
     /// What agents may do: file roots, shell, network. Definitions never grant anything; this is the ceiling. A sub-agent gets at most its
-    /// parent's grants. Defaults to <see cref="NoCapabilities.Instance"/> until the host sets it.
+    /// parent's grants. Defaults to files under the working directory at the time the runtime was made, with no shell and no network.
     /// </summary>
-    public ICapabilities Capabilities { get; set; } = NoCapabilities.Instance;
+    public ICapabilities Capabilities { get; set; } = global::OneLlm.Capabilities.Default();
 
     /// <summary>
     /// Retries of a model call inside the agent loop, for failures the provider marks transient, after the provider client's own retries.

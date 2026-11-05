@@ -106,6 +106,12 @@ internal sealed partial class LiveAgent
                             reason = AgentStopReason.Completed;
                             break;
                         }
+
+                        if (phase.Asks)
+                        {
+                            reason = AgentStopReason.Waiting;
+                            break;
+                        }
                     }
                 }
 
@@ -225,7 +231,7 @@ internal sealed partial class LiveAgent
     /// <summary>The model has something to answer: a user message, or tool calls whose results it has not seen.</summary>
     private bool NeedsInference()
     {
-        if (Instance.Messages.Count == 0)
+        if (Instance.Messages.Count == 0 || AwaitingAnswer)
         {
             return false;
         }
@@ -243,6 +249,12 @@ internal sealed partial class LiveAgent
     {
         while (_inbox.TryDequeue(out Message? message))
         {
+            if (AwaitingAnswer)
+            {
+                await AnswerAskAsync(message, token).ConfigureAwait(false);
+                continue;
+            }
+
             await AppendAsync(message, token).ConfigureAwait(false);
         }
     }

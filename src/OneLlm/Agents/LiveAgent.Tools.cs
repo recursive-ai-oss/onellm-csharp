@@ -6,10 +6,11 @@ using OneLlm.Messages;
 using OneLlm.Records;
 using OneLlm.Runners;
 using OneLlm.Tools;
+using OneLlm.Tools.Builtins;
 
 namespace OneLlm.Agents;
 
-internal readonly record struct ToolPhase(bool Pending, bool EndsLoop);
+internal readonly record struct ToolPhase(bool Pending, bool EndsLoop, bool Asks = false);
 
 internal sealed partial class LiveAgent
 {
@@ -247,6 +248,7 @@ internal sealed partial class LiveAgent
         }
 
         bool ends = false;
+        bool asks = false;
         for (int i = 0; i < states.Count; i++)
         {
             CallState s = states[i];
@@ -279,6 +281,13 @@ internal sealed partial class LiveAgent
                 }
             }
 
+            // ask_user cannot wait itself: its result is the question, and the instance rests until a person answers.
+            if (!asks && s.Result is { IsError: false } asked && AskUser.TryGetRequest(asked, out _))
+            {
+                asks = true;
+                (Instance.ExtensionData ??= [])[AskKey] = new Dictionary<string, object?> { ["toolCallId"] = final.Id, ["messageId"] = committed.Id };
+            }
+
             if (s.EndsLoop)
             {
                 ends = true;
@@ -293,7 +302,7 @@ internal sealed partial class LiveAgent
             }
         }
 
-        return new ToolPhase(anyPending, ends && !anyPending);
+        return new ToolPhase(anyPending, ends && !anyPending, asks && !anyPending);
     }
 
     /// <summary>
@@ -360,6 +369,32 @@ internal sealed partial class LiveAgent
         }
 
         return ends;
+    }
+
+    // ---- ask_user -----------------------------------------------------------------------------------------------------------
+
+    internal const string AskKey = "askUser";
+
+    /// <summary>True while a question from <c>ask_user</c> has not been answered.</summary>
+    private bool AwaitingAnswer => Instance.ExtensionData is { } d && d.ContainsKey(AskKey);
+
+    /// <summary>Puts a person's message in as the result of the open <c>ask_user</c> call, so the model sees the answer where it asked.</summary>
+    private async Task AnswerAskAsync(Message answer, CancellationToken token)
+    {
+        var ask = (IDictionary<string, object?>)Instance.ExtensionData![AskKey]!;
+        string? callId = ask.TryGetValue("toolCallId", out object? c) ? c as string : null;
+        string? messageId = ask.TryGetValue("messageId", out object? m) ? m as string : null;
+        Instance.ExtensionData.Remove(AskKey);
+        int at = Instance.Messages.FindIndex(x => x.Id == messageId);
+        if (at >= 0)
+        {
+            Message turn = Instance.Messages[at];
+            ToolCall[] calls = [.. turn.ToolCalls.Select(call => call.Id == callId ? MessageCopy.WithResult(call, [new TextPart(answer.GetUserText())], false, call.Cost, call.CostLines) : call)];
+            Instance.Messages[at] = MessageCopy.WithToolCalls(turn, calls);
+        }
+
+        await Runtime.Store.SaveAsync(Instance, token).ConfigureAwait(false);
+        Emit(AgentEventKind.MessageAdded, message: answer);
     }
 
     private static Dictionary<string, object?>? ToDictionary(JsonObject inputs)

@@ -1,0 +1,945 @@
+# Curated template cases. The expected result of each is recorded from the reference implementation
+# (run `TemplateDiff golden`), so these pin behaviour rather than restate it.
+#
+# Format: "### name [missingkey=error] [noescape]", then optional "data: <json>" and "embed <name>: <json string>" lines,
+# then "tmpl:" and the template text up to the next "###".
+
+### text-only
+data: {}
+tmpl:
+plain text, no actions
+
+### field
+data: {"a": "x", "n": 3, "f": 1.5, "b": true, "l": [1, "two", null], "m": {"k": "v", "j": 2}, "nul": null}
+tmpl:
+{{.a}} {{.n}} {{.f}} {{.b}} {{.l}} {{.m}} {{.nul}} {{.nope}} {{.m.k}} {{.m.zz}}
+
+### nil-field-chain
+data: {"nul": null}
+tmpl:
+{{.nul.x}}
+
+### missing-chain
+data: {}
+tmpl:
+[{{.a.b.c}}]
+
+### missingkey-error
+data: {"m": {}}
+tmpl:
+{{.m.zz}}
+
+### missingkey-error-top [missingkey=error]
+data: {}
+tmpl:
+{{.zz}}
+
+### missingkey-error-present [missingkey=error]
+data: {"a": null}
+tmpl:
+[{{.a}}]
+
+### comments
+data: {}
+tmpl:
+a{{/* comment */}}b{{- /* trim */ -}} c {{/* multi
+line */}}d
+
+### trim-markers
+data: {"a": 1}
+tmpl:
+x   {{- .a -}}   y
+  {{- if true }}  z  {{ end -}}
+w
+
+### number-minus-not-trim
+data: {}
+tmpl:
+{{-3}} {{ -3 }} {{3 -}}
+
+### constants
+data: {}
+tmpl:
+{{1}} {{-2}} {{0x1F}} {{0b101}} {{0o17}} {{017}} {{1_000}} {{1.5}} {{1e3}} {{.5}} {{'a'}} {{'\n'}} {{"s\ttab\u00e9"}} {{`raw\n`}} {{true}} {{false}}
+
+### string-escapes
+data: {}
+tmpl:
+{{"a\"b\\c\x41\101\u00e9\U0001F600"}}
+
+### bad-number
+data: {}
+tmpl:
+{{1.2.3}}
+
+### nil-command
+data: {}
+tmpl:
+{{nil}}
+
+### pipeline-basic
+data: {"s": "Hello"}
+tmpl:
+{{.s | lower | printf "[%s]"}} {{printf "%s-%s" "a" "b"}} {{"x" | printf "%s-%s" "y"}}
+
+### pipeline-nonexec
+data: {}
+tmpl:
+{{1 | 2}}
+
+### parens
+data: {"l": [3, 4]}
+tmpl:
+{{(index .l 1)}} {{len (index .l 0 | printf "%d")}} {{(.l)}}
+
+### chain-on-paren
+data: {"m": {"a": {"b": "deep"}}}
+tmpl:
+{{(index .m "a").b}} {{(.m).a.b}}
+
+### variables
+data: {"a": 1}
+tmpl:
+{{$x := 5}}{{$x}} {{$x = 6}}{{$x}} {{$}} {{$.a}}
+
+### variable-scope
+data: {"a": 1}
+tmpl:
+{{$x := 1}}{{if true}}{{$x = 2}}{{$y := 3}}{{$x}}{{$y}}{{end}}{{$x}}
+
+### variable-undefined
+data: {}
+tmpl:
+{{$nope}}
+
+### variable-assign-undeclared
+data: {}
+tmpl:
+{{$z = 1}}
+
+### if-else
+data: {"a": 0, "b": "", "c": [], "d": {}, "e": "x", "f": 0.0, "g": null, "h": [0], "i": false}
+tmpl:
+{{if .a}}A{{else}}!A{{end}} {{if .b}}B{{else}}!B{{end}} {{if .c}}C{{else}}!C{{end}} {{if .d}}D{{else}}!D{{end}} {{if .e}}E{{end}} {{if .f}}F{{else}}!F{{end}} {{if .g}}G{{else}}!G{{end}} {{if .h}}H{{end}} {{if .i}}I{{else}}!I{{end}} {{if .nope}}N{{else}}!N{{end}}
+
+### else-if-chain
+data: {"n": 2}
+tmpl:
+{{if eq .n 1}}one{{else if eq .n 2}}two{{else if eq .n 3}}three{{else}}many{{end}}
+
+### if-with-decl
+data: {"n": 2}
+tmpl:
+{{if $v := .n}}{{$v}}{{else}}{{$v}}{{end}}
+
+### range-list
+data: {"l": ["a", "b", "c"]}
+tmpl:
+{{range .l}}[{{.}}]{{end}} {{range $i, $e := .l}}{{$i}}={{$e}};{{end}} {{range $e := .l}}{{$e}}{{end}}
+
+### range-else
+data: {"l": [], "m": {}}
+tmpl:
+{{range .l}}x{{else}}empty list{{end}} {{range .m}}x{{else}}empty map{{end}} {{range .nope}}x{{else}}missing{{end}}
+
+### range-map-sorted
+data: {"m": {"b": 2, "a": 1, "c": 3, "B": 0}}
+tmpl:
+{{range $k, $v := .m}}{{$k}}={{$v}} {{end}}|{{range .m}}{{.}} {{end}}
+
+### range-int
+data: {"n": 3}
+tmpl:
+{{range 3}}{{.}}{{end}} {{range $i := .n}}{{$i}}{{end}} {{range 0}}x{{else}}none{{end}} {{range -2}}x{{else}}neg{{end}}
+
+### range-int-two-vars
+data: {}
+tmpl:
+{{range $i, $e := 3}}{{end}}
+
+### range-string
+data: {"s": "ab"}
+tmpl:
+{{range .s}}{{.}}{{end}}
+
+### range-break-continue
+data: {"l": [1, 2, 3, 4, 5]}
+tmpl:
+{{range .l}}{{if eq . 2}}{{continue}}{{end}}{{if eq . 4}}{{break}}{{end}}{{.}}{{end}}
+
+### range-nested-break
+data: {"l": [1, 2], "m": [10, 20]}
+tmpl:
+{{range .l}}{{range $.m}}{{if eq . 20}}{{break}}{{end}}{{.}}{{end}}/{{end}}
+
+### break-outside
+data: {}
+tmpl:
+{{break}}
+
+### range-assign-vars
+data: {"l": ["a", "b"]}
+tmpl:
+{{$i := -1}}{{$e := ""}}{{range $i, $e = .l}}{{end}}{{$i}}{{$e}}
+
+### range-var-scope
+data: {"l": [1]}
+tmpl:
+{{range $i, $e := .l}}{{end}}{{$i}}
+
+### with
+data: {"m": {"a": 1}, "e": "", "s": "x"}
+tmpl:
+{{with .m}}{{.a}}{{end}} {{with .e}}yes{{else}}no{{end}} {{with .s}}{{.}}{{end}} {{with $v := .s}}{{$v}}{{end}} {{with .nope}}x{{else with .s}}else-with {{.}}{{end}}
+
+### define-template
+data: {"name": "w"}
+tmpl:
+{{define "greet"}}Hello, {{.}}!{{end}}{{template "greet" .name}} {{template "greet" "x"}} {{template "greet"}}
+
+### template-dollar
+data: {"a": "root"}
+tmpl:
+{{define "t"}}[{{.}}|{{$}}]{{end}}{{template "t" "arg"}}
+
+### template-undefined
+data: {}
+tmpl:
+{{template "nope"}}
+
+### template-recursion
+data: {"n": 3}
+tmpl:
+{{define "f"}}{{if gt . 0}}{{.}}{{template "f" (printf "%d" (sub1 .))}}{{end}}{{end}}x
+
+### template-recursive-list
+data: {"t": {"v": "a", "kids": [{"v": "b", "kids": []}, {"v": "c", "kids": [{"v": "d", "kids": []}]}]}}
+tmpl:
+{{define "node"}}{{.v}}{{range .kids}}({{template "node" .}}){{end}}{{end}}{{template "node" .t}}
+
+### block
+data: {"x": 1}
+tmpl:
+{{block "b" .x}}default {{.}}{{end}} {{block "b" 2}}ignored{{end}}
+
+### define-redefine
+data: {}
+tmpl:
+{{define "a"}}1{{end}}{{define "a"}}2{{end}}{{template "a"}}
+
+### define-empty-redefine
+data: {}
+tmpl:
+{{define "a"}}1{{end}}{{define "a"}}{{end}}{{template "a"}}
+
+### define-nested
+data: {}
+tmpl:
+{{if true}}{{define "a"}}x{{end}}{{end}}
+
+### define-only
+data: {}
+tmpl:
+{{define "a"}}x{{end}}
+
+### template-main-name
+data: {}
+tmpl:
+{{define "x"}}{{template "template"}}{{end}}a
+
+### and-or-not
+data: {"z": 0, "o": 1, "s": "x", "e": ""}
+tmpl:
+{{and .o .s}} {{and .z .s}} {{or .z .e}} {{or .z .s}} {{not .z}} {{not .s}} {{and 1 2 3}} {{or 0 "" nil}} {{and}}
+
+### and-or-short-circuit
+data: {"m": {}}
+tmpl:
+{{and false (index .m "a" "b")}} {{or true (index .m "a" "b")}}
+
+### and-or-args-one
+data: {"x": 5}
+tmpl:
+{{and .x}} {{or .x}} {{.x | and 1}}
+
+### comparison
+data: {"a": 1, "b": 2, "s": "x", "t": "y", "f": 1.5, "g": 2.5, "t1": true, "n": null}
+tmpl:
+{{eq .a 1}} {{eq .a .b}} {{ne .a .b}} {{lt .a .b}} {{le .a .a}} {{gt .b .a}} {{ge .a .b}} {{eq .s "x"}} {{lt .s .t}} {{lt .f .g}} {{eq .t1 true}} {{eq .a 1 2 3}} {{eq .a 4 5 1}} {{eq .n nil}} {{eq .nope nil}} {{eq nil nil}}
+
+### compare-mixed
+data: {"a": 1, "f": 1.0}
+tmpl:
+{{eq .a .f}}
+
+### compare-incompatible
+data: {"a": 1}
+tmpl:
+{{eq .a "1"}}
+
+### compare-lt-nil
+data: {}
+tmpl:
+{{lt nil 1}}
+
+### compare-lt-bool
+data: {}
+tmpl:
+{{lt true false}}
+
+### compare-lists
+data: {"l": [1]}
+tmpl:
+{{eq .l .l}}
+
+### compare-eq-one-arg
+data: {"a": 1}
+tmpl:
+{{eq .a}}
+
+### len
+data: {"s": "héllo", "l": [1, 2], "m": {"a": 1}, "n": null, "i": 5}
+tmpl:
+{{len .s}} {{len .l}} {{len .m}} {{len ""}}
+
+### len-errors
+data: {"i": 5}
+tmpl:
+{{len .i}}
+
+### len-nil
+data: {"n": null}
+tmpl:
+{{len .n}}
+
+### index
+data: {"l": ["a", "b", "c"], "m": {"k": {"j": "deep"}, "n": 1}, "s": "AB", "ll": [[1, 2], [3, 4]]}
+tmpl:
+{{index .l 1}} {{index .m "k" "j"}} {{index .m "zz"}} {{index .s 1}} {{index .ll 1 0}} {{index .l}}
+
+### index-range
+data: {"l": [1]}
+tmpl:
+{{index .l 5}}
+
+### index-negative
+data: {"l": [1]}
+tmpl:
+{{index .l -1}}
+
+### index-map-int-key
+data: {"m": {"a": 1}}
+tmpl:
+{{index .m 1}}
+
+### index-nil
+data: {}
+tmpl:
+{{index .nope 0}}
+
+### index-string-arg
+data: {"l": [1]}
+tmpl:
+{{index .l "a"}}
+
+### slice
+data: {"l": [1, 2, 3, 4, 5], "s": "héllo"}
+tmpl:
+{{slice .l 1 3}} {{slice .l 2}} {{slice .l}} {{slice .l 1 3 4}} {{slice .s 1 3}} {{slice "abcdef" 2 4}}
+
+### slice-errors
+data: {"l": [1, 2]}
+tmpl:
+{{slice .l 3}}
+
+### slice-reversed
+data: {"l": [1, 2]}
+tmpl:
+{{slice .l 2 1}}
+
+### slice-string-three
+data: {}
+tmpl:
+{{slice "abc" 0 1 2}}
+
+### slice-field-index
+data: {"l": [1, 2, 3], "n": 1}
+tmpl:
+{{slice .l .n}}
+
+### slice-var-index
+data: {"l": [1, 2, 3]}
+tmpl:
+{{$i := 1}}{{slice .l $i}} {{slice .l (len .l)}}
+
+### print-functions
+data: {"l": [1, "a"], "m": {"x": 1}, "n": null}
+tmpl:
+{{print 1 2}}|{{print "a" "b"}}|{{print "a" 1 2 "b"}}|{{println 1 "x"}}|{{print .l .m .n}}|{{printf "%v %v" .l .n}}
+
+### printf-verbs
+data: {"i": 42, "f": 3.14159, "s": "str", "b": true, "u": "é"}
+tmpl:
+{{printf "%d|%5d|%-5d|%05d|%+d|%x|%X|%o|%b|%c|%q|%U" .i .i .i .i .i .i .i .i .i .i .i .i}}
+{{printf "%f|%.2f|%8.3f|%e|%g|%G|%v|%6.1f|%-8.2f|" .f .f .f .f .f .f .f .f .f}}
+{{printf "%s|%10s|%-10s|%.2s|%q|%x|%v|%+v|%T" .s .s .s .s .s .s .s .s .s}}
+{{printf "%t|%v|%5t|%q" .b .b .b .u}} {{printf "%T %T %T %T %T %T" .i .f .s .b nil .u}}
+{{printf "%%|%5%|"}} {{printf "%d"}} {{printf "%d" 1 2}} {{printf "%z" 1}} {{printf "%"}} {{printf "%d %s" "x" 5}}
+
+### printf-width-star
+data: {}
+tmpl:
+{{printf "%*d|%-*d|%.*f" 5 42 4 7 2 3.14159}}
+
+### printf-containers
+data: {"l": [1, 2], "m": {"b": 1, "a": "x"}, "n": null, "ll": ["a", "b"]}
+tmpl:
+{{printf "%v %d %s %q %x" .l .l .ll .ll .l}} {{printf "%v %s" .m .m}} {{printf "%v|%d|%s" .n .n .n}}
+
+### float-formatting
+data: {"a": 1000000.0, "b": 100000.0, "c": 0.000001, "d": 0.0001, "e": 123456789.0, "f": 1e21, "g": 1e-7, "h": 1.5, "i": 100, "j": 2.0, "k": -0.5, "l": 1e100, "m": 0.1, "n": 3.0e10}
+tmpl:
+{{.a}} {{.b}} {{.c}} {{.d}} {{.e}} {{.f}} {{.g}} {{.h}} {{.i}} {{.j}} {{.k}} {{.l}} {{.m}} {{.n}}
+
+### float-printf-g
+data: {"a": 1234567.891}
+tmpl:
+{{printf "%g|%.3g|%.10g|%e|%.0f|%.0e|%10.4g|%G" .a .a .a .a .a .a .a .a}}
+
+### float-hex
+data: {"a": 1.5, "b": 0.0, "c": -2.0}
+tmpl:
+{{printf "%x|%X|%x|%x" .a .a .b .c}}
+
+### html-js-urlquery
+data: {"s": "<a href=\"x\">&'</a>", "u": "a b&c=d/é", "n": null}
+tmpl:
+{{html .s}}|{{js .s}}|{{urlquery .u}}|{{html 1 2}}|{{html .n}}|{{js "line\nbreak\t"}}|{{urlquery .u "z"}}|{{.s | html}}
+
+### call-builtin
+data: {}
+tmpl:
+{{call 1}}
+
+### unknown-function
+data: {}
+tmpl:
+{{nosuch 1}}
+
+### function-arg-count
+data: {}
+tmpl:
+{{lower}}
+
+### function-arg-type
+data: {"n": 1}
+tmpl:
+{{lower .n}}
+
+### function-arg-missing
+data: {}
+tmpl:
+{{lower .nope}}
+
+### function-arg-nil-literal
+data: {}
+tmpl:
+{{lower nil}}
+
+### function-number-for-string
+data: {}
+tmpl:
+{{lower 5}}
+
+### function-string-for-int
+data: {}
+tmpl:
+{{indent "2" "x"}}
+
+### non-function-with-args
+data: {"a": 1}
+tmpl:
+{{.a 1}}
+
+### dot-with-args
+data: {}
+tmpl:
+{{. 1}}
+
+### string-funcs
+data: {"s": "  Hello, World  "}
+tmpl:
+{{lower .s}}|{{upper .s}}|{{trim .s}}|{{trimPrefix "foobar" "foo"}}|{{trimPrefix "foobar" "x"}}|{{trimPrefix "foo" ""}}|{{trimSuffix "foobar" "bar"}}|{{replace "aaa" "a" "bb"}}|{{replace "abc" "" "-"}}|{{replace "é" "" "-"}}|{{contains "abc" "b"}}|{{contains "abc" ""}}|{{hasPrefix "abc" "ab"}}|{{hasSuffix "abc" "bc"}}|{{hasSuffix "abc" ""}}
+
+### string-funcs-unicode
+data: {}
+tmpl:
+{{upper "straße ǆ"}}|{{lower "İSTANBUL ΣΑΣ"}}|{{trim "\u00a0 x \u2003"}}
+
+### path-funcs
+data: {}
+tmpl:
+{{base "/a/b/c.txt"}}|{{base "c.txt"}}|{{base ""}}|{{base "/"}}|{{base "a/b/"}}|{{base "///"}}|{{dir "/a/b/c.txt"}}|{{dir "c.txt"}}|{{dir ""}}|{{dir "/"}}|{{dir "a/b/"}}|{{dir "/a"}}|{{dir "a//b"}}|{{ext "a/b.tar.gz"}}|{{ext "a.b/c"}}|{{ext "noext"}}|{{ext ".hidden"}}|{{trimExt "a/b.tar.gz"}}|{{trimExt "a.b/c"}}|{{isAbs "/a"}}|{{isAbs "a"}}|{{isAbs ""}}
+
+### path-join
+data: {}
+tmpl:
+{{pathJoin "a" "b" "c"}}|{{pathJoin "a/" "/b"}}|{{pathJoin "a" "" "b"}}|{{pathJoin "" ""}}|{{pathJoin}}|{{pathJoin "a" ".." "b"}}|{{pathJoin "/a" "../.."}}|{{pathJoin "a" "../.."}}|{{pathJoin "." "a"}}|{{pathJoin "a//b" "./c"}}
+
+### default-func
+data: {"e": "", "z": 0, "f": false, "n": null, "s": "x", "l": []}
+tmpl:
+{{default "d" .e}}|{{default "d" .z}}|{{default "d" .f}}|{{default "d" .n}}|{{default "d" .s}}|{{default "d" .nope}}|{{default "d" .l}}|{{.e | default "p"}}|{{default 5 nil}}
+
+### raw-func
+data: {}
+tmpl:
+{{raw "{{ literal }}"}}|{{"{{"}}|{{"}}"}}
+
+### code-fence
+data: {"name": "n"}
+tmpl:
+Intro {{.name}}
+```go
+func f() { return {{.name}} }
+x := {{ "{{" }}
+```
+Outro {{.name}}
+
+### code-fence-tilde-and-info
+data: {"name": "n"}
+tmpl:
+~~~text
+{{.notevaluated}} }}
+~~~
+after {{.name}}
+
+### code-fence-longer-close
+data: {"name": "n"}
+tmpl:
+````
+```
+{{x}}
+```
+````
+{{.name}}
+
+### code-fence-unclosed
+data: {"name": "n"}
+tmpl:
+{{.name}}
+```
+{{.name}} never closed
+
+### code-fence-indent
+data: {"name": "n"}
+tmpl:
+   ```
+{{x}}
+   ```
+{{.name}}
+    ```
+{{.name}}
+    ```
+
+### code-inline
+data: {"name": "n"}
+tmpl:
+Use `{{.name}}` and ``a `{{b}}` c`` but {{.name}} here; also `lone {{.name}}
+
+### code-inline-multiline
+data: {"name": "n"}
+tmpl:
+`start {{x}}
+end` then {{.name}}
+
+### code-no-escape [noescape]
+data: {"name": "n"}
+tmpl:
+`{{.name}}`
+
+### code-fence-close-with-text
+data: {"name": "n"}
+tmpl:
+```
+{{x}}
+``` not a close
+{{y}}
+```
+{{.name}}
+
+### embed-basic
+data: {"name": "world"}
+embed e1: "Hello, {{.name}}!"
+tmpl:
+[{{embed "e1"}}]
+
+### embed-plain
+data: {}
+embed e1: "plain {no actions}"
+tmpl:
+[{{embed "e1"}}]
+
+### embed-nested
+data: {"name": "w"}
+embed a: "A({{embed \"b\"}})"
+embed b: "B({{.name}})"
+tmpl:
+{{embed "a"}} {{embed "b"}}
+
+### embed-pipeline
+data: {}
+embed e1: "Mixed Case"
+tmpl:
+{{embed "e1" | upper}} {{embed "e1" | lower | printf "<%s>"}}
+
+### embed-code-regions
+data: {"name": "n"}
+embed e1: "`{{.keep}}` {{.name}}"
+tmpl:
+{{embed "e1"}}
+
+### embed-missing
+data: {}
+tmpl:
+{{embed "nope"}}
+
+### embed-empty-ref
+data: {}
+tmpl:
+{{embed ""}}
+
+### embed-cycle
+data: {}
+embed a: "{{embed \"b\"}}"
+embed b: "{{embed \"a\"}}"
+tmpl:
+{{embed "a"}}
+
+### embed-self-cycle
+data: {}
+embed a: "x{{embed \"a\"}}"
+tmpl:
+{{embed "a"}}
+
+### embed-nested-error
+data: {}
+embed a: "{{nosuch}}"
+tmpl:
+{{embed "a"}}
+
+### embed-exec-error
+data: {}
+embed a: "{{lower 5}}"
+tmpl:
+{{embed "a"}}
+
+### embed-same-twice
+data: {"n": 1}
+embed a: "<{{.n}}>"
+tmpl:
+{{embed "a"}}{{embed "a"}}
+
+### embed-in-define
+data: {"n": 1}
+embed a: "<{{.n}}>"
+tmpl:
+{{define "t"}}{{embed "a"}}{{end}}{{template "t"}}
+
+### embed-uses-root-scope
+data: {"n": 7}
+embed a: "{{.n}}"
+tmpl:
+{{with "other"}}{{embed "a"}}{{end}}
+
+### chain-fn-field
+data: {}
+tmpl:
+{{(dict "a" 1).a}} {{(list 1 2) | len}}
+
+### list-dict
+data: {}
+tmpl:
+{{list 1 "a" nil}} {{dict "a" 1 "b" "x"}} {{len (list)}} {{(dict).x}} {{dict "a"}}
+
+### dict-bad-key
+data: {}
+tmpl:
+{{dict 1 2}}
+
+### json-funcs
+data: {"m": {"b": [1, 2.5, "x<>&"], "a": null, "c": {"d": true}}, "s": "q\"uote\n\t\u0001\u2028é", "e": [], "em": {}}
+tmpl:
+{{toJson .m}}
+{{toPrettyJson .m}}
+{{toJson .s}} {{toJson .e}} {{toJson .em}} {{toPrettyJson .e}} {{toPrettyJson .em}} {{toJson nil}} {{toJson 1}} {{toJson 1.0}} {{toJson 1e21}} {{toJson 1e-7}} {{toJson 123456789.123}} {{toJson true}}
+
+### join-split
+data: {"l": ["a", 1, null, 2.5], "n": null}
+tmpl:
+{{join ", " .l}}|{{join "-" .n}}|{{.l | join "+"}}|{{split "," "a,b,,c"}}|{{len (split "," "")}}|{{split "" "héy"}}|{{split ", " "x, y"}}
+
+### join-nonlist
+data: {}
+tmpl:
+{{join "," "abc"}}
+
+### indent-funcs
+data: {}
+tmpl:
+{{indent 2 "a\nb"}}|{{nindent 2 "a\nb"}}|{{indent 0 "x"}}|{{"a\n\nb" | nindent 1}}|{{indent -1 "x"}}
+
+### truncate
+data: {}
+tmpl:
+{{truncate 3 "abcdef"}}|{{truncate 10 "abc"}}|{{truncate 0 "abc"}}|{{truncate -1 "abc"}}|{{truncate 2 "héllo"}}|{{truncate 1 "😀x"}}
+
+### regex-funcs
+data: {}
+tmpl:
+{{regexMatch "^h.llo$" "hello"}}|{{regexMatch "[0-9]+" "abc"}}|{{regexReplace "l+" "L" "hello"}}|{{regexReplace "(\\w)(\\w)" "$2$1" "abcd"}}|{{regexReplace "(?P<a>x)" "<${a}>" "axb"}}|{{regexReplace "x*" "-" "abc"}}|{{regexReplace "a" "$$" "a"}}|{{regexReplace "(a)" "$1x" "a"}}|{{regexReplace "(a)" "${1}x" "a"}}|{{regexReplace "(a)" "$2" "a"}}|{{regexReplace "." "." "é"}}
+
+### regex-invalid
+data: {}
+tmpl:
+{{regexMatch "(" "x"}}
+
+### date-func
+data: {}
+tmpl:
+{{date "2006-01-02" "2024-03-05T14:07:09Z"}}|{{date "Mon Jan _2 3:04:05 PM 2006" "2024-03-05T14:07:09Z"}}|{{date "Monday, January 2, 2006" "2024-03-05T14:07:09Z"}}|{{date "15:04:05.000 -0700 MST" "2024-03-05T14:07:09.123456+05:30"}}|{{date "Z07:00 Z0700 -07:00 -07" "2024-03-05T14:07:09+05:30"}}|{{date "Z07:00" "2024-03-05T14:07:09Z"}}|{{date "02/01/06 03PM .999 .000000" "2024-12-25T00:30:00.5Z"}}|{{date "002 __2 _2" "2024-03-05T14:07:09Z"}}|{{date "no tokens here" "2024-03-05T14:07:09Z"}}
+
+### date-bad
+data: {}
+tmpl:
+{{date "2006" "not a time"}}
+
+### missing-key-with-range
+data: {"m": {"a": 1}}
+tmpl:
+{{range $k, $v := .m}}{{$k}}{{end}}{{.m.b}}
+
+### missing-key-error-in-func [missingkey=error]
+data: {"m": {"a": 1}}
+tmpl:
+{{default "d" .m.b}}
+
+### nil-dot-template
+data: {}
+tmpl:
+{{define "t"}}[{{.}}][{{.x}}]{{end}}{{template "t"}}
+
+### nil-pipeline-field
+data: {"nul": null}
+tmpl:
+{{$x := .nul}}[{{$x.y}}]{{with .nul}}x{{else}}[{{.z}}]{{end}}
+
+### nil-dot-error-mode [missingkey=error]
+data: {}
+tmpl:
+{{define "t"}}{{.x}}{{end}}{{template "t"}}
+
+### whitespace-in-actions
+data: {"a": 1}
+tmpl:
+{{
+   .a
+}} {{   .a   }} {{	.a	}}
+
+### unclosed-action
+data: {}
+tmpl:
+a {{ .x
+
+### unclosed-paren
+data: {}
+tmpl:
+{{ (1 }}
+
+### unexpected-right-paren
+data: {}
+tmpl:
+{{ 1) }}
+
+### unexpected-end
+data: {}
+tmpl:
+{{end}}
+
+### unexpected-else
+data: {}
+tmpl:
+{{else}}
+
+### missing-end
+data: {}
+tmpl:
+{{if true}}x
+
+### unterminated-string
+data: {}
+tmpl:
+{{"abc}}
+
+### bad-char
+data: {}
+tmpl:
+{{ @ }}
+
+### empty-action
+data: {}
+tmpl:
+{{}}
+
+### empty-pipeline-parens
+data: {}
+tmpl:
+{{()}}
+
+### comment-spaced
+data: {}
+tmpl:
+{{ /* x */ }}
+
+### comment-unclosed
+data: {}
+tmpl:
+{{/* never closed
+
+### comment-garbage
+data: {}
+tmpl:
+{{/* x */ y}}
+
+### too-many-decls
+data: {}
+tmpl:
+{{$a, $b := 1}}
+
+### range-decl-comma
+data: {"l": [1]}
+tmpl:
+{{range $a, 1 := .l}}{{end}}
+
+### chained-number
+data: {}
+tmpl:
+{{1.x}}
+
+### field-on-string
+data: {"s": "x"}
+tmpl:
+{{.s.len}}
+
+### field-on-list
+data: {"l": [1]}
+tmpl:
+{{.l.x}}
+
+### dot-field-nested-ok
+data: {"a": {"b": {"c": [1, {"d": "found"}]}}}
+tmpl:
+{{(index .a.b.c 1).d}} {{index .a.b.c 1 | printf "%v"}}
+
+### keyword-as-field
+data: {"if": 1, "range": 2, "end": 3}
+tmpl:
+{{.if}} {{.range}} {{.end}}
+
+### unicode-fields
+data: {"é": "accent", "日本": "cjk"}
+tmpl:
+{{.é}} {{.日本}}
+
+### digits-in-field
+data: {"a1": 1, "_x": 2}
+tmpl:
+{{.a1}} {{._x}}
+
+### large-int
+data: {"big": 9007199254740993, "huge": 12345678901234567890, "neg": -9223372036854775808}
+tmpl:
+{{.big}} {{.huge}} {{.neg}}
+
+### int-overflow-literal
+data: {}
+tmpl:
+{{9223372036854775808}}
+
+### text-around-braces
+data: {"a": 1}
+tmpl:
+{ {{.a}} } {{"}"}} {{.a}}}} x }}
+
+### crlf-text
+data: {"a": 1}
+tmpl:
+line1
+  {{- .a }}
+{{ .a -}}  
+end
+
+### map-in-range-values
+data: {"m": {"x": {"n": 1}, "y": {"n": 2}}}
+tmpl:
+{{range $k, $v := .m}}{{$k}}:{{$v.n}} {{end}}
+
+### nested-range-vars
+data: {"a": [1, 2], "b": ["x", "y"]}
+tmpl:
+{{range $i, $x := .a}}{{range $j, $y := $.b}}{{$i}}{{$j}}{{$x}}{{$y}} {{end}}{{end}}
+
+### with-else-chain
+data: {"a": "", "b": 0, "c": "see"}
+tmpl:
+{{with .a}}A{{else with .b}}B{{else with .c}}C={{.}}{{else}}none{{end}}
+
+### if-pipeline-fn
+data: {"s": "abc"}
+tmpl:
+{{if hasPrefix .s "ab"}}yes{{end}} {{if not (contains .s "z")}}no-z{{end}} {{if and (hasPrefix .s "a") (hasSuffix .s "c")}}both{{end}}
+
+### dollar-in-range
+data: {"p": "P", "l": [1, 2]}
+tmpl:
+{{range .l}}{{$.p}}{{.}}{{end}}
+
+### assign-in-range-persists
+data: {"l": [1, 2, 3]}
+tmpl:
+{{$sum := 0}}{{range .l}}{{$sum = .}}{{end}}{{$sum}}
+
+### variable-shadow
+data: {}
+tmpl:
+{{$x := 1}}{{if true}}{{$x := 2}}{{$x}}{{end}}{{$x}}
+
+### pipe-into-field-call
+data: {"m": {"a": 1}}
+tmpl:
+{{1 | .m.a}}
+
+### pipe-into-string
+data: {}
+tmpl:
+{{"x" | "y"}}
+
+### function-call-value-as-arg
+data: {"l": [3, 1, 2]}
+tmpl:
+{{len (printf "%v" .l)}}
+
+### index-of-call-result
+data: {"s": "a,b,c"}
+tmpl:
+{{index (split "," .s) 1}}
+
+### chained-pipes-many
+data: {"s": " Mixed Case "}
+tmpl:
+{{.s | trim | lower | replace " " "_" | printf "%s!" | upper}}
+
+### printf-bad-index-args
+data: {}
+tmpl:
+{{printf "%s" .nope}} {{printf "%d" nil}} {{printf "%v" nil}} {{printf "%s %s" "a"}}

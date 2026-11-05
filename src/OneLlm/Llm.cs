@@ -214,6 +214,56 @@ public static class Llm
         return Default.RunScriptAsync(path, ToDictionary(element), cancellationToken);
     }
 
+    /// <summary>
+    /// Runs an agent definition to the end of its run: the prompts are rendered, then the model and its tools loop until a loop-ending tool
+    /// such as <c>task_complete</c> runs, the model answers without a tool, a call needs approval, or <c>maxIterations</c> is reached.
+    /// The tools the definition references must be registered on <see cref="Runtime.Tools"/>; nothing is granted by the definition.
+    /// </summary>
+    /// <param name="path">The definition file.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the run; the instance is kept as <c>stopped</c> with <c>cancelled: true</c> and its partial output.</param>
+    /// <returns>The answer, usage, cost and the instance. <see cref="Agents.AgentResult.StopReason"/> says why it stopped.</returns>
+    /// <exception cref="BadDefinitionException">The file is invalid or references a tool the runtime does not offer.</exception>
+    /// <exception cref="RunCancelledException">The token was cancelled.</exception>
+    public static Task<Agents.AgentResult> RunAgentAsync(string path, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        Default.RunAgentAsync(path, inputs, null, cancellationToken);
+
+    /// <summary>Runs an agent definition with inputs from a typed value, read through its serialization metadata (trim and AOT safe).</summary>
+    /// <typeparam name="TInputs">The inputs type.</typeparam>
+    /// <param name="path">The definition file.</param>
+    /// <param name="inputs">The inputs.</param>
+    /// <param name="typeInfo">Serialization metadata for <typeparamref name="TInputs"/>.</param>
+    /// <param name="cancellationToken">Cancels the run.</param>
+    /// <returns>The agent's result.</returns>
+    public static Task<Agents.AgentResult> RunAgentAsync<TInputs>(string path, TInputs inputs, JsonTypeInfo<TInputs> typeInfo, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+        JsonElement element = JsonSerializer.SerializeToElement(inputs, typeInfo);
+        return Default.RunAgentAsync(path, ToDictionary(element), null, cancellationToken);
+    }
+
+    /// <summary>Starts an agent and returns at once with a handle: follow its events, send it messages, approve or deny held tool calls, and await its result.</summary>
+    /// <param name="path">The definition file.</param>
+    /// <param name="inputs">Values for <c>.inputs</c>; plain values only.</param>
+    /// <param name="cancellationToken">Cancels the start, not the running agent; use <see cref="Agents.AgentRun.CancelAsync"/> for that.</param>
+    /// <returns>The running agent.</returns>
+    public static Task<Agents.AgentRun> StartAgentAsync(string path, IReadOnlyDictionary<string, object?>? inputs = null, CancellationToken cancellationToken = default) =>
+        Default.StartAgentAsync(path, inputs, null, cancellationToken);
+
+    /// <summary>Starts an agent with inputs from a typed value, read through its serialization metadata (trim and AOT safe).</summary>
+    /// <typeparam name="TInputs">The inputs type.</typeparam>
+    /// <param name="path">The definition file.</param>
+    /// <param name="inputs">The inputs.</param>
+    /// <param name="typeInfo">Serialization metadata for <typeparamref name="TInputs"/>.</param>
+    /// <param name="cancellationToken">Cancels the start.</param>
+    /// <returns>The running agent.</returns>
+    public static Task<Agents.AgentRun> StartAgentAsync<TInputs>(string path, TInputs inputs, JsonTypeInfo<TInputs> typeInfo, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(typeInfo);
+        JsonElement element = JsonSerializer.SerializeToElement(inputs, typeInfo);
+        return Default.StartAgentAsync(path, ToDictionary(element), null, cancellationToken);
+    }
+
     private static JsonSerializerOptions? s_reflectionOptions;
 
     [RequiresUnreferencedCode("Reads types by reflection.")]

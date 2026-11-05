@@ -60,6 +60,7 @@
     <InternalsVisibleTo Include="$(LibName).Bench" />
     <InternalsVisibleTo Include="$(LibName).Fuzz" />
     <InternalsVisibleTo Include="$(LibName).Corpus" />
+    <InternalsVisibleTo Include="$(LibName).JavaScript" />
   </ItemGroup>
 
   <ItemGroup>

@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format foll
 ### Added
 
 - Provider clients for Anthropic Messages, OpenAI (Responses; Chat Completions for compatible servers) and Gemini `generateContent`: chat, streaming, client and hosted tools, structured output, reasoning replay, caching, token counting, batch and embeddings; OpenAI-compatible presets (Ollama, vLLM, LM Studio, OpenRouter, Groq, DeepSeek, xAI, Mistral, Together); TypeSafe Jev. All verified on recorded fixtures.
+- `RecursiveAI.OneLlm.JavaScript`: a OneEcma sandbox (fuel, allocation, wall-clock and string limits, a host allocation backstop, deterministic time and randomness on request) with a small `ctx` (log, granted file reads and writes, `fetch` through the egress policy, cost lines); JavaScript tool files with a `.tool.yaml` or an exported description; the `run_javascript` built-in; JavaScript hooks for a definition's `hooks:`; `decider.js` logic. See `docs/javascript.md`.
 - Deployments: Azure OpenAI / Foundry, Amazon Bedrock (SigV4, event stream) and Vertex AI (service-account JWT) for Claude and Gemini; see `docs/deployments.md`.
 - Image generation, text-to-speech, transcription and moderation clients, each with a costed built-in tool.
 - One message model with a closed part union and stream events that build the same message as a whole call; unknown fields kept as extension data.

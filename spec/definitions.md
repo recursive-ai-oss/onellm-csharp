@@ -101,18 +101,52 @@ A mapping with:
 
 | Key | Type | Meaning |
 |---|---|---|
-| `model` | string | Required. The engine or model to ask. |
-| `state` | any | A template tree rendered with the run's inputs. |
-| `questions` | mapping | Required, at least one. Question id to question. |
+| `model` | string | Required. The engine or model to ask. A catalog model of kind `decision` is a decisions engine; any other model answers as a chat model. |
+| `state` | any | A template tree rendered with the run's inputs. It is what the questions are about. |
+| `questions` | mapping | Required, at least one. Question id to question. Ids are 1 to 64 characters of letters, digits, `_`, `-`, `.`. |
+| `llm` | mapping | Optional. For chat-model engines only: `samples` (1 to 100, default 1), `temperature` (0 to 2), `thinking` (an effort name, or `{effort, budget}`), `serviceTier`. |
+| `cache` | mapping | Optional. `key` (1 to 64 characters; default the decider's name) partitions prompt-cache reuse; `explicit: true` marks the end of the state as the cached prefix. Engines that cannot cache ignore it. |
 
-Other top-level keys are kept (`samples`, `cache`, ...).
+Other top-level keys are kept as extension data and written back unchanged.
 
 A question is a mapping with:
 
 - `type`: `choice`, `score` or `noul` (a yes/no judgment with a probability);
 - `instructions`: required; a template string, or a mapping of named parts, each a template;
-- `criteria`: for `choice`, a mapping from value to description with at least 2 entries; for `score`, the levels from lowest to
-  highest as a list (or a mapping from label to description) with 2 to 10 entries; for `noul`, optional conditions;
-- `forEach`: a template naming the items to ask the question about, once each.
+- `criteria`: for `choice`, a mapping from value to description with 2 to 255 entries; for `score`, the levels from lowest to
+  highest as a list (or a mapping from label to description) with 2 to 10 entries; for `noul`, optional conditions (`true` and
+  `false` keys that say what counts as yes and as no);
+- `forEach`: exactly one `{{ ... }}` action that gives a list. The question is asked once per element, with `.item` and `.index` in
+  scope. Its answer is a list in element order; an empty list asks nothing.
 
-Loading a decider checks this shape and nothing more; the logic that uses the answers is separate.
+### Templates in a decider
+
+Every string that contains `{{` is a template. Missing names are always errors (`missingKey: error`), `embed` is not available, and
+code regions are not escaped. A string that is exactly one action, such as `"{{ .inputs.customer }}"`, is a *whole-value* template: the
+action's value is placed in the JSON as structured data (an object stays an object, nothing becomes `null`). Any other string is
+rendered as text.
+
+### Request encoding
+
+Structured values are written as compact JSON in the form Go's `encoding/json` produces, because engines and caches see the bytes:
+object keys sorted, `<`, `>` and `&` written as `\u003c`, `\u003e` and `\u0026`, U+2028 and U+2029 escaped, and numbers read as 64-bit
+floats and printed in their shortest form (plain decimal between 1e-6 and 1e21, exponent form outside).
+
+### Runs and answers
+
+A run is an instance named after the decider. Its state is `stopped` when answered and `error` otherwise; the extension key `decider`
+holds the engine, the origin (`api`, `agent`, `playground`, `replay`, `eval`; the last two kinds stay out of statistics), the models,
+the calls with their cost and the answers.
+
+Answers, by question id (a repeated question gives a list), each with `type`:
+
+| Type | Fields |
+|---|---|
+| `choice` | `choice` (the winning key), `confidence` (0 to 1), `probabilities` (key to probability) |
+| `score` | `score` (the expected level, 0 for the lowest), `confidence`, `probabilities` (level to probability), `legend` |
+| `noul` | `noul` (the probability of yes) |
+
+Logic is optional and separate from the file: `prepare` turns the caller's inputs into the template inputs, `decide` turns the answers
+into the outputs. A decider with no logic returns its answers as its outputs. A `decider.schema.json` beside the definition may describe the
+inputs (`inputs`, with `inputsDeclared`); the keywords `type`, `properties`, `required`, `additionalProperties`, `items`, `enum`,
+`const`, `minimum`, `maximum` and `anyOf` are enforced before anything is sent, and all others are ignored.

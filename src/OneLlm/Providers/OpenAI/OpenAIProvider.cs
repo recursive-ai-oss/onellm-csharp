@@ -36,11 +36,12 @@ public enum OpenAIApi
 /// Clients are thread-safe.
 /// </para>
 /// </remarks>
-public sealed partial class OpenAIProvider : IChatProvider, IEmbeddingProvider, ITokenCountingProvider, IBatchProvider
+public sealed partial class OpenAIProvider : IChatProvider, IEmbeddingProvider, ITokenCountingProvider, IBatchProvider, IDecisionProvider
 {
     private readonly OpenAIWire _wire;
     private readonly OpenAIBatches _batches;
     private readonly OpenAIMedia _media;
+    private readonly OpenAIDecisions _decisions;
 
     /// <summary>Creates a provider for the OpenAI API.</summary>
     /// <param name="options">Key, base URL, HTTP client and the other settings.</param>
@@ -61,6 +62,7 @@ public sealed partial class OpenAIProvider : IChatProvider, IEmbeddingProvider, 
             time);
         _batches = new OpenAIBatches(_wire);
         _media = new OpenAIMedia(_wire, options.Catalog, time);
+        _decisions = new OpenAIDecisions(_wire);
     }
 
     /// <inheritdoc />
@@ -123,4 +125,12 @@ public sealed partial class OpenAIProvider : IChatProvider, IEmbeddingProvider, 
     /// <inheritdoc />
     public IAsyncEnumerable<BatchResultItem> GetBatchResultsAsync(string batchId, CancellationToken cancellationToken = default) =>
         _batches.ResultsAsync(batchId, cancellationToken);
+
+    /// <summary>Answers questions about a state with the Decisions API (<c>/v1/decisions</c>). Usage reports cached and cache-written tokens in their own counters (the API counts them inside <c>input_tokens</c>); output is free.</summary>
+    /// <param name="request">The request.</param>
+    /// <param name="cancellationToken">Cancels the call.</param>
+    /// <returns>The answers in the common answer shape.</returns>
+    /// <exception cref="ProviderException">The API failed.</exception>
+    public Task<DecisionResponse> DecideAsync(DecisionRequest request, CancellationToken cancellationToken = default) =>
+        _decisions.DecideAsync(request, cancellationToken);
 }

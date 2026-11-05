@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using OneYaml;
+using OneLlm.Deciders;
 
 namespace OneLlm.Definitions;
 
@@ -25,6 +26,18 @@ public sealed class DeciderDefinition
     public string? SourceName { get; private set; }
 
     internal string? OriginalText { get; private set; }
+
+    /// <summary>The state as the file wrote it (plain ordered values), the form request bytes are rendered from.</summary>
+    internal object? RawState { get; private set; }
+
+    /// <summary>The questions as the file wrote them, each a mapping whose keys are in file order.</summary>
+    internal Dictionary<string, object?> RawQuestions { get; private set; } = [];
+
+    /// <summary>The <c>llm</c> block: how a chat model answers the questions (samples, temperature, thinking, service tier). Defaults when the file has none.</summary>
+    public DeciderLlmSettings Llm => DeciderLlmSettings.From(ExtensionData is not null && ExtensionData.TryGetValue("llm", out object? llm) ? llm : null, SourceName);
+
+    /// <summary>The <c>cache</c> block: prompt caching hints for engines that support them. Defaults when the file has none.</summary>
+    public DeciderCacheSettings Cache => DeciderCacheSettings.From(ExtensionData is not null && ExtensionData.TryGetValue("cache", out object? cache) ? cache : null, SourceName);
 
     internal string? LoadedSerialization { get; private set; }
 
@@ -55,6 +68,17 @@ public sealed class DeciderDefinition
             SourceName = sourceName,
             OriginalText = yaml,
         };
+        try
+        {
+            DeciderRawWire raw = YamlSerializer.Deserialize(yaml, DefinitionsYamlContext.Default.DeciderRawWire) ?? new DeciderRawWire();
+            d.RawState = raw.State;
+            d.RawQuestions = raw.Questions ?? [];
+        }
+        catch (YamlException e)
+        {
+            throw new BadDefinitionException(e.Message, sourceName, e.Line, e.Column, e);
+        }
+
         d.Validate(yaml);
         d.LoadedSerialization = d.WriteWire();
         return d;
@@ -119,9 +143,21 @@ public sealed class DeciderDefinition
             Fail("", "A decider needs at least one entry under 'questions'.");
         }
 
+        _ = Llm;
+        _ = Cache;
         foreach ((string id, DeciderQuestion q) in Questions)
         {
+            if (q.ForEach is not null && !(q.ForEach is string each && Deciders.DecisionTemplate.IsWholeAction(each)))
+            {
+                Fail("questions/" + id + "/forEach", $"'forEach' of question '{id}' must be one {{{{ ... }}}} action that gives a list, such as '{{{{ .inputs.items }}}}'.");
+            }
+
             string at = "questions/" + id;
+            if (!IsQuestionId(id))
+            {
+                Fail(at, $"Question id '{id}' must start with a letter or underscore and use only letters, digits and underscores.");
+            }
+
             if (q.Instructions is null or "")
             {
                 Fail(at, $"Question '{id}' needs 'instructions'.");
@@ -131,9 +167,9 @@ public sealed class DeciderDefinition
             {
                 case "choice":
                     int choices = CountEntries(q.Criteria);
-                    if (choices < 2)
+                    if (q.Criteria is not IDictionary<string, object?> || choices < 2 || choices > 255)
                     {
-                        Fail(at, $"Choice question '{id}' needs 'criteria' with at least 2 entries.");
+                        Fail(at, $"Choice question '{id}' needs 'criteria' as a mapping of 2 to 255 options, not {choices}.");
                     }
 
                     break;
@@ -146,12 +182,35 @@ public sealed class DeciderDefinition
 
                     break;
                 case "noul":
+                    if (q.Criteria is IDictionary<string, object?> clarifications && clarifications.Keys.Any(static k => k is not ("true" or "false")))
+                    {
+                        Fail(at, $"Noul question '{id}' may only clarify 'true' and 'false' in its criteria.");
+                    }
+
                     break;
                 default:
                     Fail(at, $"Question '{id}' has type '{q.Type}'; it must be 'choice', 'score' or 'noul'.");
                     break;
             }
         }
+    }
+
+    private static bool IsQuestionId(string id)
+    {
+        if (id.Length == 0 || !(char.IsAsciiLetter(id[0]) || id[0] == '_'))
+        {
+            return false;
+        }
+
+        foreach (char c in id)
+        {
+            if (!(char.IsAsciiLetterOrDigit(c) || c == '_'))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static int CountEntries(object? value) => value switch

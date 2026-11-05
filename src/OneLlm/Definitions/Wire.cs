@@ -101,6 +101,17 @@ internal sealed class DeciderFileWire
     public Dictionary<string, object?>? ExtensionData { get; set; }
 }
 
+/// <summary>A decider file read only for the order of its keys: the state and questions as plain ordered trees, which is what request bytes are built from.</summary>
+internal sealed class DeciderRawWire
+{
+    public object? State { get; set; }
+
+    public Dictionary<string, object?>? Questions { get; set; }
+
+    [JsonExtensionData]
+    public Dictionary<string, object?>? ExtensionData { get; set; }
+}
+
 /// <summary>Metadata for a flow: the keys of <c>flow.yaml</c>, kept whole.</summary>
 internal sealed class FlowMetadataWire
 {
@@ -116,6 +127,7 @@ internal sealed class FlowMetadataWire
 
 [YamlSerializable(typeof(AgentFileWire))]
 [YamlSerializable(typeof(DeciderFileWire))]
+[YamlSerializable(typeof(DeciderRawWire))]
 [YamlSerializable(typeof(FlowMetadataWire))]
 [YamlSerializable(typeof(List<Message>))]
 [YamlSerializable(typeof(string))]

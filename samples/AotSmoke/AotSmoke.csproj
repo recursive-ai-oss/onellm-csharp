@@ -19,6 +19,9 @@
     <Using Include="System.Threading.Tasks" />
   </ItemGroup>
   <ItemGroup>
+    <AdditionalFiles Include="triage.decider.yaml" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
     <!-- Tools written with [Tool] get their code from the generator, as they do when the package is referenced. -->
     <ProjectReference Include="../../src/OneLlm.Generators/OneLlm.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

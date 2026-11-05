@@ -33,7 +33,8 @@ foreach (string caseDir in Directory.GetDirectories(args[0]).Order(StringCompare
         string outcome;
         try
         {
-            Decider decider = Decider.Load(deciderDir);
+            // The synthetic inputs exercise encoding and splitting, not each decider's input contract, so the schema check is off here.
+            Decider decider = Decider.Load(deciderDir).WithInputSchema(null);
             await rt.DecideAsync(decider, inputs.RootElement.Clone(), "eval");
             outcome = "ok";
         }

@@ -1,0 +1,169 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/caching; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/cachedContents",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "models/gemini-2.5-flash",
+          "displayName": "manual",
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "You answer questions about the attached manual."
+              }
+            ]
+          },
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "MANUAL: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                }
+              ]
+            }
+          ],
+          "ttl": "3600s"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "name": "cachedContents/abc123",
+          "model": "models/gemini-2.5-flash",
+          "displayName": "manual",
+          "createTime": "2026-11-05T10:00:00Z",
+          "updateTime": "2026-11-05T10:00:00Z",
+          "expireTime": "2026-11-05T11:00:00Z",
+          "usageMetadata": {
+            "totalTokenCount": 5000
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-2.5-flash:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "cachedContent": "cachedContents/abc123",
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "What does chapter one say?"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "It says hello."
+                  }
+                ]
+              },
+              "finishReason": "STOP",
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 5006,
+            "cachedContentTokenCount": 5000,
+            "candidatesTokenCount": 4,
+            "totalTokenCount": 5010
+          },
+          "modelVersion": "gemini-2.5-flash",
+          "responseId": "resp-0001"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "PATCH",
+        "path": "/v1beta/cachedContents/abc123?updateMask=ttl",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "ttl": "600s"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "name": "cachedContents/abc123",
+          "model": "models/gemini-2.5-flash",
+          "displayName": "manual",
+          "createTime": "2026-11-05T10:00:00Z",
+          "expireTime": "2026-11-05T10:10:00Z",
+          "usageMetadata": {
+            "totalTokenCount": 5000
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1beta/cachedContents/abc123"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "name": "cachedContents/abc123",
+          "model": "models/gemini-2.5-flash",
+          "displayName": "manual",
+          "createTime": "2026-11-05T10:00:00Z",
+          "expireTime": "2026-11-05T10:10:00Z",
+          "usageMetadata": {
+            "totalTokenCount": 5000
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "DELETE",
+        "path": "/v1beta/cachedContents/abc123"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {}
+      }
+    }
+  ]
+}

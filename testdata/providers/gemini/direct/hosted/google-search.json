@@ -1,0 +1,110 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/gemini-api/docs/google-search; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.8-flash:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Pourquoi le ciel est-il bleu ?"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "googleSearch": {}
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "Le ciel est bleu à cause de Rayleigh. Fin."
+                  }
+                ]
+              },
+              "finishReason": "STOP",
+              "index": 0,
+              "groundingMetadata": {
+                "webSearchQueries": [
+                  "pourquoi ciel bleu"
+                ],
+                "searchEntryPoint": {
+                  "renderedContent": "<div class=\"chip\">search</div>"
+                },
+                "groundingChunks": [
+                  {
+                    "web": {
+                      "uri": "https://example.com/sky",
+                      "title": "Sky colour"
+                    }
+                  },
+                  {
+                    "web": {
+                      "uri": "https://example.org/optics",
+                      "title": "Optics notes"
+                    }
+                  }
+                ],
+                "groundingSupports": [
+                  {
+                    "segment": {
+                      "startIndex": 0,
+                      "endIndex": 38,
+                      "text": "Le ciel est bleu à cause de Rayleigh."
+                    },
+                    "groundingChunkIndices": [
+                      0,
+                      1
+                    ],
+                    "confidenceScores": [
+                      0.97,
+                      0.88
+                    ]
+                  },
+                  {
+                    "segment": {
+                      "startIndex": 39,
+                      "endIndex": 43,
+                      "text": "Fin."
+                    },
+                    "groundingChunkIndices": [
+                      1
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 10,
+            "candidatesTokenCount": 4,
+            "totalTokenCount": 14
+          },
+          "modelVersion": "gemini-3.8-flash",
+          "responseId": "resp-0001"
+        }
+      }
+    }
+  ]
+}

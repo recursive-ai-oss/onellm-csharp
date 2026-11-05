@@ -45,6 +45,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Providers/Gemini/llm-provider.yaml" LogicalName="$(LibName).Providers.Gemini.llm-provider.yaml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="$(LibName).Tests" />
     <InternalsVisibleTo Include="$(LibName).Conformance" />
     <InternalsVisibleTo Include="$(LibName).Bench" />

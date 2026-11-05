@@ -1,0 +1,535 @@
+# Gemini API models: limits, capabilities, thinking settings and prices.
+# Limits: https://ai.google.dev/gemini-api/docs/models (each model's page). Prices: https://ai.google.dev/gemini-api/docs/pricing, Standard tier,
+# paid, US dollars per million tokens, text/image/video input rate (audio is listed separately where the page lists a different rate).
+# Prices that the pricing page says change on a date are noted in the model's properties.scheduledPriceChange.
+name: gemini
+displayName: Google Gemini
+
+modelPatterns:
+  - "gemini-*"
+
+aliases:
+  gemini: gemini-3.8-flash
+  gemini-default: gemini-3.8-flash
+  gemini-fast: gemini-3.8-flash
+  gemini-flash: gemini-3.8-flash
+  gemini-lite: gemini-3.5-flash-lite
+  gemini-flash-lite: gemini-3.5-flash-lite
+  gemini-pro: gemini-3.1-pro-preview
+  gemini-smart: gemini-4-argon
+  gemini-4: gemini-4-argon
+  gemini-argon: gemini-4-argon
+  gemini-embedding: gemini-embedding-2
+
+apiKeyEnvVar: GEMINI_API_KEY
+
+capabilities:
+  streaming: true
+  # Implicit caching is on by default for Gemini 2.5 and newer; hits are reported as cachedContentTokenCount. Explicit caches use cachedContents.
+  promptCaching: true
+  imageInputs: true
+  imageToolResults: true
+  tools: true
+  structuredOutput: true
+  batch: true
+  embeddings: true
+  tokenCounting: true
+
+models:
+  - name: gemini-4-argon
+    displayName: Gemini 4 Argon
+    family: gemini-4-argon
+    contextWindow: 1048576
+    maxOutputTokens: 32768
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    # Sampling parameters are no longer supported and are ignored by the service from Gemini 3.6 Flash on (generate-content reference).
+    supportsTemperature: false
+    # The service rejects thinkingLevel MINIMAL on this model; thinking cannot be switched off.
+    thinking:
+      efforts: [low, medium, high]
+      defaultEffort: medium
+      acceptsBudget: false
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 1.8
+    pricing:
+      inputPerMillion: 2.00
+      outputPerMillion: 10.00
+      cacheReadPerMillion: 0.10
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: toolCalls.google_search
+        price: 14
+        per: 1000
+        label: "Grounding with Google Search, per search query"
+      - counter: toolCalls.google_maps
+        price: 14
+        per: 1000
+        label: "Grounding with Google Maps, per query"
+      - counter: cacheStorageTokenHours
+        price: 0.5
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      multipliers:
+        batch: 0.5
+    properties:
+      scheduledPriceChange: "From 2026-12-01 input 4.00, output 20.00 per million tokens, cache read 0.20."
+      longDecodeMaxOutputTokens: 1048576
+
+  - name: gemini-3.8-flash
+    displayName: Gemini 3.8 Flash
+    family: gemini-3.8-flash
+    contextWindow: 1048576
+    maxOutputTokens: 65536
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    # Sampling parameters are no longer supported and are ignored by the service from Gemini 3.6 Flash on (generate-content reference).
+    supportsTemperature: false
+    # The service rejects thinkingLevel MINIMAL on this model; thinking cannot be switched off.
+    thinking:
+      efforts: [low, medium, high]
+      defaultEffort: medium
+      acceptsBudget: false
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 1.8
+    pricing:
+      inputPerMillion: 0.75
+      outputPerMillion: 3.75
+      cacheReadPerMillion: 0.075
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: toolCalls.google_search
+        price: 14
+        per: 1000
+        label: "Grounding with Google Search, per search query"
+      - counter: toolCalls.google_maps
+        price: 14
+        per: 1000
+        label: "Grounding with Google Maps, per query"
+      - counter: cacheStorageTokenHours
+        price: 0.5
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      multipliers:
+        batch: 0.5
+    properties:
+      scheduledPriceChange: "From 2027-01-01 input 1.50, output 7.50 per million tokens, cache read 0.15; cache storage 1.00."
+
+  - name: gemini-3.6-flash
+    displayName: Gemini 3.6 Flash
+    family: gemini-3.6-flash
+    contextWindow: 1048576
+    maxOutputTokens: 65536
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    # Sampling parameters are no longer supported and are ignored by the service from Gemini 3.6 Flash on (generate-content reference).
+    supportsTemperature: false
+    thinking:
+      efforts: [minimal, low, medium, high]
+      defaultEffort: medium
+      acceptsBudget: false
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 1.8
+    pricing:
+      inputPerMillion: 0.75
+      outputPerMillion: 3.75
+      cacheReadPerMillion: 0.075
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: toolCalls.google_search
+        price: 14
+        per: 1000
+        label: "Grounding with Google Search, per search query"
+      - counter: toolCalls.google_maps
+        price: 14
+        per: 1000
+        label: "Grounding with Google Maps, per query"
+      - counter: cacheStorageTokenHours
+        price: 0.5
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      multipliers:
+        batch: 0.5
+    properties:
+      scheduledPriceChange: "A higher price applies from 2027-01-01; see the pricing page."
+
+  - name: gemini-3.5-flash-lite
+    displayName: Gemini 3.5 Flash-Lite
+    family: gemini-3.5-flash-lite
+    contextWindow: 1048576
+    maxOutputTokens: 65536
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    thinking:
+      efforts: [minimal, low, medium, high]
+      defaultEffort: minimal
+      acceptsBudget: false
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 1.8
+    pricing:
+      inputPerMillion: 0.30
+      outputPerMillion: 2.50
+      cacheReadPerMillion: 0.03
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: toolCalls.google_search
+        price: 14
+        per: 1000
+        label: "Grounding with Google Search, per search query"
+      - counter: toolCalls.google_maps
+        price: 14
+        per: 1000
+        label: "Grounding with Google Maps, per query"
+      - counter: cacheStorageTokenHours
+        price: 0.5
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      multipliers:
+        batch: 0.5
+
+  - name: gemini-3.1-flash-lite
+    displayName: Gemini 3.1 Flash-Lite
+    family: gemini-3.1-flash-lite
+    contextWindow: 1048576
+    maxOutputTokens: 65536
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    thinking:
+      efforts: [minimal, low, medium, high]
+      defaultEffort: minimal
+      acceptsBudget: false
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 1.8
+    pricing:
+      inputPerMillion: 0.25
+      outputPerMillion: 1.50
+      cacheReadPerMillion: 0.025
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: toolCalls.google_search
+        price: 14
+        per: 1000
+        label: "Grounding with Google Search, per search query"
+      - counter: toolCalls.google_maps
+        price: 14
+        per: 1000
+        label: "Grounding with Google Maps, per query"
+      - counter: cacheStorageTokenHours
+        price: 0.5
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      multipliers:
+        batch: 0.5
+
+  - name: gemini-3.1-pro-preview
+    displayName: Gemini 3.1 Pro Preview
+    family: gemini-3.1-pro
+    contextWindow: 1048576
+    maxOutputTokens: 65536
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    # Thinking cannot be switched off; the thinking guide lists low, medium and high.
+    thinking:
+      efforts: [low, medium, high]
+      defaultEffort: high
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 2.00
+      outputPerMillion: 12.00
+      cacheReadPerMillion: 0.20
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: toolCalls.google_search
+        price: 14
+        per: 1000
+        label: "Grounding with Google Search, per search query"
+      - counter: toolCalls.google_maps
+        price: 14
+        per: 1000
+        label: "Grounding with Google Maps, per query"
+      - counter: cacheStorageTokenHours
+        price: 4.5
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      tiers:
+      - above: 200000
+        label: "prompts over 200k tokens"
+        multipliers:
+          inputTokens: 2
+          cacheReadInputTokens: 2
+          outputTokens: 1.5
+      multipliers:
+        batch: 0.5
+
+  - name: gemini-3-flash-preview
+    displayName: Gemini 3 Flash Preview
+    family: gemini-3-flash
+    contextWindow: 1048576
+    maxOutputTokens: 65536
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    thinking:
+      efforts: [minimal, low, medium, high]
+      defaultEffort: high
+      acceptsBudget: false
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 1.8
+    pricing:
+      inputPerMillion: 0.50
+      outputPerMillion: 3.00
+      cacheReadPerMillion: 0.05
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: toolCalls.google_search
+        price: 14
+        per: 1000
+        label: "Grounding with Google Search, per search query"
+      - counter: toolCalls.google_maps
+        price: 14
+        per: 1000
+        label: "Grounding with Google Maps, per query"
+      - counter: cacheStorageTokenHours
+        price: 0.5
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      multipliers:
+        batch: 0.5
+
+  - name: gemini-2.5-pro
+    displayName: Gemini 2.5 Pro
+    family: gemini-2.5-pro
+    contextWindow: 1048576
+    maxOutputTokens: 65536
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    # Budget-driven; thinking cannot be switched off. The effort dynamic sends the budget -1, which lets the model decide.
+    thinking:
+      efforts: [low, medium, high, dynamic]
+      defaultEffort: dynamic
+      acceptsBudget: true
+      defaultEffortBudgets:
+        low: 2000
+        medium: 8000
+        high: 24000
+      minBudget: 128
+      maxBudget: 32768
+    pricing:
+      inputPerMillion: 1.25
+      outputPerMillion: 10.00
+      cacheReadPerMillion: 0.125
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: groundedPrompts
+        price: 35
+        per: 1000
+        label: "Grounding with Google Search, per grounded prompt"
+      - counter: cacheStorageTokenHours
+        price: 4.5
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      tiers:
+      - above: 200000
+        label: "prompts over 200k tokens"
+        multipliers:
+          inputTokens: 2
+          cacheReadInputTokens: 2
+          outputTokens: 1.5
+      multipliers:
+        batch: 0.5
+
+  - name: gemini-2.5-flash
+    displayName: Gemini 2.5 Flash
+    family: gemini-2.5-flash
+    contextWindow: 1048576
+    maxOutputTokens: 65536
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    # Budget-driven; disabled sends the budget 0 and dynamic sends -1.
+    thinking:
+      efforts: [disabled, low, medium, high, dynamic]
+      defaultEffort: dynamic
+      acceptsBudget: true
+      defaultEffortBudgets:
+        low: 2000
+        medium: 8000
+        high: 16000
+      minBudget: 0
+      maxBudget: 24576
+    pricing:
+      inputPerMillion: 0.30
+      outputPerMillion: 2.50
+      cacheReadPerMillion: 0.03
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: inputAudioTokens
+        price: 1.00
+        label: "audio input"
+      - counter: groundedPrompts
+        price: 35
+        per: 1000
+        label: "Grounding with Google Search, per grounded prompt"
+      - counter: cacheStorageTokenHours
+        price: 1.0
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      multipliers:
+        batch: 0.5
+
+  - name: gemini-2.5-flash-lite
+    displayName: Gemini 2.5 Flash-Lite
+    family: gemini-2.5-flash-lite
+    contextWindow: 1048576
+    maxOutputTokens: 65536
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsStructuredOutput: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    # Budget-driven; does not think by default. The budget range is 0 or 512 to 24576.
+    thinking:
+      efforts: [disabled, low, medium, high, dynamic]
+      defaultEffort: disabled
+      acceptsBudget: true
+      defaultEffortBudgets:
+        low: 1024
+        medium: 4096
+        high: 16000
+      minBudget: 512
+      maxBudget: 24576
+    pricing:
+      inputPerMillion: 0.10
+      outputPerMillion: 0.40
+      cacheReadPerMillion: 0.01
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: inputAudioTokens
+        price: 0.30
+        label: "audio input"
+      - counter: groundedPrompts
+        price: 35
+        per: 1000
+        label: "Grounding with Google Search, per grounded prompt"
+      - counter: cacheStorageTokenHours
+        price: 1.0
+        per: 1000000
+        label: "explicit cache storage, per million tokens per hour"
+      multipliers:
+        batch: 0.5
+
+  - name: gemini-embedding-2
+    displayName: Gemini Embedding 2
+    family: gemini-embedding
+    kind: embedding
+    contextWindow: 8192
+    dimensions: 3072
+    supportsVision: true
+    supportsAudioInput: true
+    supportsPdfInput: true
+    supportsVideoInput: true
+    # No task type field on this model: the task goes into the text as an instruction (embeddings guide).
+    properties:
+      embedTask: instruction
+    pricing:
+      inputPerMillion: 0.20
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+      - counter: inputImageTokens
+        price: 0.45
+        label: "image input"
+      - counter: inputAudioTokens
+        price: 6.50
+        label: "audio input"
+      - counter: inputVideoTokens
+        price: 12.00
+        label: "video input"
+      multipliers:
+        batch: 0.5
+
+  - name: gemini-embedding-001
+    displayName: Gemini Embedding
+    family: gemini-embedding
+    kind: embedding
+    contextWindow: 2048
+    dimensions: 3072
+    pricing:
+      inputPerMillion: 0.15
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      multipliers:
+        batch: 0.5

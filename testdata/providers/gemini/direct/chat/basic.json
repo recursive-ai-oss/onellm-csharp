@@ -1,0 +1,86 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/generate-content; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "Be brief."
+              }
+            ]
+          },
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Say hello in one word."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "stopSequences": [
+              "END"
+            ],
+            "maxOutputTokens": 64,
+            "temperature": 0.2,
+            "topP": 0.9
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "Hello!"
+                  }
+                ]
+              },
+              "finishReason": "STOP",
+              "index": 0,
+              "safetyRatings": [
+                {
+                  "category": "HARM_CATEGORY_HARASSMENT",
+                  "probability": "NEGLIGIBLE"
+                }
+              ]
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 12,
+            "candidatesTokenCount": 2,
+            "totalTokenCount": 14,
+            "promptTokensDetails": [
+              {
+                "modality": "TEXT",
+                "tokenCount": 12
+              }
+            ]
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "futureField": {
+            "x": 1
+          },
+          "responseId": "resp-0001"
+        }
+      }
+    }
+  ]
+}

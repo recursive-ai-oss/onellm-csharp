@@ -1,0 +1,59 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/generate-content; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Count to a thousand."
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "maxOutputTokens": 5
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "1 2 3 4 5"
+                  }
+                ]
+              },
+              "finishReason": "MAX_TOKENS",
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 10,
+            "candidatesTokenCount": 4,
+            "totalTokenCount": 14
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "responseId": "resp-0001"
+        }
+      }
+    }
+  ]
+}

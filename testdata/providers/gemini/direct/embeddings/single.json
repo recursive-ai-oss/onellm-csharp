@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/embeddings; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-embedding-001:embedContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "models/gemini-embedding-001",
+          "content": {
+            "parts": [
+              {
+                "text": "reset my password"
+              }
+            ]
+          },
+          "taskType": "RETRIEVAL_QUERY",
+          "outputDimensionality": 3
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "embedding": {
+            "values": [
+              0.25,
+              -0.5,
+              0.125
+            ]
+          },
+          "usageMetadata": {
+            "promptTokenCount": 4
+          }
+        }
+      }
+    }
+  ]
+}

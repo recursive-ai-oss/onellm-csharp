@@ -1,0 +1,62 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/files; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Summarize the file."
+                },
+                {
+                  "fileData": {
+                    "mimeType": "application/pdf",
+                    "fileUri": "https://generativelanguage.googleapis.com/v1beta/files/abc-123"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "A short file."
+                  }
+                ]
+              },
+              "finishReason": "STOP",
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 10,
+            "candidatesTokenCount": 4,
+            "totalTokenCount": 14
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "responseId": "resp-0001"
+        }
+      }
+    }
+  ]
+}

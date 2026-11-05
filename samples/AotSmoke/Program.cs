@@ -38,5 +38,7 @@ ModelCatalog catalog = ModelCatalog.Create([CatalogLayer.FromYaml(CatalogLayer.S
     """)]);
 ok &= catalog.Resolve("small").Name == "demo-small";
 
+ok &= OneLlm.AotSmoke.ToolExercise.Run() == 0;
+
 Console.WriteLine(ok ? "ok " + OneLlm.AssemblyMarker.Version : "FAILED");
 return ok ? 0 : 1;

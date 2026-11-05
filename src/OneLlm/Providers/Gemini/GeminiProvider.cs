@@ -28,6 +28,9 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
     private readonly Action<string>? _dropped;
     private readonly GeminiRequestWriter _writer;
 
+    // The shipped catalog entries join the registry the default catalog loads, once, the first time the provider is used.
+    static GeminiProvider() => CatalogLoader.RegisterShipped(typeof(GeminiProvider).Assembly, ResourceName);
+
     /// <summary>Creates the provider.</summary>
     /// <param name="options">The settings.</param>
     public GeminiProvider(GeminiOptions options)
@@ -41,6 +44,27 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
         Deployment = options.Deployment;
         _http = new ProviderHttpClient(Name, options.Time, options.Http, options.Retry, _auth.GetSecrets(), options.Timeout, options.Jitter, GeminiErrors.FromContext);
         _writer = new GeminiRequestWriter(Name, _dropped, FileUri);
+    }
+
+    // Reconciles the request with the catalog entry once (stripping what the model ignores, refusing what it cannot do), then builds a writer that
+    // reports the Gemini-specific changes into the same warning list.
+    private (ChatRequest Request, GeminiRequestWriter Writer) Prepare(ChatRequest request, List<ResponseWarning> warnings)
+    {
+        ChatRequest adjusted = request;
+        string id = request.Model.StartsWith("models/", StringComparison.Ordinal) ? request.Model["models/".Length..] : request.Model;
+        if (_catalog is not null && _catalog.TryResolve(Name + ":" + id, out ResolvedModel? resolved) && resolved is not null)
+        {
+            AdjustedRequest result = RequestAdjuster.Adjust(resolved, request);
+            adjusted = result.Request;
+            warnings.AddRange(result.Warnings);
+            foreach (ResponseWarning w in result.Warnings)
+            {
+                _dropped?.Invoke(w.Message);
+            }
+        }
+
+        var writer = new GeminiRequestWriter(Name, w => { warnings.Add(new ResponseWarning("parameter_stripped", w)); _dropped?.Invoke(w); }, FileUri);
+        return (adjusted, writer);
     }
 
     private string FileUri(string id) => _endpoint.Resource(id.StartsWith("files/", StringComparison.Ordinal) ? id : "files/" + id).AbsoluteUri;
@@ -68,9 +92,9 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
     {
         ArgumentNullException.ThrowIfNull(request);
         // Each call collects its own notices, so concurrent calls on one provider do not mix them.
-        var warnings = new List<string>();
-        var writer = new GeminiRequestWriter(Name, w => { warnings.Add(w); _dropped?.Invoke(w); }, FileUri);
-        byte[] body = writer.GenerateContent(request, SpecFor(request.Model));
+        var warnings = new List<ResponseWarning>();
+        (ChatRequest adjusted, GeminiRequestWriter writer) = Prepare(request, warnings);
+        byte[] body = writer.GenerateContent(adjusted, SpecFor(request.Model));
         using HttpResponseMessage response = await PostAsync(_endpoint.Model(request.Model, "generateContent"), body, cancellationToken).ConfigureAwait(false);
         byte[] bytes = await _http.ReadBodyAsync(response, MaxResponseBytes, cancellationToken).ConfigureAwait(false);
         ChatResponse result = ToResponse(bytes, request.Model);
@@ -81,7 +105,8 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
     public async IAsyncEnumerable<StreamEvent> StreamAsync(ChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        byte[] body = _writer.GenerateContent(request, SpecFor(request.Model));
+        (ChatRequest adjusted, GeminiRequestWriter writer) = Prepare(request, new List<ResponseWarning>());
+        byte[] body = writer.GenerateContent(adjusted, SpecFor(request.Model));
         using HttpResponseMessage response = await PostAsync(_endpoint.Model(request.Model, "streamGenerateContent", sse: true), body, cancellationToken).ConfigureAwait(false);
         using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = new GeminiSseReader(stream);

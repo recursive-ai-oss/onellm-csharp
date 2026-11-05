@@ -54,7 +54,8 @@ public sealed partial class GeminiProvider
             {
                 w.WriteStartObject();
                 w.WritePropertyName("request");
-                w.WriteRawValue(_writer.GenerateContent(item.Chat!, spec), skipInputValidation: true);
+                (ChatRequest adjusted, GeminiRequestWriter writer) = Prepare(item.Chat!, new List<ResponseWarning>());
+                w.WriteRawValue(writer.GenerateContent(adjusted, spec), skipInputValidation: true);
                 w.WriteStartObject("metadata");
                 w.WriteString("key", item.CustomId);
                 w.WriteEndObject();

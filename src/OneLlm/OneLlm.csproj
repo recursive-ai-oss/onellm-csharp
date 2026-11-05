@@ -40,6 +40,7 @@
     <InternalsVisibleTo Include="$(LibName).Conformance" />
     <InternalsVisibleTo Include="$(LibName).Bench" />
     <InternalsVisibleTo Include="$(LibName).Fuzz" />
+    <InternalsVisibleTo Include="$(LibName).Corpus" />
   </ItemGroup>
 
   <ItemGroup>

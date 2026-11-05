@@ -34,6 +34,7 @@ public sealed partial class Runtime
         {
             lock (_gate)
             {
+                BuiltInProviders.RegisterCatalogs();
                 return _catalog ??= CatalogLoader.Load(getEnvironmentVariable: GetEnvironmentVariable);
             }
         }

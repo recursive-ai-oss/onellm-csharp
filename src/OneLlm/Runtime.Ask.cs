@@ -119,10 +119,21 @@ public sealed partial class Runtime
         DateTimeOffset now = TimeProvider.GetUtcNow();
         Usage? usage = response.Usage;
         Cost cost = Cost.Zero;
-        if (usage is not null && CostCalculator.Price(resolved, usage, PriceContextFor(new ChatRequest()) with { Today = DateOnly.FromDateTime(now.UtcDateTime) }) is { } priced)
+        var warnings = new List<ResponseWarning>(response.Warnings);
+        if (usage is not null)
         {
-            cost = priced;
-            usage = CostCalculator.WithCost(usage, priced);
+            var notes = new List<string>();
+            Cost? priced = CostCalculator.Price(resolved, usage, PriceContextFor(new ChatRequest()) with { Today = DateOnly.FromDateTime(now.UtcDateTime) }, notes);
+            warnings.AddRange(notes.Select(static n => new ResponseWarning("pricing", n)));
+            if (priced is null)
+            {
+                warnings.Add(new ResponseWarning("pricing", $"The catalog has no price for '{resolved.Id}', so this call's cost is not known."));
+            }
+            else
+            {
+                cost = priced;
+                usage = CostCalculator.WithCost(usage, priced);
+            }
         }
 
         RuntimeGuard.Record(cost.Total);
@@ -131,7 +142,7 @@ public sealed partial class Runtime
         await WriteRecordAsync(
             new InferenceRecord { InstanceId = "", Time = now, Provider = provider.Name, Operation = "embeddings", Usage = usage, Duration = elapsed },
             cancellationToken).ConfigureAwait(false);
-        return new EmbedResult(response.Embeddings, usage, cost, resolved.Id);
+        return new EmbedResult(response.Embeddings, usage, cost, resolved.Id, warnings);
     }
 
     /// <summary>Starts a multi-turn chat. The chat is one instance; each turn adds to it and saves it.</summary>
@@ -263,7 +274,7 @@ public sealed partial class Runtime
         }
 
         (Message stamped, Cost cost, FinishReason finish, IReadOnlyList<ResponseWarning> warnings) = await call
-            .CompleteAsync(response.Message, response.Finish, response.FinishReasonRaw, response.Id, cancellationToken).ConfigureAwait(false);
+            .CompleteAsync(response.Message, response.Finish, response.FinishReasonRaw, response.Id, cancellationToken, response.Warnings).ConfigureAwait(false);
         await turn.Scope.AppendAsync(stamped, cancellationToken).ConfigureAwait(false);
         return new AskResult(stamped.GetAssistantText(), stamped, turn.Scope.Instance, turn.Model.Id, cost, finish, warnings);
     }

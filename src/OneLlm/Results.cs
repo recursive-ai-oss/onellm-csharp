@@ -158,8 +158,9 @@ public sealed class ScriptResult
 /// <summary>Embeddings for a list of texts.</summary>
 public sealed class EmbedResult
 {
-    internal EmbedResult(IReadOnlyList<ReadOnlyMemory<float>> embeddings, Usage? usage, Cost cost, string model)
+    internal EmbedResult(IReadOnlyList<ReadOnlyMemory<float>> embeddings, Usage? usage, Cost cost, string model, IReadOnlyList<ResponseWarning> warnings)
     {
+        Warnings = warnings;
         Embeddings = embeddings;
         Usage = usage;
         Cost = cost;
@@ -177,4 +178,7 @@ public sealed class EmbedResult
 
     /// <summary>The model that was used, as <c>provider:model</c>.</summary>
     public string Model { get; }
+
+    /// <summary>Notices from the provider and the price lookup.</summary>
+    public IReadOnlyList<ResponseWarning> Warnings { get; }
 }

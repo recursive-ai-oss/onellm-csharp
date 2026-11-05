@@ -78,8 +78,13 @@ internal sealed class InferenceCall
 
     /// <summary>Prices the answer, stamps it and reports it. Returns the stamped message and the cost.</summary>
     public async ValueTask<(Message Message, Cost Cost, FinishReason Finish, IReadOnlyList<ResponseWarning> Warnings)> CompleteAsync(
-        Message message, FinishReason finish, string? finishRaw, string? responseId, CancellationToken cancellationToken)
+        Message message, FinishReason finish, string? finishRaw, string? responseId, CancellationToken cancellationToken, IReadOnlyList<ResponseWarning>? providerWarnings = null)
     {
+        if (providerWarnings is { Count: > 0 })
+        {
+            _warnings.AddRange(providerWarnings);
+        }
+
         DateTimeOffset now = _runtime.TimeProvider.GetUtcNow();
         Usage? usage = message.Usage;
         Cost cost = Cost.Zero;

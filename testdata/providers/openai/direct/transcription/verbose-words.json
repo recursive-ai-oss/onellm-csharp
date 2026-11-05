@@ -1,0 +1,55 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/audio/transcriptions",
+        "headers": {
+          "Content-Type": "multipart/form-data; boundary=onellm-c4a7fad882221400925fc04e1e6d0f95"
+        },
+        "bodyText": "--onellm-c4a7fad882221400925fc04e1e6d0f95\r\nContent-Disposition: form-data; name=\"file\"; filename=\"clip.wav\"\r\nContent-Type: audio/wav\r\n\r\nA\r\n--onellm-c4a7fad882221400925fc04e1e6d0f95\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--onellm-c4a7fad882221400925fc04e1e6d0f95\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\nverbose_json\r\n--onellm-c4a7fad882221400925fc04e1e6d0f95\r\nContent-Disposition: form-data; name=\"timestamp_granularities[]\"\r\n\r\nword\r\n--onellm-c4a7fad882221400925fc04e1e6d0f95\r\nContent-Disposition: form-data; name=\"timestamp_granularities[]\"\r\n\r\nsegment\r\n--onellm-c4a7fad882221400925fc04e1e6d0f95--\r\n"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "task": "transcribe",
+          "language": "english",
+          "duration": 0.5,
+          "text": "Hello.",
+          "words": [
+            {
+              "word": "Hello",
+              "start": 0.0,
+              "end": 0.5
+            }
+          ],
+          "segments": [
+            {
+              "id": 0,
+              "seek": 0,
+              "start": 0.0,
+              "end": 0.5,
+              "text": " Hello.",
+              "tokens": [
+                1
+              ],
+              "temperature": 0.0,
+              "avg_logprob": -0.2,
+              "compression_ratio": 1.0,
+              "no_speech_prob": 0.01
+            }
+          ],
+          "usage": {
+            "type": "duration",
+            "seconds": 1
+          }
+        }
+      }
+    }
+  ]
+}

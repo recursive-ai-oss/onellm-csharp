@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/audio/transcriptions",
+        "headers": {
+          "Content-Type": "multipart/form-data; boundary=onellm-a5e39e9821c390b0d234a1b549a3c832"
+        },
+        "bodyText": "--onellm-a5e39e9821c390b0d234a1b549a3c832\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.flac\"\r\nContent-Type: audio/flac\r\n\r\nA\r\n--onellm-a5e39e9821c390b0d234a1b549a3c832\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-4o-transcribe\r\n--onellm-a5e39e9821c390b0d234a1b549a3c832--\r\n"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "text": "Imagine the wildest idea.",
+          "usage": {
+            "type": "tokens",
+            "input_tokens": 14,
+            "input_token_details": {
+              "text_tokens": 0,
+              "audio_tokens": 14
+            },
+            "output_tokens": 45,
+            "total_tokens": 59
+          }
+        }
+      }
+    }
+  ]
+}

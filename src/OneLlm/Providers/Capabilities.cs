@@ -267,6 +267,18 @@ public sealed record ImageRequest
     /// <summary>The quality tier, in the provider's terms.</summary>
     public string? Quality { get; init; }
 
+    /// <summary>The file format to return, for example <c>png</c>, <c>jpeg</c> or <c>webp</c>. The provider's default when null.</summary>
+    public string? Format { get; init; }
+
+    /// <summary>The aspect ratio for providers that take one instead of a pixel size, for example <c>16:9</c>.</summary>
+    public string? AspectRatio { get; init; }
+
+    /// <summary>For an edit: an image whose transparent areas mark where to change the first input. Null for no mask.</summary>
+    public ImageInput? Mask { get; init; }
+
+    /// <summary>How many in-progress images to stream before the final one (0 to 3), for providers that stream them. Used only by <see cref="Media.IImageStreamingProvider"/>.</summary>
+    public int? PartialImages { get; init; }
+
     /// <summary>Parameters written into the request body as given.</summary>
     public JsonObject? ExtraParameters { get; init; }
 }
@@ -288,8 +300,20 @@ public sealed record ImageResponse
     /// <summary>The images.</summary>
     public IReadOnlyList<GeneratedImage> Images { get; init; } = [];
 
+    /// <summary>Text the model wrote beside the images, for providers whose image models answer in prose too. Null when there is none.</summary>
+    public string? Text { get; init; }
+
+    /// <summary>The model that answered, when the provider says.</summary>
+    public string? Model { get; init; }
+
     /// <summary>What the call consumed.</summary>
     public Usage? Usage { get; init; }
+
+    /// <summary>What the call cost, priced from the catalog. Null when the catalog has no price for the model or the call reported no usage to price.</summary>
+    public Cost? Cost { get; init; }
+
+    /// <summary>Notices about the call: parameters the model ignores, costs that could not be fully priced.</summary>
+    public IReadOnlyList<ResponseWarning> Warnings { get; init; } = [];
 }
 
 /// <summary>Image generation and editing.</summary>
@@ -321,9 +345,20 @@ public sealed record SpeechRequest
     /// <summary>Style instructions for models that take them.</summary>
     public string? Instructions { get; init; }
 
+    /// <summary>The speed of speech, 1.0 being normal, for providers that take one.</summary>
+    public double? Speed { get; init; }
+
+    /// <summary>For a dialogue: the voice of each speaker named in <see cref="Input"/>. When set, <see cref="Voice"/> is not used.</summary>
+    public IReadOnlyList<SpeakerVoice>? Speakers { get; init; }
+
     /// <summary>Parameters written into the request body as given.</summary>
     public JsonObject? ExtraParameters { get; init; }
 }
+
+/// <summary>The voice that reads one speaker's lines in a dialogue.</summary>
+/// <param name="Speaker">The speaker's name as the input text uses it.</param>
+/// <param name="Voice">The voice, in the provider's terms.</param>
+public readonly record struct SpeakerVoice(string Speaker, string Voice);
 
 /// <summary>Synthesized speech.</summary>
 public sealed record SpeechResponse
@@ -336,6 +371,12 @@ public sealed record SpeechResponse
 
     /// <summary>What the call consumed.</summary>
     public Usage? Usage { get; init; }
+
+    /// <summary>What the call cost. Null when the provider reports no usage for the model and the catalog prices by something the response does not tell (see the warnings).</summary>
+    public Cost? Cost { get; init; }
+
+    /// <summary>Notices about the call.</summary>
+    public IReadOnlyList<ResponseWarning> Warnings { get; init; } = [];
 }
 
 /// <summary>Text to speech.</summary>
@@ -370,6 +411,15 @@ public sealed record TranscriptionRequest
     /// <summary>Text that primes the model with names or style.</summary>
     public string? Prompt { get; init; }
 
+    /// <summary>True to translate the speech into English instead of transcribing it, for providers and models that do.</summary>
+    public bool Translate { get; init; }
+
+    /// <summary>The form of the answer in the provider's terms, for example <c>json</c>, <c>verbose_json</c>, <c>diarized_json</c>, <c>text</c>, <c>srt</c> or <c>vtt</c>. <c>json</c> when null.</summary>
+    public string? ResponseFormat { get; init; }
+
+    /// <summary>Which timestamps to return with <c>verbose_json</c>: <c>segment</c>, <c>word</c> or both.</summary>
+    public IReadOnlyList<string>? TimestampGranularities { get; init; }
+
     /// <summary>Parameters written into the request body as given.</summary>
     public JsonObject? ExtraParameters { get; init; }
 }
@@ -391,6 +441,12 @@ public sealed record TranscriptionResponse
 
     /// <summary>What the call consumed.</summary>
     public Usage? Usage { get; init; }
+
+    /// <summary>What the call cost, priced from the catalog. Null when the model has no price or the call reported nothing to price.</summary>
+    public Cost? Cost { get; init; }
+
+    /// <summary>Notices about the call.</summary>
+    public IReadOnlyList<ResponseWarning> Warnings { get; init; } = [];
 }
 
 /// <summary>Speech to text.</summary>
@@ -413,6 +469,9 @@ public sealed record ModerationRequest
     /// <summary>The texts to check.</summary>
     public IReadOnlyList<string> Inputs { get; init; } = [];
 
+    /// <summary>Images to check with the texts, for models that take them. When any are given, texts and images are checked together and the response holds one verdict for the lot.</summary>
+    public IReadOnlyList<ImageInput> Images { get; init; } = [];
+
     /// <summary>Parameters written into the request body as given.</summary>
     public JsonObject? ExtraParameters { get; init; }
 }
@@ -428,6 +487,9 @@ public sealed record ModerationResult
 
     /// <summary>The score per category, 0 to 1.</summary>
     public IReadOnlyDictionary<string, double> Scores { get; init; } = new Dictionary<string, double>();
+
+    /// <summary>For each category, which kinds of input (<c>text</c>, <c>image</c>) the score applies to, when the provider says. Null when it does not.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>>? CategoryInputTypes { get; init; }
 }
 
 /// <summary>Verdicts for the inputs of a request, in the same order.</summary>
@@ -436,8 +498,17 @@ public sealed record ModerationResponse
     /// <summary>One verdict per input.</summary>
     public IReadOnlyList<ModerationResult> Results { get; init; } = [];
 
+    /// <summary>The model that answered, when the provider says.</summary>
+    public string? Model { get; init; }
+
     /// <summary>What the call consumed.</summary>
     public Usage? Usage { get; init; }
+
+    /// <summary>What the call cost: zero for a free model. Null when the catalog has no entry for the model.</summary>
+    public Cost? Cost { get; init; }
+
+    /// <summary>Notices about the call.</summary>
+    public IReadOnlyList<ResponseWarning> Warnings { get; init; } = [];
 }
 
 /// <summary>Content moderation.</summary>

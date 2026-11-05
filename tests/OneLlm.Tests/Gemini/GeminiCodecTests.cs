@@ -409,15 +409,20 @@ public class GeminiCodecTests
     {
         CatalogLayer layer = GeminiProvider.GetCatalogLayer();
         ModelCatalog catalog = ModelCatalog.Create([layer]);
-        ProviderSpec provider = Assert.Single(layer.Providers);
-        Assert.Equal("gemini", provider.Name);
+        // The layer holds the chat file and the media file; the catalog merges them into one provider.
+        Assert.All(layer.Providers, p => Assert.Equal("gemini", p.Name));
+        ProviderSpec provider = catalog.FindProvider("gemini")!;
         Assert.NotEmpty(provider.Models!);
         foreach (ModelSpec m in provider.Models!)
         {
             Assert.True(catalog.TryResolve("gemini:" + m.Name, out ResolvedModel? byName), m.Name);
             Assert.Equal(m.Name, byName!.Model!.Name);
             Assert.True(catalog.TryResolve(m.Name, out _), m.Name);
-            Assert.NotNull(m.ContextWindow);
+            if (m.Kind is null or "chat")
+            {
+                Assert.NotNull(m.ContextWindow);
+            }
+
             Assert.NotNull(m.Pricing);
             Assert.NotNull(m.Pricing!.AsOf);
             Assert.False(string.IsNullOrWhiteSpace(m.Pricing.Source), m.Name);

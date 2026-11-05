@@ -1,0 +1,23 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/audio/transcriptions",
+        "headers": {
+          "Content-Type": "multipart/form-data; boundary=onellm-32cfe9d09da9239d10cb5900451e673f"
+        },
+        "bodyText": "--onellm-32cfe9d09da9239d10cb5900451e673f\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\nContent-Type: audio/wav\r\n\r\nA\r\n--onellm-32cfe9d09da9239d10cb5900451e673f\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--onellm-32cfe9d09da9239d10cb5900451e673f\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\nsrt\r\n--onellm-32cfe9d09da9239d10cb5900451e673f--\r\n"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/plain"
+        },
+        "bodyText": "1\n00:00:00,000 --> 00:00:02,000\nHello\n"
+      }
+    }
+  ]
+}

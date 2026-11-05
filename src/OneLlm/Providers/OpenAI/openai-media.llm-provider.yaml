@@ -1,0 +1,369 @@
+# OpenAI media models: image generation and editing, speech, transcription and moderation.
+# Prices are US dollars per million tokens unless an item says otherwise, read from https://developers.openai.com/api/docs/pricing on 2026-11-05
+# (sections "Image generation models", "Text to speech", "Transcription models" and the moderation row).
+#
+# How media usage is priced here:
+#  - Image models bill tokens. inputPerMillion is the text input rate, outputPerMillion the text output rate where the model has one; image input and
+#    image output tokens are priced by the inputImageTokens and outputImageTokens items, which the pricing engine takes out of the token totals.
+#  - tts-1 and tts-1-hd bill per character of input (counter "characters"). gpt-4o-mini-tts bills tokens, but the speech endpoint reports no usage.
+#  - whisper-1 and gpt-transcribe bill audio minutes (counter "audioSeconds", priced per second). The gpt-4o transcribe models bill tokens; their
+#    per-minute figure on the page is an estimate and is kept as a second item for responses that report duration instead of tokens.
+#  - Moderation is free.
+name: openai
+capabilities:
+  imageGeneration: true
+  textToSpeech: true
+  speechToText: true
+  moderation: true
+models:
+  - name: gpt-image-2.6-sunburst
+    displayName: GPT Image 2.6 Sunburst
+    kind: image
+    pricing:
+      inputPerMillion: 5
+      cacheReadPerMillion: 1.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: inputImageTokens
+          price: 8
+          label: image input
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: outputImageTokens
+          price: 30
+          label: image output
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      maxImages: 10
+      edits: true
+  - name: gpt-image-2.6-flare
+    displayName: GPT Image 2.6 Flare
+    kind: image
+    pricing:
+      inputPerMillion: 5
+      cacheReadPerMillion: 1.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: inputImageTokens
+          price: 8
+          label: image input
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: outputImageTokens
+          price: 30
+          label: image output
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      maxImages: 10
+      edits: true
+  - name: gpt-image-2.5-sunburst
+    displayName: GPT Image 2.5 Sunburst
+    kind: image
+    pricing:
+      inputPerMillion: 5
+      cacheReadPerMillion: 1.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: inputImageTokens
+          price: 8
+          label: image input
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: outputImageTokens
+          price: 30
+          label: image output
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      maxImages: 10
+      edits: true
+  - name: gpt-image-2.5-flare
+    displayName: GPT Image 2.5 Flare
+    kind: image
+    pricing:
+      inputPerMillion: 5
+      cacheReadPerMillion: 1.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: inputImageTokens
+          price: 8
+          label: image input
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: outputImageTokens
+          price: 30
+          label: image output
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      maxImages: 10
+      edits: true
+  - name: gpt-image-2
+    displayName: GPT Image 2
+    kind: image
+    pricing:
+      inputPerMillion: 5
+      cacheReadPerMillion: 1.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: inputImageTokens
+          price: 8
+          label: image input
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: outputImageTokens
+          price: 30
+          label: image output
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      maxImages: 10
+      edits: true
+  - name: gpt-image-1.5
+    displayName: GPT Image 1.5
+    kind: image
+    pricing:
+      inputPerMillion: 5
+      outputPerMillion: 10
+      cacheReadPerMillion: 1.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: inputImageTokens
+          price: 8
+          label: image input
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: outputImageTokens
+          price: 32
+          label: image output
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      maxImages: 10
+      edits: true
+  - name: gpt-image-1-mini
+    displayName: GPT Image 1 mini
+    kind: image
+    pricing:
+      inputPerMillion: 2
+      cacheReadPerMillion: 0.2
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: inputImageTokens
+          price: 2.5
+          label: image input
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: outputImageTokens
+          price: 8
+          label: image output
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      maxImages: 10
+      edits: true
+  - name: chatgpt-image-latest
+    displayName: ChatGPT Image (latest)
+    kind: image
+    pricing:
+      inputPerMillion: 5
+      outputPerMillion: 10
+      cacheReadPerMillion: 1.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: inputImageTokens
+          price: 8
+          label: image input
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: outputImageTokens
+          price: 32
+          label: image output
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      maxImages: 10
+      edits: true
+  - name: tts-1
+    displayName: tts-1
+    kind: speech
+    pricing:
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: characters
+          price: 15
+          per: 1000000
+          label: speech (per character)
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      shutdownDate: "2027-01-06"
+      usageReported: false
+  - name: tts-1-hd
+    displayName: tts-1-hd
+    kind: speech
+    pricing:
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: characters
+          price: 30
+          per: 1000000
+          label: speech (per character)
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      shutdownDate: "2027-01-06"
+      usageReported: false
+  - name: gpt-4o-mini-tts
+    displayName: gpt-4o-mini-tts
+    kind: speech
+    pricing:
+      inputPerMillion: 0.6
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: outputAudioTokens
+          price: 12
+          label: audio output
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      shutdownDate: "2027-01-06"
+      usageReported: false
+  - name: whisper-1
+    displayName: Whisper
+    kind: transcription
+    pricing:
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: audioSeconds
+          price: 0.0001
+          label: audio (per second; $0.006 per minute)
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      translations: true
+      streaming: false
+  - name: gpt-transcribe
+    displayName: GPT Transcribe
+    kind: transcription
+    pricing:
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: audioSeconds
+          price: 0.000075
+          label: audio (per second; $0.0045 per minute)
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      streaming: true
+  - name: gpt-4o-transcribe
+    displayName: GPT-4o Transcribe
+    kind: transcription
+    pricing:
+      inputPerMillion: 2.5
+      outputPerMillion: 10
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: audioSeconds
+          price: 0.0001
+          label: audio (estimated per second)
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      streaming: true
+  - name: gpt-4o-mini-transcribe
+    displayName: GPT-4o mini Transcribe
+    kind: transcription
+    pricing:
+      inputPerMillion: 1.25
+      outputPerMillion: 5
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: audioSeconds
+          price: 0.00005
+          label: audio (estimated per second)
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      streaming: true
+  - name: gpt-4o-transcribe-diarize
+    displayName: GPT-4o Transcribe Diarize
+    kind: transcription
+    pricing:
+      inputPerMillion: 2.5
+      outputPerMillion: 10
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: audioSeconds
+          price: 0.0001
+          label: audio (estimated per second)
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+    properties:
+      streaming: true
+  - name: omni-moderation-latest
+    displayName: omni-moderation-latest
+    kind: moderation
+    pricing:
+      inputPerMillion: 0
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+    properties:
+      free: true
+  - name: omni-moderation-2024-09-26
+    displayName: omni-moderation-2024-09-26
+    kind: moderation
+    pricing:
+      inputPerMillion: 0
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+    properties:
+      free: true
+  - name: text-moderation-latest
+    displayName: text-moderation-latest
+    kind: moderation
+    pricing:
+      inputPerMillion: 0
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+    properties:
+      free: true
+  - name: text-moderation-stable
+    displayName: text-moderation-stable
+    kind: moderation
+    pricing:
+      inputPerMillion: 0
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+    properties:
+      free: true

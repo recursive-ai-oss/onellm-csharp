@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/audio/subresources/speech/methods/create; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/audio/speech",
+        "headers": {
+          "Accept": "audio/*",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "gpt-4o-mini-tts",
+          "input": "Good morning",
+          "voice": "alloy",
+          "instructions": "calm and warm",
+          "response_format": "wav",
+          "speed": 1.25
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "audio/wav"
+        },
+        "bodyText": "WAV-BYTES"
+      }
+    }
+  ]
+}

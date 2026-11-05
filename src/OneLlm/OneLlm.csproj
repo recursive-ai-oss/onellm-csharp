@@ -46,6 +46,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Providers/Gemini/llm-provider.yaml" LogicalName="$(LibName).Providers.Gemini.llm-provider.yaml" />
+    <EmbeddedResource Include="Providers/Gemini/gemini-media.llm-provider.yaml" LogicalName="$(LibName).Providers.Gemini.gemini-media.llm-provider.yaml" />
   </ItemGroup>
 
   <ItemGroup>

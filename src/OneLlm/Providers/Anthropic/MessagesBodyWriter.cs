@@ -56,6 +56,7 @@ internal sealed class MessagesBodyWriter
     private readonly BodyMode _mode;
     private readonly AnthropicOptions _options;
     private readonly TimeProvider _time;
+    private readonly List<string>? _warnings;
     private readonly IReadOnlyDictionary<AssetRef, ReadOnlyMemory<byte>> _assets;
 
     public MessagesBodyWriter(
@@ -65,8 +66,10 @@ internal sealed class MessagesBodyWriter
         BodyMode mode,
         AnthropicOptions options,
         TimeProvider time,
-        IReadOnlyDictionary<AssetRef, ReadOnlyMemory<byte>> assets)
+        IReadOnlyDictionary<AssetRef, ReadOnlyMemory<byte>> assets,
+        List<string>? warnings = null)
     {
+        _warnings = warnings;
         _request = request;
         _model = model;
         _spec = spec;
@@ -294,7 +297,7 @@ internal sealed class MessagesBodyWriter
 
     private static bool IsImage(string contentType) => contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
 
-    private void Log(string message) => _options.Log?.Invoke(message);
+    private void Log(string message) => _warnings?.Add(message);
 
     private int ResolveMaxTokens()
     {

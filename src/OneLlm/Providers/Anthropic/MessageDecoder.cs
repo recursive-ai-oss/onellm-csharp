@@ -15,7 +15,7 @@ namespace OneLlm.Providers.Anthropic;
 /// Content blocks become parts like this: <c>text</c> to text with its citations as annotations; <c>thinking</c> and
 /// <c>redacted_thinking</c> to reasoning parts whose data holds the block's signature or opaque payload for replay; <c>tool_use</c> to a tool
 /// call; <c>server_tool_use</c> together with its later <c>*_tool_result</c> block to one hosted tool call; any other block to a provider part
-/// holding the block as received. Unknown fields on tool-use blocks are kept in <see cref="ToolCallExtras"/>; unknown fields on text blocks
+/// holding the block as received. Unknown fields on tool-use blocks are kept in the call's extension data; unknown fields on text blocks
 /// are not kept, because a streamed text block cannot carry them to the message.
 /// </remarks>
 internal sealed class MessageDecoder
@@ -93,11 +93,8 @@ internal sealed class MessageDecoder
     /// <summary>The events produced since the caller last cleared the list.</summary>
     public List<StreamEvent> Events { get; } = [];
 
-    /// <summary>Fields of tool-use blocks beyond the modelled ones, by tool call id.</summary>
-    public Dictionary<string, Dictionary<string, object?>> ToolCallExtras { get; } = new(StringComparer.Ordinal);
-
-    /// <summary>Message-level fields worth keeping (the container for reuse, the stop sequence that ended the turn), or null.</summary>
-    public Dictionary<string, object?>? MessageExtras { get; private set; }
+    // Message-level fields worth keeping (the container for reuse, the stop sequence that ended the turn); sent as a MessageExtension event before Done.
+    private JsonObject? _messageExtras;
 
     /// <summary>True once <c>message_stop</c> was seen, or a whole message was decoded.</summary>
     public bool Stopped { get; private set; }
@@ -348,12 +345,17 @@ internal sealed class MessageDecoder
             return;
         }
 
-        (MessageExtras ??= new Dictionary<string, object?>(StringComparer.Ordinal))[key] = AnthropicJson.ToNatural(value);
+        (_messageExtras ??= new JsonObject())[key] = value.DeepClone();
     }
 
     private void Stop()
     {
         Stopped = true;
+        if (_messageExtras is not null)
+        {
+            Events.Add(StreamEvent.MessageExtension(AnthropicErrors.Provider, AnthropicJson.ToUtf8(_messageExtras)));
+        }
+
         Events.Add(StreamEvent.Done(_finish, _finishRaw));
     }
 
@@ -490,21 +492,18 @@ internal sealed class MessageDecoder
         string id = AnthropicJson.GetString(block, "id") ?? "";
         string name = AnthropicJson.GetString(block, "name") ?? "";
         _blocks[index] = new Block(BlockKind.ToolUse, index) { Id = id };
-        Events.Add(StreamEvent.ToolCallStart(index, id, name));
 
-        Dictionary<string, object?>? extras = null;
+        // Fields beyond the modelled ones (caller, toolset_name, ...) travel on the start event into the call's extension data.
+        JsonObject? extras = null;
         foreach (KeyValuePair<string, JsonNode?> p in block)
         {
             if (p.Key is not ("type" or "id" or "name" or "input"))
             {
-                (extras ??= new Dictionary<string, object?>(StringComparer.Ordinal))[p.Key] = AnthropicJson.ToNatural(p.Value);
+                (extras ??= new JsonObject())[p.Key] = p.Value?.DeepClone();
             }
         }
 
-        if (extras is not null)
-        {
-            ToolCallExtras[id] = extras;
-        }
+        Events.Add(extras is null ? StreamEvent.ToolCallStart(index, id, name) : StreamEvent.ToolCallStart(index, id, name, AnthropicJson.ToUtf8(extras)));
 
         // A streamed block starts with an empty input and fills it by deltas; a whole block carries it.
         if (complete && block["input"] is JsonObject { Count: > 0 } input)

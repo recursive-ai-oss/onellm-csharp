@@ -37,7 +37,7 @@
             "type": "invalid_request_error",
             "message": "prompt is too long: 210000 tokens > 200000 maximum"
           },
-          "request_id": "req_011CSHoEeqs5C35K2UUqR7Fy"
+          "request_id": "[scrubbed]"
         }
       }
     }

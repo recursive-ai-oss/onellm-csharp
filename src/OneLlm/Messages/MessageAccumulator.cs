@@ -42,11 +42,14 @@ public sealed class MessageAccumulator
         public JsonObject? Data { get; set; }
 
         public Part? Part { get; set; }
+
+        public Dictionary<string, object?>? Extension { get; set; }
     }
 
     private readonly List<Block> _blocks = [];
     private readonly Dictionary<int, Block> _byIndex = [];
     private Usage? _usage;
+    private Dictionary<string, object?>? _messageExtension;
 
     /// <summary>The provider's response id, once <see cref="StreamEventKind.MessageStart"/> was seen.</summary>
     public string? ResponseId { get; private set; }
@@ -91,6 +94,18 @@ public sealed class MessageAccumulator
                 Block t = GetOrAdd(e.Index, BlockKind.ToolCall);
                 t.Id = e.Id;
                 t.Name = e.Name;
+                if (!e.Extension.IsEmpty && NaturalObjectJsonConverter.Parse(e.Extension.Span) is Dictionary<string, object?> toolFields)
+                {
+                    t.Extension = toolFields;
+                }
+
+                break;
+            case StreamEventKind.MessageExtension:
+                if (e.Name is { Length: > 0 } key && !e.Extension.IsEmpty)
+                {
+                    (_messageExtension ??= new Dictionary<string, object?>(StringComparer.Ordinal))[key] = NaturalObjectJsonConverter.Parse(e.Extension.Span);
+                }
+
                 break;
             case StreamEventKind.ToolCallArgumentsDelta:
                 Append(GetOrAdd(e.Index, BlockKind.ToolCall), e.Utf8.Span);
@@ -204,7 +219,7 @@ public sealed class MessageAccumulator
             usage = usage.MergeLater(new Usage { Model = Model });
         }
 
-        return new Message { Assistant = parts, ToolCalls = calls, Usage = usage };
+        return new Message { Assistant = parts, ToolCalls = calls, Usage = usage, ExtensionData = _messageExtension is null ? null : new Dictionary<string, object?>(_messageExtension) };
     }
 
     private Block GetOrAdd(int index, BlockKind kind)
@@ -250,7 +265,7 @@ public sealed class MessageAccumulator
             }
         }
 
-        return new ToolCall(b.Id ?? "", b.Name ?? "") { Inputs = inputs, InvalidInputs = invalid, After = after };
+        return new ToolCall(b.Id ?? "", b.Name ?? "") { Inputs = inputs, InvalidInputs = invalid, After = after, ExtensionData = b.Extension };
     }
 
     private static HostedToolCallPart? BuildHosted(Block b)

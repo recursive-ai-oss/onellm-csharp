@@ -37,7 +37,7 @@
             "type": "permission_error",
             "message": "Your API key does not have permission to use the specified resource."
           },
-          "request_id": "req_011CSHoEeqs5C35K2UUqR7Fy"
+          "request_id": "[scrubbed]"
         }
       }
     }

@@ -12,7 +12,7 @@ public sealed record AnthropicOptions
 
     /// <summary>
     /// The <c>anthropic-version</c> header. Default <c>2026-10-21</c>, the version the API reference documents. From that version on the API
-    /// returns a 400 for <c>temperature</c> and <c>top_p</c>, so the provider leaves them out (and says so through <see cref="Log"/>);
+    /// returns a 400 for <c>temperature</c> and <c>top_p</c>, so the provider leaves them out (and says so in <see cref="ChatResponse.Warnings"/>);
     /// choose <c>2023-06-01</c> to send them.
     /// </summary>
     public string ApiVersion { get; init; } = "2026-10-21";
@@ -43,12 +43,6 @@ public sealed record AnthropicOptions
 
     /// <summary>The <c>max_tokens</c> sent for a model the catalog does not know, when the request sets none. Default 4,096.</summary>
     public int UnknownModelMaxTokens { get; init; } = 4_096;
-
-    /// <summary>
-    /// Told about every parameter the provider dropped or changed because the model or API version does not take it. Default none.
-    /// Messages never contain request content.
-    /// </summary>
-    public Action<string>? Log { get; init; }
 
     /// <summary>
     /// Fetches the bytes of an asset that has neither inline data nor a public URL (an asset kept in a store). Without it, such an asset fails the

@@ -253,4 +253,10 @@ public sealed record ChatResponse
 
     /// <summary>What the call cost, once priced from the catalog. Null until then.</summary>
     public Cost? Cost { get; init; }
+
+    /// <summary>
+    /// Notices about request settings the provider left out or changed because the model does not take them (a dropped temperature, a clamped
+    /// thinking budget). Never contains request content. Empty when nothing was changed.
+    /// </summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
 }

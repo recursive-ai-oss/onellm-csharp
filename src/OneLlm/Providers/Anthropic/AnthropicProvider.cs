@@ -58,46 +58,17 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
     public async Task<ChatResponse> SendAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        (ReadOnlyMemory<byte> body, string model) = await BuildChatBodyAsync(request, BodyMode.Message, cancellationToken).ConfigureAwait(false);
+        var warnings = new List<string>();
+        (ReadOnlyMemory<byte> body, string model) = await BuildChatBodyAsync(request, BodyMode.Message, cancellationToken, warnings).ConfigureAwait(false);
         var info = new AnthropicRequestInfo(AnthropicOperation.Messages, model, false, null);
         using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, body), cancellationToken).ConfigureAwait(false);
         JsonObject root = await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false);
-        return ToChatResponse(root, RequestIdOf(response));
+        return ToChatResponse(root, RequestIdOf(response), warnings);
     }
 
     /// <inheritdoc />
     public IAsyncEnumerable<StreamEvent> StreamAsync(ChatRequest request, CancellationToken cancellationToken = default) =>
         StreamCoreAsync(request, new MessageDecoder(_http.Scrub), cancellationToken);
-
-    /// <summary>
-    /// Streams a request and returns the finished response. Every event is passed to <paramref name="onEvent"/> as it arrives. The message
-    /// equals the one <see cref="SendAsync"/> returns, including the fields of tool-use blocks and the container that stream events
-    /// cannot carry, which is why callers that need the final message should use this instead of accumulating <see cref="StreamAsync"/> themselves.
-    /// </summary>
-    /// <param name="request">The request.</param>
-    /// <param name="onEvent">Called for each event, or null. The event's <see cref="StreamEvent.Utf8"/> is valid only during the call.</param>
-    /// <param name="cancellationToken">Cancels the stream.</param>
-    /// <returns>The response.</returns>
-    /// <exception cref="ProviderException">The provider failed, before the first event or in the middle of the stream.</exception>
-    public async Task<ChatResponse> SendStreamingAsync(ChatRequest request, Action<StreamEvent>? onEvent = null, CancellationToken cancellationToken = default)
-    {
-        var decoder = new MessageDecoder(_http.Scrub);
-        var accumulator = new MessageAccumulator();
-        await foreach (StreamEvent e in StreamCoreAsync(request, decoder, cancellationToken).ConfigureAwait(false))
-        {
-            accumulator.Add(e);
-            onEvent?.Invoke(e);
-        }
-
-        return new ChatResponse
-        {
-            Message = AttachExtras(accumulator.ToMessage(), decoder),
-            Id = accumulator.ResponseId,
-            Model = accumulator.Model,
-            Finish = accumulator.Finish,
-            FinishReasonRaw = accumulator.FinishReasonRaw,
-        };
-    }
 
     private async IAsyncEnumerable<StreamEvent> StreamCoreAsync(ChatRequest request, MessageDecoder decoder, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -408,14 +379,14 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
         return (name, null);
     }
 
-    private async Task<(ReadOnlyMemory<byte> Body, string Model)> BuildChatBodyAsync(ChatRequest request, BodyMode mode, CancellationToken cancellationToken)
+    private async Task<(ReadOnlyMemory<byte> Body, string Model)> BuildChatBodyAsync(ChatRequest request, BodyMode mode, CancellationToken cancellationToken, List<string>? warnings = null)
     {
         (string model, ModelSpec? spec) = ResolveModel(request.Model);
         IReadOnlyDictionary<AssetRef, ReadOnlyMemory<byte>> assets = await ResolveAssetsAsync(request.Messages, cancellationToken).ConfigureAwait(false);
         var buffer = new ArrayBufferWriter<byte>(4096);
         using (var w = new Utf8JsonWriter(buffer, AnthropicJson.WriterOptions))
         {
-            new MessagesBodyWriter(request, model, spec, mode, _options, _time, assets).Write(w);
+            new MessagesBodyWriter(request, model, spec, mode, _options, _time, assets, warnings).Write(w);
         }
 
         return (buffer.WrittenMemory, model);
@@ -488,7 +459,7 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
     private static string? RequestIdOf(HttpResponseMessage response) =>
         response.Headers.TryGetValues("request-id", out IEnumerable<string>? ids) ? ids.FirstOrDefault() : null;
 
-    private ChatResponse ToChatResponse(JsonObject message, string? requestId)
+    private ChatResponse ToChatResponse(JsonObject message, string? requestId, IReadOnlyList<string>? warnings = null)
     {
         var decoder = new MessageDecoder(_http.Scrub) { RequestId = requestId };
         decoder.DecodeMessage(message);
@@ -500,59 +471,12 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
 
         return new ChatResponse
         {
-            Message = AttachExtras(accumulator.ToMessage(), decoder),
+            Message = accumulator.ToMessage(),
+            Warnings = warnings ?? [],
             Id = accumulator.ResponseId,
             Model = accumulator.Model,
             Finish = accumulator.Finish,
             FinishReasonRaw = accumulator.FinishReasonRaw,
-        };
-    }
-
-    // Adds what stream events cannot carry to a message built from them: the extra fields of tool-use blocks and the message-level
-    // fields (container, stop sequence).
-    private static Message AttachExtras(Message message, MessageDecoder decoder)
-    {
-        if (decoder.ToolCallExtras.Count == 0 && decoder.MessageExtras is null)
-        {
-            return message;
-        }
-
-        var calls = new List<ToolCall>(message.ToolCalls.Count);
-        foreach (ToolCall c in message.ToolCalls)
-        {
-            calls.Add(decoder.ToolCallExtras.TryGetValue(c.Id, out Dictionary<string, object?>? extras)
-                ? new ToolCall(c.Id, c.Tool)
-                {
-                    Routine = c.Routine,
-                    Inputs = c.Inputs,
-                    InvalidInputs = c.InvalidInputs,
-                    Result = c.Result,
-                    IsError = c.IsError,
-                    Cost = c.Cost,
-                    CostLines = c.CostLines,
-                    When = c.When,
-                    Injected = c.Injected,
-                    InjectedBy = c.InjectedBy,
-                    After = c.After,
-                    ExtensionData = extras,
-                }
-                : c);
-        }
-
-        return new Message
-        {
-            Id = message.Id,
-            User = message.User,
-            Assistant = message.Assistant,
-            ToolCalls = calls,
-            DateTime = message.DateTime,
-            Source = message.Source,
-            Cache = message.Cache,
-            Usage = message.Usage,
-            When = message.When,
-            ExtensionData = decoder.MessageExtras is null
-                ? message.ExtensionData
-                : new Dictionary<string, object?>(message.ExtensionData ?? []) { [ProviderName] = decoder.MessageExtras },
         };
     }
 }

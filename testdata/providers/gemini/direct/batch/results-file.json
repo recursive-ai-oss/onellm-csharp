@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/batch-mode; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1beta/batches/b-2"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "name": "batches/b-2",
+          "done": true,
+          "metadata": {
+            "state": "BATCH_STATE_SUCCEEDED",
+            "batchStats": {
+              "requestCount": "2",
+              "successfulRequestCount": "2"
+            }
+          },
+          "response": {
+            "responsesFile": "files/batch-out-2"
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/download/v1beta/files/batch-out-2:download?alt=media"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "bodyText": "{\"key\":\"request-1\",\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"One.\"}]},\"finishReason\":\"STOP\",\"index\":0}]}}\n{\"key\":\"request-2\",\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Two.\"}]},\"finishReason\":\"STOP\",\"index\":0}]}}\n"
+      }
+    }
+  ]
+}

@@ -632,7 +632,7 @@ internal sealed class GeminiResponseParser
                 };
                 int index = _next++;
                 _pending.Add(new PendingHosted(index, part, [rawPart], "code"));
-                events.Add(StreamEvent.HostedToolCallStart(index, WithReplay(part, [rawPart])));
+                events.Add(StreamEvent.HostedToolCallStart(index, WithReplay(part, [rawPart.DeepClone()])));
                 break;
             }
 
@@ -642,7 +642,7 @@ internal sealed class GeminiResponseParser
                 var part = new HostedToolCallPart(tool) { Provider = _provider, Id = id, Inputs = body["args"] as JsonObject ?? new JsonObject() };
                 int index = _next++;
                 _pending.Add(new PendingHosted(index, part, [rawPart], "tool"));
-                events.Add(StreamEvent.HostedToolCallStart(index, WithReplay(part, [rawPart])));
+                events.Add(StreamEvent.HostedToolCallStart(index, WithReplay(part, [rawPart.DeepClone()])));
                 break;
             }
 

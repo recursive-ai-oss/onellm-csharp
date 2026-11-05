@@ -133,6 +133,9 @@ public static partial class FixtureScrubber
         return text;
     }
 
+    private static bool IsPlaceholderUploadAddress(string name, string value) =>
+        name.Equals("x-goog-upload-url", StringComparison.OrdinalIgnoreCase) && value.EndsWith("upload_id=PLACEHOLDER", StringComparison.Ordinal);
+
     /// <summary>Finds what a fixture still contains that should have been scrubbed.</summary>
     /// <param name="fixture">The fixture.</param>
     /// <returns>One line per finding, naming where it is and what kind it is, never the value. Empty when the fixture is clean.</returns>
@@ -154,7 +157,8 @@ public static partial class FixtureScrubber
 
             foreach (string name in e.Response.Headers.Keys)
             {
-                if (!KeepResponseHeader(name))
+                // A hand-written fixture may carry an upload address made of a placeholder; the recorder still never keeps one.
+                if (!KeepResponseHeader(name) && !IsPlaceholderUploadAddress(name, e.Response.Headers[name]))
                 {
                     found.Add($"{at} response header '{name}' should not be recorded");
                 }
@@ -221,7 +225,12 @@ public static partial class FixtureScrubber
                     }
                     else
                     {
-                        obj[key] = ScrubNode(value, literals);
+                        // A container is scrubbed in place; assigning it back would fail because it already has this parent.
+                        JsonNode? scrubbed = ScrubNode(value, literals);
+                        if (!ReferenceEquals(scrubbed, value))
+                        {
+                            obj[key] = scrubbed;
+                        }
                     }
                 }
 
@@ -229,7 +238,12 @@ public static partial class FixtureScrubber
             case JsonArray array:
                 for (int i = 0; i < array.Count; i++)
                 {
-                    array[i] = ScrubNode(array[i], literals);
+                    JsonNode? item = array[i];
+                    JsonNode? scrubbed = ScrubNode(item, literals);
+                    if (!ReferenceEquals(scrubbed, item))
+                    {
+                        array[i] = scrubbed;
+                    }
                 }
 
                 return array;

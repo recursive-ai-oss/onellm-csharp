@@ -1,0 +1,245 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/batch-mode; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-2.5-flash:batchGenerateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "batch": {
+            "displayName": "two-items",
+            "inputConfig": {
+              "requests": {
+                "requests": [
+                  {
+                    "request": {
+                      "contents": [
+                        {
+                          "role": "user",
+                          "parts": [
+                            {
+                              "text": "Say one."
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "metadata": {
+                      "key": "request-1"
+                    }
+                  },
+                  {
+                    "request": {
+                      "contents": [
+                        {
+                          "role": "user",
+                          "parts": [
+                            {
+                              "text": "Say two."
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "metadata": {
+                      "key": "request-2"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "name": "batches/b-1",
+          "metadata": {
+            "@type": "type.googleapis.com/google.ai.generativelanguage.v1main.GenerateContentBatch",
+            "model": "models/gemini-2.5-flash",
+            "displayName": "two-items",
+            "state": "BATCH_STATE_PENDING",
+            "createTime": "2026-11-05T10:00:00Z",
+            "batchStats": {
+              "requestCount": "2",
+              "pendingRequestCount": "2"
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1beta/batches/b-1"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "name": "batches/b-1",
+          "metadata": {
+            "model": "models/gemini-2.5-flash",
+            "state": "BATCH_STATE_RUNNING",
+            "createTime": "2026-11-05T10:00:00Z",
+            "batchStats": {
+              "requestCount": "2",
+              "pendingRequestCount": "1",
+              "successfulRequestCount": "1"
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1beta/batches/b-1"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "name": "batches/b-1",
+          "done": true,
+          "metadata": {
+            "model": "models/gemini-2.5-flash",
+            "state": "BATCH_STATE_SUCCEEDED",
+            "createTime": "2026-11-05T10:00:00Z",
+            "batchStats": {
+              "requestCount": "2",
+              "successfulRequestCount": "1",
+              "failedRequestCount": "1"
+            }
+          },
+          "response": {
+            "@type": "type.googleapis.com/google.ai.generativelanguage.v1main.GenerateContentBatchOutput",
+            "inlinedResponses": {
+              "inlinedResponses": [
+                {
+                  "metadata": {
+                    "key": "request-1"
+                  },
+                  "response": {
+                    "candidates": [
+                      {
+                        "content": {
+                          "role": "model",
+                          "parts": [
+                            {
+                              "text": "One."
+                            }
+                          ]
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                      }
+                    ],
+                    "usageMetadata": {
+                      "promptTokenCount": 5,
+                      "candidatesTokenCount": 2,
+                      "totalTokenCount": 7
+                    },
+                    "modelVersion": "gemini-2.5-flash"
+                  }
+                },
+                {
+                  "metadata": {
+                    "key": "request-2"
+                  },
+                  "error": {
+                    "code": 429,
+                    "message": "Quota exceeded for this request.",
+                    "status": "RESOURCE_EXHAUSTED"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1beta/batches/b-1"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "name": "batches/b-1",
+          "done": true,
+          "metadata": {
+            "model": "models/gemini-2.5-flash",
+            "state": "BATCH_STATE_SUCCEEDED",
+            "createTime": "2026-11-05T10:00:00Z",
+            "batchStats": {
+              "requestCount": "2",
+              "successfulRequestCount": "1",
+              "failedRequestCount": "1"
+            }
+          },
+          "response": {
+            "@type": "type.googleapis.com/google.ai.generativelanguage.v1main.GenerateContentBatchOutput",
+            "inlinedResponses": {
+              "inlinedResponses": [
+                {
+                  "metadata": {
+                    "key": "request-1"
+                  },
+                  "response": {
+                    "candidates": [
+                      {
+                        "content": {
+                          "role": "model",
+                          "parts": [
+                            {
+                              "text": "One."
+                            }
+                          ]
+                        },
+                        "finishReason": "STOP",
+                        "index": 0
+                      }
+                    ],
+                    "usageMetadata": {
+                      "promptTokenCount": 5,
+                      "candidatesTokenCount": 2,
+                      "totalTokenCount": 7
+                    },
+                    "modelVersion": "gemini-2.5-flash"
+                  }
+                },
+                {
+                  "metadata": {
+                    "key": "request-2"
+                  },
+                  "error": {
+                    "code": 429,
+                    "message": "Quota exceeded for this request.",
+                    "status": "RESOURCE_EXHAUSTED"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

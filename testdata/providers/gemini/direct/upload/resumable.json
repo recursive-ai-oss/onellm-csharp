@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/files and https://ai.google.dev/gemini-api/docs/files (resumable upload); no live call was made. The upload address in the start answer is a made-up placeholder: the recorder drops that header, so this file is written by hand.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/upload/v1beta/files",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "file": {
+            "displayName": "doc"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "text/plain",
+          "x-goog-upload-url": "https://generativelanguage.googleapis.com/upload/v1beta/files?upload_id=PLACEHOLDER"
+        },
+        "bodyText": ""
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/upload/v1beta/files?upload_id=PLACEHOLDER",
+        "headers": {},
+        "bodyBase64": "AQID"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "file": {
+            "name": "files/abc-123",
+            "mimeType": "application/pdf",
+            "displayName": "doc",
+            "uri": "https://generativelanguage.googleapis.com/v1beta/files/abc-123",
+            "state": "ACTIVE"
+          }
+        }
+      }
+    }
+  ]
+}

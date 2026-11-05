@@ -40,8 +40,10 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
         Name = options.Name;
         Deployment = options.Deployment;
         _http = new ProviderHttpClient(Name, options.Time, options.Http, options.Retry, _auth.GetSecrets(), options.Timeout, options.Jitter, GeminiErrors.FromContext);
-        _writer = new GeminiRequestWriter(Name, _dropped, id => _endpoint.Resource(id.StartsWith("files/", StringComparison.Ordinal) ? id : "files/" + id).AbsoluteUri);
+        _writer = new GeminiRequestWriter(Name, _dropped, FileUri);
     }
+
+    private string FileUri(string id) => _endpoint.Resource(id.StartsWith("files/", StringComparison.Ordinal) ? id : "files/" + id).AbsoluteUri;
 
     /// <inheritdoc />
     public string Name { get; }
@@ -65,10 +67,14 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
     public async Task<ChatResponse> SendAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        byte[] body = _writer.GenerateContent(request, SpecFor(request.Model));
+        // Each call collects its own notices, so concurrent calls on one provider do not mix them.
+        var warnings = new List<string>();
+        var writer = new GeminiRequestWriter(Name, w => { warnings.Add(w); _dropped?.Invoke(w); }, FileUri);
+        byte[] body = writer.GenerateContent(request, SpecFor(request.Model));
         using HttpResponseMessage response = await PostAsync(_endpoint.Model(request.Model, "generateContent"), body, cancellationToken).ConfigureAwait(false);
         byte[] bytes = await _http.ReadBodyAsync(response, MaxResponseBytes, cancellationToken).ConfigureAwait(false);
-        return ToResponse(bytes, request.Model);
+        ChatResponse result = ToResponse(bytes, request.Model);
+        return warnings.Count == 0 ? result : result with { Warnings = warnings };
     }
 
     /// <inheritdoc />

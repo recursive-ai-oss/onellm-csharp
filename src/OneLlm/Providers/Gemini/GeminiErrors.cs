@@ -144,6 +144,10 @@ internal static partial class GeminiErrors
                     || rawBody.Contains("PerDay", StringComparison.Ordinal)
                     || message.Contains("billing", StringComparison.OrdinalIgnoreCase) && message.Contains("plan", StringComparison.OrdinalIgnoreCase);
                 return new RateLimitException(provider, message, retryAfter) { Code = status, IsQuotaExhausted = exhausted };
+            case 400 when rawBody.Contains("API_KEY_INVALID", StringComparison.Ordinal) || message.Contains("API key not valid", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("API key expired", StringComparison.OrdinalIgnoreCase):
+                // A bad key is answered with 400 INVALID_ARGUMENT, not 401 (the troubleshooting guide groups invalid keys under 400).
+                return new AuthException(provider, message, http) { Code = status };
             case 503 or 529:
                 return new OverloadedException(provider, message, http, retryAfter) { Code = status };
             case 402:

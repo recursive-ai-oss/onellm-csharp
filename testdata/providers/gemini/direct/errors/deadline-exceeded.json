@@ -1,0 +1,108 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/gemini-api/docs/troubleshooting; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 504,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": 504,
+            "message": "The service is unable to finish processing within the deadline.",
+            "status": "DEADLINE_EXCEEDED"
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 504,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": 504,
+            "message": "The service is unable to finish processing within the deadline.",
+            "status": "DEADLINE_EXCEEDED"
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 504,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "error": {
+            "code": 504,
+            "message": "The service is unable to finish processing within the deadline.",
+            "status": "DEADLINE_EXCEEDED"
+          }
+        }
+      }
+    }
+  ]
+}

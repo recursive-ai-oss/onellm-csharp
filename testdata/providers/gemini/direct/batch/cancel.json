@@ -1,0 +1,49 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/batch-mode; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/batches/b-3:cancel",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {}
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {}
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1beta/batches/b-3"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "name": "batches/b-3",
+          "done": true,
+          "metadata": {
+            "state": "BATCH_STATE_CANCELLED",
+            "batchStats": {
+              "requestCount": "2"
+            }
+          },
+          "error": {
+            "code": 1,
+            "message": "Cancelled."
+          }
+        }
+      }
+    }
+  ]
+}

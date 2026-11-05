@@ -1,0 +1,86 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/generate-content; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.8-flash:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Find the capital of Norway."
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "googleSearch": {}
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "toolCall": {
+                      "toolType": "GOOGLE_SEARCH_WEB",
+                      "id": "search-1",
+                      "args": {
+                        "queries": [
+                          "capital of Norway"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "toolResponse": {
+                      "toolType": "GOOGLE_SEARCH_WEB",
+                      "id": "search-1",
+                      "response": {
+                        "results": [
+                          {
+                            "title": "Norway",
+                            "url": "https://example.com/no"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "text": "Oslo is the capital."
+                  }
+                ]
+              },
+              "finishReason": "STOP",
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 10,
+            "candidatesTokenCount": 4,
+            "totalTokenCount": 14
+          },
+          "modelVersion": "gemini-3.8-flash",
+          "responseId": "resp-0001"
+        }
+      }
+    }
+  ]
+}

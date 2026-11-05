@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/generate-content#method:-models.streamgeneratecontent; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Tell a long story."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream; charset=utf-8"
+        },
+        "sse": [
+          "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Once upon\"}]},\"index\":0}],\"modelVersion\":\"gemini-3.5-flash-lite\",\"responseId\":\"resp-0002\"}\n\n",
+          "data: {\"error\":{\"code\":503,\"message\":\"The model is overloaded. Please try again later.\",\"status\":\"UNAVAILABLE\"}}\n\n"
+        ]
+      }
+    }
+  ]
+}

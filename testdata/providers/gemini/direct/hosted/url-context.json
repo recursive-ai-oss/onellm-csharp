@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/gemini-api/docs/url-context; no live call was made. Synthetic prompts only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Summarize https://example.com/page"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "urlContext": {}
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "The page describes an example."
+                  }
+                ]
+              },
+              "finishReason": "STOP",
+              "index": 0,
+              "urlContextMetadata": {
+                "urlMetadata": [
+                  {
+                    "retrievedUrl": "https://example.com/page",
+                    "urlRetrievalStatus": "URL_RETRIEVAL_STATUS_SUCCESS"
+                  }
+                ]
+              }
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 15,
+            "toolUsePromptTokenCount": 500,
+            "candidatesTokenCount": 6,
+            "totalTokenCount": 521
+          },
+          "modelVersion": "gemini-3.5-flash-lite",
+          "responseId": "resp-0001"
+        }
+      }
+    }
+  ]
+}

@@ -259,7 +259,7 @@ public sealed class Capabilities : ICapabilities
     }
 
     // A root of one side that lies inside a root of the other survives; the narrower of each pair is kept.
-    private static string[] IntersectRoots(string[] a, string[] b)
+    internal static string[] IntersectRoots(IReadOnlyList<string> a, IReadOnlyList<string> b)
     {
         var result = new List<string>();
         foreach (string x in a)

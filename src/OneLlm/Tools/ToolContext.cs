@@ -40,6 +40,12 @@ public sealed class ToolContext
     /// <summary>Where <see cref="Log"/> and <see cref="Progress"/> lines go. Null drops them.</summary>
     public IToolLog? LogSink { get; init; }
 
+    /// <summary>The runtime running the call, or null when the context was built without one. Agent tools use it to start and watch other instances.</summary>
+    public Runtime? Runtime { get; init; }
+
+    /// <summary>The live agent making the call, when the loop made this context. Lets a wait end when a message arrives for the caller.</summary>
+    internal Agents.LiveAgent? Agent { get; init; }
+
     /// <summary>Host services a tool may look up, such as an HTTP client factory. Null when the host offers none.</summary>
     public IServiceProvider? Services { get; init; }
 

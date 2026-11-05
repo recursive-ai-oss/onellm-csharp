@@ -66,6 +66,22 @@ matter only here:
 A `user` part may be `from: <path>` to expand a list from the template data (for example `inputs.images`) into several parts.
 Messages in `initialPrompts` usually have no `id`; the runtime gives them one when they enter an instance.
 
+### `contextStrategy`
+
+Optional. Keeps a long run inside the model's window. `contextStrategy: {type, triggerTokens | triggerPercent, keepLast}` or just the
+type name. It runs at a turn boundary, when the previous model call's context (input plus output tokens) reached the trigger
+(`triggerTokens`, or `triggerPercent` of the model's window, default 70):
+
+- `clearToolResults`: the results of all but the latest `keepLast` (default 3) tool-calling turns are replaced by the note
+  `[tool result cleared to save context]`. Every call keeps a result, so no call is orphaned, and messages before the first
+  change are untouched, so a provider's cached prefix stays valid up to there. Doing it again changes nothing.
+- `compact`: messages before a user message at least `keepLast` (default 6) messages from the end are summarized by a model call
+  and replaced by one user message that starts with `[Summary of the earlier conversation]`. The summarizer is the shipped
+  `compact` flow, replaceable on the `Runtime`; it runs as an instance of its own below this one, so its cost is in the subtree.
+- `providerNative`: the provider compacts the conversation, when it can. A provider that cannot is skipped with a warning.
+
+Each run adds an entry to `compactions` (`spec/instances.md`). A host hook can veto one.
+
 ### `hooks`
 
 A list of mappings: `file` (required, relative to the definition) and `points` (list of hook point names; absent means every

@@ -211,6 +211,18 @@ public class InstanceTests : IDisposable
         Assert.Equal("a\uFEFFb\u2028c\u0085d  \ttrail \n\nline", back.Messages[0].GetUserText());
     }
 
+    [Fact]
+    public void A_byte_order_mark_at_the_start_of_a_line_is_never_written_raw()
+    {
+        // YAML 1.2.2 production [27] (nb-char) excludes U+FEFF from block and plain scalars, so the writer must escape it
+        // in a quoted scalar; a raw one would make the file unreadable.
+        Instance i = Instance.Create("bom");
+        i.Messages.Add(Message.FromUser("first line\n\uFEFF<Project>\n  body\n", "x"));
+        string yaml = i.ToYaml();
+        Assert.DoesNotContain("\uFEFF", yaml);
+        Assert.Equal("first line\n\uFEFF<Project>\n  body\n", Instance.Parse(yaml).Messages[0].GetUserText());
+    }
+
     private static async Task<List<T>> ToListAsync<T>(IAsyncEnumerable<T> source)
     {
         var list = new List<T>();

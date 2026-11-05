@@ -50,10 +50,28 @@ Each entry: `toolCallId`, `tool`, `messageId` (the message that holds the call, 
 and `requestedAt` (RFC 3339). Approvals are saved with the instance, so an approval or denial still works after a restart.
 Unknown keys are kept.
 
+A decision is written into the same entry as two more keys: `decision` (`approved` or `denied`) and, for a denial, `reason`
+for the person's note. The entry stays until the run that follows has answered the call. While a turn waits for approval, its
+assistant message is saved with the held calls unanswered; the other calls of the turn already have their results. When every
+entry is decided, the run executes the approved calls, answers the denied ones with an error result that carries the reason, and
+replaces the saved message with the finished turn.
+
 ## `compactions`
 
 Each entry records one context compaction: `strategy` (`clearToolResults`, `compact` or `providerNative`), `at`,
-`replacedMessageIds`, `summaryMessageId` and `cost` (a decimal in USD, when the compaction made a model call).
+`replacedMessageIds`, `summaryMessageId` and `cost` (a decimal in USD, when the compaction made a model call). Two unknown keys
+are written: `atMessageId` (the model call whose context triggered it, so a strategy runs once per call) and `replacedCost` (a
+decimal as a string: what the removed messages and their tool calls cost, so the instance's total does not shrink when they go).
+
+## Keys the agent loop adds
+
+Written as unknown keys, so other readers keep them:
+
+| Key | Meaning |
+|---|---|
+| `error` | `{type, message}` of the failure that put the instance in `error`. A run that reaches `maxIterations` ends in `error` with type `MaxIterations` and the message `max iterations (N) reached` (`maxIterations` defaults to 200). |
+| `cancelled` | `true` when the latest run was cancelled. The instance is `stopped` and keeps the partial turn: finished tool calls have their results, interrupted ones an error result saying they were cancelled. |
+| `askUser` | `{toolCallId, messageId}` of an `ask_user` call that has no answer yet. The instance is `waiting`; the next message sent to it becomes that call's result instead of a separate user message. |
 
 ## Fork and duplicate
 

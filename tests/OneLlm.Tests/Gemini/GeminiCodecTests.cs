@@ -225,7 +225,7 @@ public class GeminiCodecTests
         }));
         var dropped = new List<string>();
         ChatResponse r = await GeminiHarness.NewProvider(http, dropped: dropped.Add, catalog: catalog).SendAsync(request);
-        Assert.Equal(dropped, r.Warnings);
+        Assert.Equal(dropped, r.Warnings.Select(w => w.Message));
         return (JsonNode.Parse(body!)!, dropped);
     }
 
@@ -252,13 +252,12 @@ public class GeminiCodecTests
     }
 
     [Fact]
-    public async Task Service_tier_is_written_when_the_model_has_it_and_dropped_when_not()
+    public async Task Service_tier_is_written_when_the_model_has_it_and_refused_when_not()
     {
         var (body, _) = await SendCapture(new ChatRequest { Model = "gemini-3.8-flash", Messages = [Message.FromUser("Hi.")], ServiceTier = "flex" });
         Assert.Equal("flex", body["serviceTier"]!.GetValue<string>());
-        var (body2, warnings) = await SendCapture(new ChatRequest { Model = "gemini-3.8-flash", Messages = [Message.FromUser("Hi.")], ServiceTier = "platinum" });
-        Assert.Null(body2["serviceTier"]);
-        Assert.Single(warnings);
+        // A tier the model does not have changes what was asked (price and latency), so the request is refused and nothing is sent.
+        await Assert.ThrowsAsync<UnsupportedParameterException>(() => SendCapture(new ChatRequest { Model = "gemini-3.8-flash", Messages = [Message.FromUser("Hi.")], ServiceTier = "platinum" }));
     }
 
     [Fact]
@@ -429,6 +428,16 @@ public class GeminiCodecTests
             Assert.True(catalog.TryResolve(alias, out ResolvedModel? viaAlias), alias);
             Assert.Equal(target, viaAlias!.Model!.Name);
         }
+    }
+
+    [Fact]
+    public void The_shipped_catalog_is_registered_for_the_default_catalog()
+    {
+        _ = GeminiProvider.GetCatalogLayer();
+        _ = new GeminiOptions { Time = TimeProvider.System, Auth = new GeminiApiKeyAuth(new Secret(GeminiHarness.FakeKey)) };
+        using var http = new HttpClient();
+        _ = new GeminiProvider(new GeminiOptions { Time = TimeProvider.System, Auth = new GeminiApiKeyAuth(new Secret(GeminiHarness.FakeKey)), Http = http });
+        Assert.Contains(CatalogLoader.ShippedLayers(), l => l.Providers.Any(p => p.Name == "gemini"));
     }
 
     [Fact]

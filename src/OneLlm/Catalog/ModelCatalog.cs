@@ -118,6 +118,15 @@ public sealed class ModelCatalog
         return _provenance.TryGetValue(provider, out Dictionary<string, string>? paths) && paths.TryGetValue(path, out string? layer) ? layer : null;
     }
 
+    /// <summary>Lists where every value of a provider's entry came from.</summary>
+    /// <param name="provider">The provider's name.</param>
+    /// <returns>Value paths (as in <see cref="SourceOf"/>) with the name of the highest layer that set each; empty for an unknown provider.</returns>
+    public IReadOnlyDictionary<string, string> SourcesOf(string provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        return _provenance.TryGetValue(provider, out Dictionary<string, string>? paths) ? paths : new Dictionary<string, string>();
+    }
+
     /// <summary>Looks a model name up.</summary>
     /// <param name="name">A catalog name, an alias, a pattern-matched name, or any of these as <c>provider:model</c>.</param>
     /// <returns>The match.</returns>

@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/audio/transcriptions",
+        "headers": {
+          "Accept": "text/event-stream",
+          "Content-Type": "multipart/form-data; boundary=onellm-d0f6de2fa9842da020830c511e325f4c"
+        },
+        "bodyText": "--onellm-d0f6de2fa9842da020830c511e325f4c\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.mp3\"\r\nContent-Type: audio/mpeg\r\n\r\nA\r\n--onellm-d0f6de2fa9842da020830c511e325f4c\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-4o-mini-transcribe\r\n--onellm-d0f6de2fa9842da020830c511e325f4c\r\nContent-Disposition: form-data; name=\"stream\"\r\n\r\ntrue\r\n--onellm-d0f6de2fa9842da020830c511e325f4c--\r\n"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream; charset=utf-8"
+        },
+        "sse": [
+          "data: {\"type\":\"transcript.text.delta\",\"delta\":\"I see\"}\n\n",
+          "data: {\"type\":\"transcript.text.delta\",\"delta\":\" skies\"}\n\n",
+          "data: {\"type\":\"transcript.text.done\",\"text\":\"I see skies\",\"usage\":{\"input_tokens\":14,\"input_token_details\":{\"text_tokens\":0,\"audio_tokens\":14},\"output_tokens\":45,\"total_tokens\":59}}\n\n"
+        ]
+      }
+    }
+  ]
+}

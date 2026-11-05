@@ -41,6 +41,7 @@ ok &= OneLlm.AotSmoke.PricingExercise.Run() == 0;
 ok &= await OneLlm.AotSmoke.DefinitionsExercise.RunAsync();
 
 ok &= OneLlm.AotSmoke.ToolExercise.Run() == 0;
+ok &= OneLlm.AotSmoke.MediaExercise.Run() == 0;
 ok &= OneLlm.AotSmoke.AnthropicSmoke.Run() == 0;
 await OneLlm.AotSmoke.OpenAiExercise.RunAsync();
 await OneLlm.AotSmoke.GeminiSmoke.RunAsync();

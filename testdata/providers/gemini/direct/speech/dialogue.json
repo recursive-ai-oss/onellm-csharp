@@ -1,0 +1,99 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://ai.google.dev/api/generate-content; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1beta/models/gemini-3.8-flash-tts:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "How are you today?",
+                  "speechMetadata": {
+                    "speaker": "Joe",
+                    "style": "friendly"
+                  }
+                },
+                {
+                  "text": "Not bad.\nHow about you?",
+                  "speechMetadata": {
+                    "speaker": "Jane",
+                    "style": "friendly"
+                  }
+                }
+              ]
+            }
+          ],
+          "generationConfig": {
+            "responseModalities": [
+              "AUDIO"
+            ],
+            "speechConfig": {
+              "multiSpeakerVoiceConfig": {
+                "speakerVoiceConfigs": [
+                  {
+                    "speaker": "Joe",
+                    "voiceConfig": {
+                      "prebuiltVoiceConfig": {
+                        "voiceName": "Puck"
+                      }
+                    }
+                  },
+                  {
+                    "speaker": "Jane",
+                    "voiceConfig": {
+                      "prebuiltVoiceConfig": {
+                        "voiceName": "Kore"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "inlineData": {
+                      "mimeType": "audio/wav",
+                      "data": "UklGRi1XQVY="
+                    }
+                  }
+                ]
+              },
+              "finishReason": "STOP"
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 20,
+            "candidatesTokenCount": 250,
+            "candidatesTokensDetails": [
+              {
+                "modality": "AUDIO",
+                "tokenCount": 250
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

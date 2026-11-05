@@ -1,0 +1,54 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/images/methods/generate; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "gpt-image-1-mini",
+          "prompt": "Two lanterns",
+          "n": 2,
+          "background": "transparent",
+          "moderation": "low"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "created": 1,
+          "output_format": "webp",
+          "data": [
+            {
+              "b64_json": "QQ=="
+            },
+            {
+              "b64_json": "Qg==",
+              "revised_prompt": "a lantern"
+            }
+          ],
+          "usage": {
+            "input_tokens": 20,
+            "input_tokens_details": {
+              "text_tokens": 20,
+              "image_tokens": 0
+            },
+            "output_tokens": 2000,
+            "output_tokens_details": {
+              "image_tokens": 2000,
+              "text_tokens": 0
+            },
+            "total_tokens": 2020
+          }
+        }
+      }
+    }
+  ]
+}

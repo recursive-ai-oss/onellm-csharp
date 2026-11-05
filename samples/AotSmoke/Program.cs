@@ -39,6 +39,7 @@ ModelCatalog catalog = ModelCatalog.Create([CatalogLayer.FromYaml(CatalogLayer.S
 ok &= catalog.Resolve("small").Name == "demo-small";
 ok &= OneLlm.AotSmoke.PricingExercise.Run() == 0;
 ok &= await OneLlm.AotSmoke.DefinitionsExercise.RunAsync();
+ok &= await OneLlm.AotSmoke.RuntimeExercise.RunAsync();
 
 ok &= OneLlm.AotSmoke.ToolExercise.Run() == 0;
 ok &= OneLlm.AotSmoke.AnthropicSmoke.Run() == 0;

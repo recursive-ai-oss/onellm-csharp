@@ -7,3 +7,4 @@ All notable changes to this project are documented in this file. The format foll
 ### Added
 
 - Repository skeleton: solution, core package, generator project, test, benchmark and sample projects.
+- `Runtime`, the provider registry and the `Llm` happy path: ask, typed ask, streaming, embeddings, chat and scripted runs, each saved as an instance with cost, records and telemetry; a scripted provider for tests (`OneLlm.Testing`).

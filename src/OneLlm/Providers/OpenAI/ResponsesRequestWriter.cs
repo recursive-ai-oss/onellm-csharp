@@ -46,7 +46,7 @@ internal static class ResponsesRequestWriter
             throw policy.Refuse("the Responses API has no stop sequences; use the Chat Completions protocol for them.");
         }
 
-        using var body = new BodyWriter(r.ExtraParameters);
+        using var body = new BodyWriter(r.ExtraParameters, BodyWriter.EstimateSize(r));
         Utf8JsonWriter w = body.Writer;
 
         if (body.Field("model"))
@@ -290,7 +290,7 @@ internal static class ResponsesRequestWriter
     private static void WriteAssistantTurn(Utf8JsonWriter w, ChatRequest r, Message m)
     {
         IReadOnlyList<Part> parts = m.Assistant;
-        ToolCall[] calls = [.. m.ToolCalls.OrderBy(c => c.After)];
+        ToolCall[] calls = m.ToolCalls.Count == 0 ? [] : [.. m.ToolCalls.OrderBy(c => c.After)];
         int next = 0;
         for (int i = 0; i < parts.Count; i++)
         {

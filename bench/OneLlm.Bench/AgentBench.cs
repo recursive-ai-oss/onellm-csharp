@@ -5,16 +5,16 @@ using OneLlm.Agents;
 using OneLlm.Bench.Refs;
 using OneLlm.Catalog;
 using OneLlm.Definitions;
+using OneLlm.Instances;
 using OneLlm.Messages;
 using OneLlm.Providers;
-using OneLlm.Testing;
 using OneLlm.Tools;
 
 namespace OneLlm.Bench;
 
 /// <summary>
-/// Agent-loop overhead: one run is ten model turns that each call a no-op tool, then one that ends the run. OneLLM drives its scripted
-/// provider (no I/O, in-memory instance store); the reference drives its agent over a stub chat client that does the same. Divide the time
+/// Agent-loop overhead: one run is ten model turns that each call a no-op tool, then one that ends the run. OneLLM drives a stub provider
+/// (no I/O) on a default runtime: in-memory instance store, no record sinks; the reference drives its agent over a stub chat client that does the same. Divide the time
 /// by 11 for the per-turn cost. <c>Own_*</c> rows compare OneLLM with no hook against one observer hook on the message point.
 /// </summary>
 [MemoryDiagnoser]
@@ -34,6 +34,8 @@ public class AgentBench
 
     private Runtime _plain = null!;
     private Runtime _observed = null!;
+    private Runtime _file = null!;
+    private string _dir = "";
     private AgentDefinition _definition = null!;
     private AgentFrameworkRef _framework = null!;
     private int _ids;
@@ -45,17 +47,13 @@ public class AgentBench
         _plain = NewRuntime();
         _observed = NewRuntime();
         _observed.Hooks.OnMessage((_, _) => ValueTask.CompletedTask);
+        _dir = Path.Combine(Path.GetTempPath(), "onellm-agent-bench-" + Guid.NewGuid().ToString("N"));
+        _file = NewRuntime(new FileInstanceStore(_dir));
         _framework = new AgentFrameworkRef(Turns);
     }
 
-    private Runtime NewRuntime()
+    private Runtime NewRuntime(IInstanceStore? store = null)
     {
-        var provider = new ScriptedProvider
-        {
-            Fallback = request => request.Messages.Count > Turns
-                ? new ScriptStep { ToolCalls = [new ScriptedToolCall("done", "task_complete", "{\"result\":\"ok\",\"summary\":\"s\"}")], Usage = new Usage { InputTokens = 1000, OutputTokens = 100 } }
-                : new ScriptStep { ToolCalls = [new ScriptedToolCall("c" + request.Messages.Count.ToString(CultureInfo.InvariantCulture), "noop", "{}")], Usage = new Usage { InputTokens = 1000, OutputTokens = 100 } },
-        };
         var rt = new Runtime
         {
             Catalog = ModelCatalog.Create([CatalogLayer.FromYaml(CatalogLayer.Shipped, CatalogYaml)]),
@@ -63,13 +61,25 @@ public class AgentBench
             GetEnvironmentVariable = _ => null,
             Providers = new ProviderRegistry(_ => null),
         };
-        rt.Providers.Set("scripted", provider);
+        if (store is not null)
+        {
+            rt.Store = store;
+        }
+
+        rt.Providers.Set("scripted", new LoopStub(Turns));
         rt.Tools.Add(new NoopTool());
         return rt;
     }
 
     [GlobalCleanup]
-    public void Cleanup() => Peak.Record();
+    public void Cleanup()
+    {
+        Peak.Record();
+        if (Directory.Exists(_dir))
+        {
+            Directory.Delete(_dir, recursive: true);
+        }
+    }
 
     [Benchmark, BenchmarkCategory("agent-loop")]
     public Task<AgentResult> Ours_Agent() => _plain.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
@@ -82,6 +92,41 @@ public class AgentBench
 
     [Benchmark, BenchmarkCategory("agent-hooks")]
     public Task<AgentResult> Own_OneObserver() => _observed.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
+
+    [Benchmark, BenchmarkCategory("agent-store")]
+    public Task<AgentResult> Own_FileStore() => _file.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
+
+    [Benchmark, BenchmarkCategory("agent-store")]
+    public Task<AgentResult> Own_MemoryStore() => _plain.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
+
+    /// <summary>
+    /// A chat provider that answers from memory with no I/O, like the reference's stub client: it asks for the no-op tool until the
+    /// conversation holds <c>turns</c> tool calls, then ends the run. It keeps no record of requests, so what is measured is the loop.
+    /// </summary>
+    private sealed class LoopStub(int turns) : IChatProvider
+    {
+        public string Name => "scripted";
+
+        public string Deployment => "direct";
+
+        public Task<ChatResponse> SendAsync(ChatRequest request, CancellationToken cancellationToken = default)
+        {
+            int results = 0;
+            foreach (Message m in request.Messages)
+            {
+                results += m.ToolCalls.Count;
+            }
+
+            ToolCall call = results < turns
+                ? new ToolCall("c" + results.ToString(CultureInfo.InvariantCulture), "noop") { Inputs = new JsonObject() }
+                : new ToolCall("done", "task_complete") { Inputs = (JsonObject)JsonNode.Parse("{\"result\":\"ok\",\"summary\":\"s\"}")! };
+            var message = new Message { ToolCalls = [call], Usage = new Usage { Model = request.Model, InputTokens = 1000, OutputTokens = 100 } };
+            return Task.FromResult(new ChatResponse { Message = message, Finish = FinishReason.ToolCalls });
+        }
+
+        public IAsyncEnumerable<StreamEvent> StreamAsync(ChatRequest request, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+    }
 
     private sealed class NoopTool : ITool
     {

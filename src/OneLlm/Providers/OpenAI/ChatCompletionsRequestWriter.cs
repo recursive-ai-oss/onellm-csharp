@@ -51,7 +51,7 @@ internal static class ChatCompletionsRequestWriter
             throw policy.Refuse($"model '{r.Model}' does not support structured output.");
         }
 
-        using var body = new BodyWriter(r.ExtraParameters);
+        using var body = new BodyWriter(r.ExtraParameters, BodyWriter.EstimateSize(r));
         Utf8JsonWriter w = body.Writer;
         if (body.Field("model"))
         {
@@ -295,7 +295,7 @@ internal static class ChatCompletionsRequestWriter
 
             w.WriteEndObject();
 
-            var images = new List<Part>();
+            List<Part>? images = null;
             foreach (ToolCall call in m.ToolCalls)
             {
                 w.WriteStartObject();
@@ -303,11 +303,17 @@ internal static class ChatCompletionsRequestWriter
                 w.WriteString("tool_call_id", call.Id);
                 w.WriteString("content", ResponsesRequestWriter.ResultText(call.Result));
                 w.WriteEndObject();
-                images.AddRange(call.Result.OfType<AssetPart>());
+                foreach (Part p in call.Result)
+                {
+                    if (p is AssetPart)
+                    {
+                        (images ??= []).Add(p);
+                    }
+                }
             }
 
             // A tool message can only carry text, so images a tool returned follow as a user message.
-            if (images.Count > 0)
+            if (images is { Count: > 0 })
             {
                 WriteUser(w, images);
             }
@@ -318,6 +324,12 @@ internal static class ChatCompletionsRequestWriter
 
     private static string AssistantText(IReadOnlyList<Part> parts)
     {
+        // The usual assistant turn is one text part: use its string as it is.
+        if (parts.Count == 1 && parts[0] is TextPart single)
+        {
+            return single.Text;
+        }
+
         var sb = new System.Text.StringBuilder();
         foreach (Part p in parts)
         {

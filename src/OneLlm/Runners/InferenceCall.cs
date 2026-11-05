@@ -50,7 +50,7 @@ internal sealed class InferenceCall
     /// </summary>
     public static InferenceCall Begin(Runtime runtime, RunScope scope, ResolvedModel model, IChatProvider provider, ChatRequest request)
     {
-        AdjustedRequest adjusted = RequestAdjuster.Adjust(model, request with { Model = model.Name });
+        AdjustedRequest adjusted = RequestAdjuster.Adjust(model, request.Model == model.Name ? request : request with { Model = model.Name });
         var warnings = new List<ResponseWarning>(adjusted.Warnings);
         decimal runtimeReserved = 0m;
         decimal instanceReserved = 0m;

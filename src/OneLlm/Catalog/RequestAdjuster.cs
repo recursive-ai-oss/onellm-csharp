@@ -182,22 +182,26 @@ public static class RequestAdjuster
     {
         bool? vision = capability(model.SupportsVision, c => c.ImageInputs);
         bool? imageResults = capability(null, c => c.ImageToolResults);
-        foreach (Message message in request.Messages)
+        // Indexed loops: this runs over the whole history on every call, and enumerating the lists through their interfaces allocates.
+        IReadOnlyList<Message> messages = request.Messages;
+        for (int i = 0; i < messages.Count; i++)
         {
+            Message message = messages[i];
             Check(message.User, vision, model, refuse, false, imageResults);
             Check(message.Assistant, vision, model, refuse, false, imageResults);
-            foreach (ToolCall call in message.ToolCalls)
+            IReadOnlyList<ToolCall> calls = message.ToolCalls;
+            for (int c = 0; c < calls.Count; c++)
             {
-                Check(call.Result, vision, model, refuse, true, imageResults);
+                Check(calls[c].Result, vision, model, refuse, true, imageResults);
             }
         }
     }
 
     private static void Check(IReadOnlyList<Part> parts, bool? vision, ModelSpec model, Func<string, string, Exception> refuse, bool inToolResult, bool? imageToolResults)
     {
-        foreach (Part part in parts)
+        for (int i = 0; i < parts.Count; i++)
         {
-            if (part is not AssetPart { Asset: { } asset })
+            if (parts[i] is not AssetPart { Asset: { } asset })
             {
                 continue;
             }

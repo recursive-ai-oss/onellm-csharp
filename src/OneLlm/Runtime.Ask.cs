@@ -220,9 +220,10 @@ public sealed partial class Runtime
         return new Message { Id = NewId("m"), User = parts, DateTime = TimeProvider.GetUtcNow() };
     }
 
-    internal static ChatRequest BuildChat(Instance instance, ResolvedModel model, AskRequest settings, ResponseFormat? format) => new()
+    internal static ChatRequest BuildChat(Instance instance, ResolvedModel model, AskRequest settings, ResponseFormat? format, IReadOnlyList<ToolDefinition>? tools = null) => new()
     {
         Model = model.Name,
+        Tools = tools ?? [],
         Messages = [.. instance.Messages],
         // The rendered prompt is what the model sees; the definition keeps the template.
         System = string.IsNullOrEmpty(instance.RenderedSystemPrompt) ? null : instance.RenderedSystemPrompt,

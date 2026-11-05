@@ -72,7 +72,14 @@ internal sealed class OpenAIWire
     public async IAsyncEnumerable<StreamEvent> StreamAsync(ChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        ReadOnlyMemory<byte> body = WriteChat(request, stream: true);
+        var warnings = new List<ResponseWarning>();
+        ReadOnlyMemory<byte> body = WriteChat(request, stream: true, warnings);
+        // A stream has no response object to carry notices about the request, so they go out first, as events.
+        foreach (ResponseWarning w in warnings)
+        {
+            yield return StreamEvent.Warning(w);
+        }
+
         using HttpResponseMessage response = await PostAsync(ChatPath, request.Model, body, stream: true, cancellationToken).ConfigureAwait(false);
         Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         await using (stream.ConfigureAwait(false))

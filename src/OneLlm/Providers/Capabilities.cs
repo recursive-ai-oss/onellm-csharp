@@ -78,6 +78,9 @@ public sealed record EmbeddingResponse
 
     /// <summary>What the call consumed.</summary>
     public Usage? Usage { get; init; }
+
+    /// <summary>Notices about the request, such as a parameter removed because the model does not take it. Empty when there are none.</summary>
+    public IReadOnlyList<ResponseWarning> Warnings { get; init; } = [];
 }
 
 /// <summary>Embeddings.</summary>

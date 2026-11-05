@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The store conformance suite and its runs against the file, memory, Entity Framework Core and OneLite stores. The SQLite provider
+       for Entity Framework Core is a test-only dependency: the adapter package carries no provider. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Stores.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);xUnit1051;xUnit1031;IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
+    <ProjectReference Include="../../src/OneLlm.EntityFrameworkCore/OneLlm.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="../../src/OneLlm.OneLite/OneLlm.OneLite.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>$(LibName).EntityFrameworkCore</AssemblyName>
+    <RootNamespace>$(LibName).EntityFrameworkCore</RootNamespace>
+    <PackageId>$(PackagePrefix)$(LibName).EntityFrameworkCore</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>LLM inference and agent runtime for .NET: an instance store and a record sink for OneLLM over your own Entity Framework Core DbContext. Unaffiliated with the PyPI onellm package and the OneLLM research model.</Description>
+    <!-- Entity Framework Core builds its model by reflection, so this package is not trim or AOT compatible; the OneLite package is. -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <IsTrimmable>false</IsTrimmable>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
+    <PackageTags>llm;ai;agents;entityframeworkcore;ef-core;persistence</PackageTags>
+    <PackageReleaseNotes>See CHANGELOG.md in the repository.</PackageReleaseNotes>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../OneLlm/OneLlm.csproj" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <!-- Part of the same EF Core release: table mapping and set-based updates live here. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../PACKAGE.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE-MIT" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE-APACHE" Pack="true" PackagePath="/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

@@ -228,7 +228,7 @@ public class PathGuardTests
     public void No_file_grant_refuses_everything()
     {
         Assert.Throws<CapabilityMissingException>(() => Capabilities.None.ResolveRead("x"));
-        Assert.Throws<CapabilityMissingException>(() => NoCapabilities.Instance.ResolveRead("x"));
+        Assert.Throws<CapabilityMissingException>(() => ((ICapabilities)NoCapabilities.Instance).ResolveRead("x"));
     }
 
     [Theory]

@@ -215,7 +215,7 @@ public class ShellToolTests
         UnixOnly();
         using var s = new Scratch();
         string script = s.Write("evilcmd", "#!/bin/sh\ntouch marker\n");
-        File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         ToolResult r = await Kit.Run("execute_terminal_command", J("evilcmd"), AllowList(s, "evilcmd"));
         Assert.True(r.IsError);
         Assert.Contains("not found", Kit.Text(r), StringComparison.Ordinal);

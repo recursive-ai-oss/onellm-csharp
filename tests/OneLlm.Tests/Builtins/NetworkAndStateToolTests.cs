@@ -28,7 +28,7 @@ public class NetworkToolTests
         Assert.EndsWith("\n\nGET /api?q=1 []", get, StringComparison.Ordinal);
         string post = Kit.Text(await Kit.Run("http_request", $$$"""{"url":{{{url}}},"method":"post","body":"hi","headers":{"X-Test":"1"}}""", caps));
         Assert.EndsWith("POST /api?q=1 [hi]", post, StringComparison.Ordinal);
-        Assert.Equal("1", server.Requests.Last().Headers["X-Test"]);
+        Assert.Equal("1", server.Requests[^1].Headers["X-Test"]);
     }
 
     [Fact]

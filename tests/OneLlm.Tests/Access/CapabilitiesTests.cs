@@ -326,7 +326,7 @@ public class EgressClientTests
             ? new StubResponse(302, "", Headers: new() { ["Location"] = "/final" })
             : new StubResponse(200, "ok"));
         await Get(Capabilities.Network("127.0.0.1"), server.BaseUri + "start", ("Authorization", "Bearer abc"));
-        Assert.Equal("Bearer abc", server.Requests.Last().Headers["Authorization"]);
+        Assert.Equal("Bearer abc", server.Requests[^1].Headers["Authorization"]);
     }
 
     [Fact]

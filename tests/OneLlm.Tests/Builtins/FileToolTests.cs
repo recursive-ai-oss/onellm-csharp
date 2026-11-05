@@ -11,7 +11,7 @@ internal static class Kit
     public static ITool Tool(string name, BuiltinOptions? options = null) =>
         BuiltinTools.Create(options).Single(t => t.Definition.Name == name);
 
-    public static async Task<ToolResult> Run(string tool, string json, ICapabilities caps, BuiltinOptions? options = null, CancellationToken ct = default, TimeProvider? time = null)
+    public static async Task<ToolResult> Run(string tool, string json, ICapabilities caps, BuiltinOptions? options = null, TimeProvider? time = null, CancellationToken ct = default)
     {
         var ctx = new ToolContext("inst-1", "call-1", time ?? TimeProvider.System) { Capabilities = caps };
         return await ToolInvoker.InvokeAsync(Tool(tool, options), (JsonObject)JsonNode.Parse(json)!, ctx, ct);

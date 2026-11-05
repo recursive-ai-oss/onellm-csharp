@@ -67,6 +67,9 @@ public abstract class GeminiEndpoint
     /// <returns>The address.</returns>
     public abstract Uri Download(string name);
 
+    /// <summary>True when the deployment's <c>countTokens</c> and <c>embedContent</c> take the Vertex AI request bodies: the generation members at the top level (no <c>generateContentRequest</c> wrapper), one embedding per call, and settings under <c>embedContentConfig</c>.</summary>
+    public virtual bool UsesVertexBodies => false;
+
     /// <summary>The model resource name, <c>models/{model}</c>, as request bodies write it.</summary>
     /// <param name="model">The model name, with or without the prefix.</param>
     /// <returns>The resource name.</returns>

@@ -118,6 +118,11 @@ internal sealed class GeminiResponseParser
             // The text of a JSON error can quote the input, so only its position is kept.
             throw new MalformedResponseException(_provider, $"the response is not valid JSON (at byte {e.BytePositionInLine}).");
         }
+        catch (InvalidOperationException)
+        {
+            // A string that is not valid UTF-8 fails when it is first read, not when the reader skips it.
+            throw new MalformedResponseException(_provider, "the response holds text that is not valid UTF-8.");
+        }
 
         if (!_started && (_responseId is not null || _modelVersion is not null || events.Count > first || _sawCandidate))
         {

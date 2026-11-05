@@ -207,6 +207,7 @@ internal static partial class GeminiCases
         {
             EmbeddingResponse r = await p.EmbedAsync(new EmbeddingRequest { Model = "gemini-embedding-2", Inputs = ["find the invoice"], InputType = EmbeddingInputType.Query, Dimensions = 768 });
             Assert.Single(r.Embeddings);
+            Assert.Contains(r.Warnings, w => w.Code == "parameter_adjusted" && w.Parameter == "input type");
         }, new Reply(200, """{"embedding":{"values":[0.5,0.25]},"usageMetadata":{"promptTokenCount":9}}"""));
 
         const string cref = "https://ai.google.dev/api/caching";

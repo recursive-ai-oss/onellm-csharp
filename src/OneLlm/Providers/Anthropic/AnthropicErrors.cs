@@ -89,6 +89,13 @@ internal static class AnthropicErrors
             return new AuthException(Provider, text, status is 401 or 403 ? status : StatusForType(type)) { Code = type, RequestId = requestId };
         }
 
+        // A limit the account owner set answers 400 invalid_request_error; only the message tells it from a malformed request (API reference,
+        // Rate limits, "Setting your own spend limit"). The 429 spend cap is a rate_limit_error with its own error_code and is handled above.
+        if (status == 400 && IsSpendLimit(message))
+        {
+            return new SpendLimitReachedException(Provider, text, 400) { Code = type, RequestId = requestId };
+        }
+
         if (status == 400 && IsContextOverflow(message))
         {
             (long? requested, long? window) = ParseOverflowNumbers(message);
@@ -103,6 +110,10 @@ internal static class AnthropicErrors
         // 402 billing_error, 500 api_error, 504 timeout_error and anything new: a plain provider error. Transience follows the status.
         return new ProviderException(Provider, text, status) { Code = type.Length > 0 ? type : null, RequestId = requestId };
     }
+
+    private static bool IsSpendLimit(string message) =>
+        message.StartsWith("You have reached your specified API usage limits", StringComparison.Ordinal)
+        || message.StartsWith("You have reached your specified workspace API usage limits", StringComparison.Ordinal);
 
     // The API answers an input that alone exceeds the window with 400 invalid_request_error "prompt is too long" (API reference, Context windows).
     private static bool IsContextOverflow(string message) =>

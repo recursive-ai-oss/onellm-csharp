@@ -1,0 +1,38 @@
+{
+  "format": 1,
+  "description": "embedContent on Vertex AI: one input per call, settings under embedContentConfig. Written from the Vertex AI REST reference (publishers.models.embedContent); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-001:embedContent",
+        "headers": { "Content-Type": "application/json" },
+        "body": {
+          "content": { "parts": [ { "text": "alpha" } ] },
+          "embedContentConfig": { "outputDimensionality": 3 }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json; charset=utf-8" },
+        "body": { "embedding": { "values": [0.25, 0.5, 0.75] }, "usageMetadata": { "promptTokenCount": 2 } }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-001:embedContent",
+        "headers": { "Content-Type": "application/json" },
+        "body": {
+          "content": { "parts": [ { "text": "beta" } ] },
+          "embedContentConfig": { "outputDimensionality": 3 }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": { "Content-Type": "application/json; charset=utf-8" },
+        "body": { "embedding": { "values": [1.0, 0.0, -1.0] }, "usageMetadata": { "promptTokenCount": 3 } }
+      }
+    }
+  ]
+}

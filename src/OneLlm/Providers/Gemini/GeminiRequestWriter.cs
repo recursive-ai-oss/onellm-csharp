@@ -34,7 +34,28 @@ internal sealed class GeminiRequestWriter
         Write(w => Body(w, request, spec, modelResource: null));
 
     /// <summary>The body of <c>countTokens</c>: the whole generate request, so the system prompt and tools are counted too.</summary>
-    public byte[] CountTokens(ChatRequest request, ModelSpec? spec, string modelResource) =>
+    public byte[] CountTokens(ChatRequest request, ModelSpec? spec, string modelResource, bool vertex = false)
+    {
+        if (vertex)
+        {
+            // Vertex countTokens takes the generation members at the top level and knows only these (Vertex AI REST reference, publishers.models.countTokens).
+            JsonObject whole = JsonNode.Parse(Write(w => Body(w, request, spec, modelResource)))!.AsObject();
+            var flat = new JsonObject();
+            foreach (string key in new[] { "model", "systemInstruction", "contents", "tools", "generationConfig" })
+            {
+                if (whole.Remove(key, out JsonNode? value))
+                {
+                    flat[key] = value;
+                }
+            }
+
+            return System.Text.Encoding.UTF8.GetBytes(flat.ToJsonString());
+        }
+
+        return CountTokensWrapped(request, spec, modelResource);
+    }
+
+    private byte[] CountTokensWrapped(ChatRequest request, ModelSpec? spec, string modelResource) =>
         Write(w =>
         {
             w.WriteStartObject();

@@ -109,6 +109,29 @@ public class EventStreamTests
     }
 
     [Fact]
+    public async Task A_declared_length_larger_than_the_data_does_not_allocate_the_declared_size()
+    {
+        // A prelude that declares ~20 MB followed by a few bytes: the reader must fail on the short stream without sizing a buffer by the claim.
+        var prelude = new byte[12];
+        BinaryPrimitives.WriteUInt32BigEndian(prelude, 20_000_000);
+        BinaryPrimitives.WriteUInt32BigEndian(prelude.AsSpan(8), EventStreamReader.Crc32(prelude.AsSpan(0, 8)));
+        var reader = new EventStreamReader(new MemoryStream([.. prelude, 1, 2, 3]), "anthropic");
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        await Assert.ThrowsAsync<MalformedResponseException>(async () => await reader.ReadAsync(CancellationToken.None));
+        Assert.True(GC.GetAllocatedBytesForCurrentThread() - before < 1_000_000);
+    }
+
+    [Fact]
+    public async Task A_payload_larger_than_the_first_buffer_is_read_whole()
+    {
+        byte[] payload = new byte[300_000];
+        new Random(1).NextBytes(payload);
+        byte[] frame = Frame([Str(":message-type", "event")], payload);
+        List<EventStreamMessage> all = await ReadAll(new MemoryStream(frame));
+        Assert.Equal(payload, Assert.Single(all).Payload);
+    }
+
+    [Fact]
     public void The_checksum_is_standard_crc32()
     {
         // The CRC-32 check value for "123456789" is 0xCBF43926.

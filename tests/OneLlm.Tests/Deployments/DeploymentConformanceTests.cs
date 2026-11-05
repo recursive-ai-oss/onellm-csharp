@@ -353,8 +353,30 @@ public class DeploymentConformanceTests
         Assert.Equal(403, e.StatusCode);
         h.AssertAllUsed();
 
-        await Assert.ThrowsAsync<BadRequestException>(() => p.EmbedAsync(new EmbeddingRequest { Model = "gemini-embedding-001", Inputs = ["x"] }));
-        await Assert.ThrowsAsync<BadRequestException>(() => p.CountTokensAsync(new ChatRequest { Model = "gemini-3.5-flash-lite", Messages = [Message.FromUser("x")] }));
+        // Files and batch have no Vertex form here and are refused before anything is sent.
+        await Assert.ThrowsAsync<BadRequestException>(() => p.UploadFileAsync(new byte[] { 1 }, "text/plain", "x.txt"));
+    }
+
+    [Fact]
+    public async Task Vertex_gemini_counts_tokens_with_the_top_level_vertex_body()
+    {
+        (GeminiProvider p, ReplayHandler h) = VertexGeminiProvider("tokens/count");
+        TokenCount n = await p.CountTokensAsync(new ChatRequest { Model = "gemini-3.5-flash-lite", System = "Be brief.", Messages = [Message.FromUser("Count these words.")] });
+        h.AssertAllUsed();
+        Assert.Equal(9, n.InputTokens);
+        Assert.Equal(TokenCountTier.Provider, n.Tier);
+    }
+
+    [Fact]
+    public async Task Vertex_gemini_embeds_one_input_per_call_through_embedContent()
+    {
+        (GeminiProvider p, ReplayHandler h) = VertexGeminiProvider("embeddings/embed-content");
+        EmbeddingResponse r = await p.EmbedAsync(new EmbeddingRequest { Model = "gemini-embedding-001", Inputs = ["alpha", "beta"], Dimensions = 3 });
+        h.AssertAllUsed();
+        Assert.Equal(2, r.Embeddings.Count);
+        Assert.Equal([0.25f, 0.5f, 0.75f], r.Embeddings[0].ToArray());
+        Assert.Equal([1f, 0f, -1f], r.Embeddings[1].ToArray());
+        Assert.Equal(5, r.Usage!.InputTokens);
     }
 
     // ---- Azure OpenAI ----

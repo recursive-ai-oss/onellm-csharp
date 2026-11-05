@@ -222,6 +222,27 @@ public sealed class DeciderTests
         }
     }
 
+    [Fact]
+    public async Task Outputs_are_checked_against_the_output_schema_and_the_error_names_the_path()
+    {
+        var h = new DeciderHarness();
+        const string Inputs = """{"subject":"open","customer":null}""";
+
+        // A schema the answers fit passes.
+        Decider ok = Decider.FromYaml(Triage, "triage").WithOutputSchema(DeciderHarness.Json("""{"type":"object","required":["topic"]}"""));
+        await h.Runtime.DecideAsync(ok, DeciderHarness.Json(Inputs));
+
+        // A decider with no logic returns its answers, so a schema that wants something else fails, naming where.
+        Decider missing = Decider.FromYaml(Triage, "triage").WithOutputSchema(DeciderHarness.Json("""{"type":"object","required":["route"]}"""));
+        var e = await Assert.ThrowsAsync<DeciderOutputException>(() => h.Runtime.DecideAsync(missing, DeciderHarness.Json(Inputs)));
+        Assert.Contains("missing the required field 'route'", e.Message);
+        Assert.Equal("outputs", e.Path);
+
+        Decider wrongType = Decider.FromYaml(Triage, "triage").WithOutputSchema(DeciderHarness.Json("""{"type":"object","properties":{"topic":{"type":"integer"}}}"""));
+        var t = await Assert.ThrowsAsync<DeciderOutputException>(() => h.Runtime.DecideAsync(wrongType, DeciderHarness.Json(Inputs)));
+        Assert.Contains("outputs.topic", t.Message);
+    }
+
     // ---- OpenAI Decisions wire (written from the create-decision reference) ----
 
     private static DecisionRequest WireRequest() => new()

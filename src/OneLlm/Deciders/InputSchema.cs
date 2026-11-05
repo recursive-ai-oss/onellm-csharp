@@ -19,8 +19,24 @@ public sealed class DeciderInputException : OneLlmException
     public string Path { get; }
 }
 
+/// <summary>A decider's logic produced outputs that do not fit the output schema that ships beside the decider.</summary>
+public sealed class DeciderOutputException : OneLlmException
+{
+    /// <summary>Creates the exception.</summary>
+    /// <param name="message">What is wrong, with the path to the offending value.</param>
+    /// <param name="path">The path in the outputs, such as <c>outputs.route</c>.</param>
+    public DeciderOutputException(string message, string path)
+        : base(message)
+    {
+        Path = path;
+    }
+
+    /// <summary>The path in the outputs.</summary>
+    public string Path { get; }
+}
+
 /// <summary>
-/// A checker for the part of JSON Schema that decider input schemas use: <c>type</c>, <c>properties</c>, <c>required</c>,
+/// A checker for the part of JSON Schema that decider input and output schemas use: <c>type</c>, <c>properties</c>, <c>required</c>,
 /// <c>additionalProperties</c> (false or a schema), <c>items</c>, <c>enum</c>, <c>const</c>, <c>minimum</c>, <c>maximum</c> and <c>anyOf</c>.
 /// Other keywords (descriptions, formats, patterns, references) are ignored, so a schema is never stricter than it reads here.
 /// </summary>

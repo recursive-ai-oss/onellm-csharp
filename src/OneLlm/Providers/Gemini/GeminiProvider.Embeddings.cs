@@ -23,13 +23,22 @@ public sealed partial class GeminiProvider
         }
 
         ModelSpec? spec = SpecFor(request.Model);
+        var warnings = new List<ResponseWarning>();
+        if (request.InputType != EmbeddingInputType.Unspecified && TakesInstruction(spec))
+        {
+            warnings.Add(new ResponseWarning("parameter_adjusted", "input type: the model takes no task type, so it was sent as a text instruction.", "input type"));
+        }
+
         var vectors = new List<ReadOnlyMemory<float>>(request.Inputs.Count);
         long promptTokens = 0;
-        for (int offset = 0; offset < request.Inputs.Count; offset += EmbedBatchSize)
+        // Vertex has embedContent only, one input per call (Vertex AI REST reference, publishers.models.embedContent).
+        bool vertex = _endpoint.UsesVertexBodies;
+        int step = vertex ? 1 : EmbedBatchSize;
+        for (int offset = 0; offset < request.Inputs.Count; offset += step)
         {
-            string[] texts = [.. request.Inputs.Skip(offset).Take(EmbedBatchSize)];
-            bool single = request.Inputs.Count == 1;
-            byte[] body = EmbedBody(request, spec, texts, single);
+            string[] texts = [.. request.Inputs.Skip(offset).Take(step)];
+            bool single = vertex || request.Inputs.Count == 1;
+            byte[] body = EmbedBody(request, spec, texts, single, vertex);
             Uri uri = _endpoint.Model(request.Model, single ? "embedContent" : "batchEmbedContents");
             using JsonDocument doc = await SendForJsonAsync(HttpMethod.Post, uri, body, cancellationToken).ConfigureAwait(false);
             JsonElement root = doc.RootElement;
@@ -66,13 +75,22 @@ public sealed partial class GeminiProvider
             Embeddings = vectors,
             Model = request.Model,
             Usage = promptTokens > 0 ? new Usage { Model = request.Model, InputTokens = promptTokens } : null,
+            Warnings = warnings,
         };
     }
 
-    private byte[] EmbedBody(EmbeddingRequest request, ModelSpec? spec, string[] texts, bool single)
+    // gemini-embedding-2 takes no task type: the task goes into the text as an instruction (the embeddings guide). Other models take taskType.
+    private static bool TakesInstruction(ModelSpec? spec) => spec?.Properties is { } props && props.TryGetValue("embedTask", out object? v) && v is "instruction";
+
+    private byte[] EmbedBody(EmbeddingRequest request, ModelSpec? spec, string[] texts, bool single, bool vertex)
     {
+        if (vertex)
+        {
+            return VertexEmbedBody(request, spec, texts[0]);
+        }
+
         // gemini-embedding-2 takes no task type: the task goes into the text as an instruction (the embeddings guide). Other models take taskType.
-        bool instruction = spec?.Properties is { } props && props.TryGetValue("embedTask", out object? v) && v is "instruction";
+        bool instruction = TakesInstruction(spec);
         string resource = _endpoint.ModelResourceName(request.Model);
         var buffer = new ArrayBufferWriter<byte>(512);
         using (var w = new Utf8JsonWriter(buffer, WriterOptions))
@@ -125,6 +143,46 @@ public sealed partial class GeminiProvider
                 WriteExtras(w, request.ExtraParameters);
             }
 
+            w.WriteEndObject();
+        }
+
+        return buffer.WrittenSpan.ToArray();
+    }
+
+    private static byte[] VertexEmbedBody(EmbeddingRequest request, ModelSpec? spec, string text)
+    {
+        bool instruction = TakesInstruction(spec);
+        var buffer = new ArrayBufferWriter<byte>(512);
+        using (var w = new Utf8JsonWriter(buffer, WriterOptions))
+        {
+            w.WriteStartObject();
+            w.WritePropertyName("content");
+            w.WriteStartObject();
+            w.WriteStartArray("parts");
+            w.WriteStartObject();
+            w.WriteString("text", instruction ? WithInstruction(text, request.InputType) : text);
+            w.WriteEndObject();
+            w.WriteEndArray();
+            w.WriteEndObject();
+            bool task = !instruction && request.InputType != EmbeddingInputType.Unspecified;
+            if (task || request.Dimensions is not null)
+            {
+                w.WritePropertyName("embedContentConfig");
+                w.WriteStartObject();
+                if (task)
+                {
+                    w.WriteString("taskType", request.InputType == EmbeddingInputType.Query ? "RETRIEVAL_QUERY" : "RETRIEVAL_DOCUMENT");
+                }
+
+                if (request.Dimensions is { } d)
+                {
+                    w.WriteNumber("outputDimensionality", d);
+                }
+
+                w.WriteEndObject();
+            }
+
+            WriteExtras(w, request.ExtraParameters);
             w.WriteEndObject();
         }
 

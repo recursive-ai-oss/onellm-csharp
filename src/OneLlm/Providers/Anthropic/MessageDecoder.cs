@@ -107,6 +107,19 @@ internal sealed class MessageDecoder
     /// <summary>Decodes a complete message object, as returned by a non-streaming call or inside a batch result.</summary>
     public void DecodeMessage(JsonObject message)
     {
+        try
+        {
+            DecodeMessageCore(message);
+        }
+        catch (InvalidOperationException)
+        {
+            // A string that is not valid UTF-8 fails when its member is first read.
+            throw new MalformedResponseException(AnthropicErrors.Provider, "the message holds text that is not valid UTF-8.");
+        }
+    }
+
+    private void DecodeMessageCore(JsonObject message)
+    {
         string? type = AnthropicJson.GetString(message, "type");
         if (type == "error")
         {
@@ -135,6 +148,19 @@ internal sealed class MessageDecoder
     /// <summary>Decodes the JSON data of one server-sent event.</summary>
     /// <param name="json">The event data. For delta events the produced <see cref="StreamEvent.Utf8"/> points into a buffer of this decoder, valid until the next call.</param>
     public void DecodeEvent(ReadOnlySpan<byte> json)
+    {
+        try
+        {
+            DecodeEventCore(json);
+        }
+        catch (InvalidOperationException)
+        {
+            // A string that is not valid UTF-8 fails when its member is first read.
+            throw new MalformedResponseException(AnthropicErrors.Provider, "a stream event holds text that is not valid UTF-8.");
+        }
+    }
+
+    private void DecodeEventCore(ReadOnlySpan<byte> json)
     {
         var reader = new Utf8JsonReader(json);
         if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)

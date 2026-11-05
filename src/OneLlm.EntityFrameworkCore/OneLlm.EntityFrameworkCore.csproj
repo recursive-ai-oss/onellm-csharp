@@ -5,6 +5,8 @@
     <RootNamespace>$(LibName).EntityFrameworkCore</RootNamespace>
     <PackageId>$(PackagePrefix)$(LibName).EntityFrameworkCore</PackageId>
     <IsPackable>true</IsPackable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Description>LLM inference and agent runtime for .NET: an instance store and a record sink for OneLLM over your own Entity Framework Core DbContext. Unaffiliated with the PyPI onellm package and the OneLLM research model.</Description>
     <!-- Entity Framework Core builds its model by reflection, so this package is not trim or AOT compatible; the OneLite package is. -->
     <IsAotCompatible>false</IsAotCompatible>

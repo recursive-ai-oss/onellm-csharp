@@ -5,6 +5,8 @@
     <RootNamespace>$(LibName).OneLite</RootNamespace>
     <PackageId>$(PackagePrefix)$(LibName).OneLite</PackageId>
     <IsPackable>true</IsPackable>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Description>LLM inference and agent runtime for .NET: an instance store and a record sink for OneLLM on a OneLite database file. Unaffiliated with the PyPI onellm package and the OneLLM research model.</Description>
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>

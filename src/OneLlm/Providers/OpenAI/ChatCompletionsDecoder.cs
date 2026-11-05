@@ -94,8 +94,9 @@ internal sealed class ChatCompletionsDecoder(string provider)
                 }
             }
         }
-        catch (JsonException)
+        catch (Exception e) when (e is JsonException or InvalidOperationException)
         {
+            // InvalidOperationException: a string that is not valid UTF-8 fails when it is first read.
             throw new MalformedResponseException(_provider, "a chunk was not valid JSON.");
         }
 

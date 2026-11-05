@@ -193,6 +193,26 @@ public sealed class BadRequestException : ProviderException
     public override bool IsTransient => false;
 }
 
+/// <summary>
+/// The account's own spending limit at the provider was reached (an organization or workspace limit the account owner set). Retrying
+/// will not help until the limit is raised or the period resets. This is the provider refusing; <see cref="BudgetExceededException"/> is
+/// OneLLM's own cap refusing a call before it is sent.
+/// </summary>
+public sealed class SpendLimitReachedException : ProviderException
+{
+    /// <summary>Creates the exception.</summary>
+    /// <param name="provider">The provider's name.</param>
+    /// <param name="message">A description, without the API key.</param>
+    /// <param name="statusCode">The HTTP status.</param>
+    public SpendLimitReachedException(string provider, string message, int? statusCode = 400)
+        : base(provider, message, statusCode)
+    {
+    }
+
+    /// <inheritdoc />
+    public override bool IsTransient => false;
+}
+
 /// <summary>The request never got an answer: connection error or time-out, after the configured retries.</summary>
 public sealed class TransportException : ProviderException
 {

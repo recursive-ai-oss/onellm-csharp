@@ -42,6 +42,19 @@ internal sealed class ResponsesDecoder(string provider)
     /// <exception cref="ProviderException">The event reports a failure.</exception>
     public void ProcessEvent(ReadOnlyMemory<byte> data)
     {
+        try
+        {
+            ProcessEventCore(data);
+        }
+        catch (InvalidOperationException)
+        {
+            // A string that is not valid UTF-8 fails when it is first read.
+            throw new MalformedResponseException(_provider, "a stream event held text that is not valid UTF-8.");
+        }
+    }
+
+    private void ProcessEventCore(ReadOnlyMemory<byte> data)
+    {
         _events.Clear();
         _arenaUsed = 0;
         if (TryProcessHot(data))
@@ -142,6 +155,19 @@ internal sealed class ResponsesDecoder(string provider)
     /// <summary>Decodes a response object (a whole body, or one line of a batch output file).</summary>
     /// <param name="root">The response object.</param>
     public void ProcessResponseObject(JsonObject root)
+    {
+        try
+        {
+            ProcessResponseObjectCore(root);
+        }
+        catch (InvalidOperationException)
+        {
+            // A string that is not valid UTF-8 fails when it is first read.
+            throw new MalformedResponseException(_provider, "the response held text that is not valid UTF-8.");
+        }
+    }
+
+    private void ProcessResponseObjectCore(JsonObject root)
     {
         _events.Clear();
         _arenaUsed = 0;

@@ -252,6 +252,17 @@ public class OpenAICodecTests
     }
 
     [Fact]
+    public void An_input_type_the_embeddings_api_cannot_take_is_reported_in_the_warnings()
+    {
+        var wire = new OpenAIWire("openai", "openai", OpenAIProtocol.Responses, ChatDialect.OpenAI, OpenAIEndpoint.Direct(null), new OpenAIOptions(), TimeProvider.System);
+        var warnings = new List<ResponseWarning>();
+        wire.WriteEmbeddings(new EmbeddingRequest { Model = "text-embedding-3-small", Inputs = ["x"], InputType = EmbeddingInputType.Query }, warnings);
+        ResponseWarning w = Assert.Single(warnings);
+        Assert.Equal("parameter_stripped", w.Code);
+        Assert.Equal("input type", w.Parameter);
+    }
+
+    [Fact]
     public void Embeddings_parse_without_a_node_tree_and_survive_extra_fields()
     {
         var wire = new OpenAIWire("openai", "openai", OpenAIProtocol.Responses, ChatDialect.OpenAI, OpenAIEndpoint.Direct(null), new OpenAIOptions(), TimeProvider.System);

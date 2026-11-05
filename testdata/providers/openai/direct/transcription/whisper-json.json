@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/audio/transcriptions",
+        "headers": {
+          "Content-Type": "multipart/form-data; boundary=onellm-296a04a96907f69f766181aebd0e7caf"
+        },
+        "bodyText": "--onellm-296a04a96907f69f766181aebd0e7caf\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.mp3\"\r\nContent-Type: audio/mpeg\r\n\r\nAUDIO-BYTES\r\n--onellm-296a04a96907f69f766181aebd0e7caf\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n--onellm-296a04a96907f69f766181aebd0e7caf\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nen\r\n--onellm-296a04a96907f69f766181aebd0e7caf\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\nAda, Lovelace\r\n--onellm-296a04a96907f69f766181aebd0e7caf--\r\n"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "text": "Hello, Ada.",
+          "usage": {
+            "type": "duration",
+            "seconds": 4
+          }
+        }
+      }
+    }
+  ]
+}

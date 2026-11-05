@@ -1,0 +1,33 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/images/methods/generate; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Accept": "text/event-stream",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "gpt-image-2.5-flare",
+          "prompt": "A paper boat",
+          "stream": true,
+          "partial_images": 2
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream; charset=utf-8"
+        },
+        "sse": [
+          "event: image_generation.partial_image\ndata: {\"type\":\"image_generation.partial_image\",\"b64_json\":\"UDE=\",\"partial_image_index\":0}\n\n",
+          "event: image_generation.partial_image\ndata: {\"type\":\"image_generation.partial_image\",\"b64_json\":\"UDI=\",\"partial_image_index\":1}\n\n",
+          "event: image_generation.completed\ndata: {\"type\":\"image_generation.completed\",\"b64_json\":\"RklOQUw=\",\"usage\":{\"total_tokens\":150,\"input_tokens\":50,\"output_tokens\":100,\"input_tokens_details\":{\"text_tokens\":10,\"image_tokens\":40}}}\n\n"
+        ]
+      }
+    }
+  ]
+}

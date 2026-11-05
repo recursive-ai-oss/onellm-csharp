@@ -16,6 +16,8 @@ A cost is a list of lines plus their sum. A line is one usage counter:
 | `cacheReadInputTokens` | `cacheReadPerMillion` |
 | any other counter (`images`, `audioSeconds`, `characters`, `toolCalls.web_search`, `containerHours`, `inputAudioTokens`, ...) | an entry in `items` |
 
+The media counters and which models use them are listed in `media.md`.
+
 An item gives `price` for `per` units (default 1,000,000 for counters ending in `Tokens`, otherwise 1). `when` narrows it to a case (for example
 `{size: 1024x1024, quality: high}`): it applies when every key matches the call's qualifiers; of several items for one counter the one naming the most keys
 wins. An item for one of the four main counters beats the flat field.

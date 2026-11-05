@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/images/methods/edit; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/images/edits",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "gpt-image-1.5",
+          "prompt": "Add a watercolor effect",
+          "images": [
+            {
+              "image_url": "data:image/png;base64,U1JDLUlNQUdF"
+            }
+          ],
+          "mask": {
+            "image_url": "data:image/png;base64,TUFTSw=="
+          },
+          "quality": "high"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "created": 2,
+          "quality": "high",
+          "size": "1024x1024",
+          "data": [
+            {
+              "b64_json": "RURJVEVE"
+            }
+          ],
+          "usage": {
+            "input_tokens": 60,
+            "input_tokens_details": {
+              "text_tokens": 20,
+              "image_tokens": 40
+            },
+            "output_tokens": 200,
+            "output_tokens_details": {
+              "image_tokens": 150,
+              "text_tokens": 50
+            },
+            "total_tokens": 260
+          }
+        }
+      }
+    }
+  ]
+}

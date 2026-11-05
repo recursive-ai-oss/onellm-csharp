@@ -1,0 +1,49 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/audio/transcriptions",
+        "headers": {
+          "Content-Type": "multipart/form-data; boundary=onellm-ec5b327e32e76308f1f1686b0ee74130"
+        },
+        "bodyText": "--onellm-ec5b327e32e76308f1f1686b0ee74130\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\nContent-Type: audio/wav\r\n\r\nA\r\n--onellm-ec5b327e32e76308f1f1686b0ee74130\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\ngpt-4o-transcribe-diarize\r\n--onellm-ec5b327e32e76308f1f1686b0ee74130\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\ndiarized_json\r\n--onellm-ec5b327e32e76308f1f1686b0ee74130--\r\n"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "task": "transcribe",
+          "duration": 27.4,
+          "text": "Agent: Thanks for calling.\nA: Hi.",
+          "segments": [
+            {
+              "type": "transcript.text.segment",
+              "id": "seg_001",
+              "start": 0.0,
+              "end": 4.7,
+              "text": "Thanks for calling.",
+              "speaker": "agent"
+            },
+            {
+              "type": "transcript.text.segment",
+              "id": "seg_002",
+              "start": 4.7,
+              "end": 6.0,
+              "text": "Hi.",
+              "speaker": "A"
+            }
+          ],
+          "usage": {
+            "type": "duration",
+            "seconds": 27
+          }
+        }
+      }
+    }
+  ]
+}

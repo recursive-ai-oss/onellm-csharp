@@ -1,0 +1,78 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/moderations/methods/create; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/moderations",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "omni-moderation-latest",
+          "input": [
+            "fine text",
+            "angry text"
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "id": "modr-1",
+          "model": "omni-moderation-latest",
+          "results": [
+            {
+              "flagged": false,
+              "categories": {
+                "harassment": false,
+                "illicit": null
+              },
+              "category_scores": {
+                "harassment": 0.001,
+                "illicit": 0.0
+              },
+              "category_applied_input_types": {
+                "harassment": [
+                  "text"
+                ],
+                "illicit": [
+                  "text"
+                ]
+              }
+            },
+            {
+              "flagged": true,
+              "categories": {
+                "harassment": true,
+                "illicit": null,
+                "violence": false
+              },
+              "category_scores": {
+                "harassment": 0.81,
+                "illicit": 0.0,
+                "violence": 0.02
+              },
+              "category_applied_input_types": {
+                "harassment": [
+                  "text"
+                ],
+                "illicit": [
+                  "text"
+                ],
+                "violence": [
+                  "text",
+                  "image"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

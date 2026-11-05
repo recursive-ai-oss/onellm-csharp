@@ -1,0 +1,52 @@
+{
+  "format": 1,
+  "description": "Written from the API reference https://developers.openai.com/api/reference/resources/images/methods/generate; no live call was made. Synthetic inputs and data only.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/images/generations",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "model": "gpt-image-2.5-flare",
+          "prompt": "A paper boat",
+          "size": "1024x1024",
+          "quality": "medium",
+          "output_format": "png"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "created": 1713833628,
+          "output_format": "png",
+          "quality": "medium",
+          "size": "1024x1024",
+          "data": [
+            {
+              "b64_json": "SU1HLU9ORQ=="
+            }
+          ],
+          "usage": {
+            "input_tokens": 12,
+            "input_tokens_details": {
+              "text_tokens": 12,
+              "image_tokens": 0
+            },
+            "output_tokens": 1056,
+            "output_tokens_details": {
+              "image_tokens": 1056,
+              "text_tokens": 0
+            },
+            "total_tokens": 1068
+          }
+        }
+      }
+    }
+  ]
+}

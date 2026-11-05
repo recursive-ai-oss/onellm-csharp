@@ -1,6 +1,7 @@
 using OneLlm.Catalog;
 using OneLlm.Providers;
 using OneLlm.Providers.Anthropic;
+using OneLlm.Providers.Gemini;
 using OneLlm.Providers.OpenAI;
 
 namespace OneLlm.Tests.Running;
@@ -16,11 +17,14 @@ public class BuiltInProviderTests
     [Fact]
     public void The_default_catalog_and_registry_create_the_real_providers_from_environment_keys()
     {
-        Runtime rt = Make(new() { ["ANTHROPIC_API_KEY"] = "test-a", ["OPENAI_API_KEY"] = "test-o" });
+        Runtime rt = Make(new() { ["ANTHROPIC_API_KEY"] = "test-a", ["OPENAI_API_KEY"] = "test-o", ["GEMINI_API_KEY"] = "test-g" });
 
         ResolvedModel claude = rt.Catalog.Providers.First(p => p.Name == "anthropic").Models!.Select(m => rt.Resolve("anthropic:" + m.Name)).First();
         ResolvedModel gpt = rt.Catalog.Providers.First(p => p.Name == "openai").Models!.Select(m => rt.Resolve("openai:" + m.Name)).First();
 
+        ResolvedModel gemini = rt.Catalog.Providers.First(p => p.Name == "gemini").Models!.Select(m => rt.Resolve("gemini:" + m.Name)).First();
+
+        Assert.IsType<GeminiProvider>(rt.Providers.Get(gemini, TimeProvider.System));
         Assert.IsType<AnthropicProvider>(rt.Providers.Get(claude, TimeProvider.System));
         Assert.IsType<OpenAIProvider>(rt.Providers.Get(gpt, TimeProvider.System));
     }
@@ -45,5 +49,14 @@ public class BuiltInProviderTests
         ResolvedModel claude = rt.Catalog.Providers.First(p => p.Name == "anthropic").Models!.Select(m => rt.Resolve("anthropic:" + m.Name)).First();
         AuthException e = Assert.Throws<AuthException>(() => rt.Providers.Get(claude, TimeProvider.System));
         Assert.Contains("ANTHROPIC_API_KEY", e.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_missing_gemini_key_names_the_variable()
+    {
+        Runtime rt = Make([]);
+        ResolvedModel gemini = rt.Catalog.Providers.First(p => p.Name == "gemini").Models!.Select(m => rt.Resolve("gemini:" + m.Name)).First();
+        AuthException e = Assert.Throws<AuthException>(() => rt.Providers.Get(gemini, TimeProvider.System));
+        Assert.Contains("GEMINI_API_KEY", e.Message, StringComparison.Ordinal);
     }
 }

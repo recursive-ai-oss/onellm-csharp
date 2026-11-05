@@ -2,10 +2,16 @@ using System.Text.Json.Serialization;
 using OneLlm;
 
 // The happy path in one file. Usage: dotnet run --project samples/HappyPath -- <model> [embedding-model]
-// The model is a catalog name or alias (for example gpt-5-mini); `provider:model` picks the provider explicitly.
+// The model is a catalog name or alias (for example gpt-6-luna); `provider:model` picks the provider explicitly.
 // Keys come from the environment variable the catalog names for the provider, such as OPENAI_API_KEY.
 
-string model = args.Length > 0 ? args[0] : "gpt-5-mini";
+string model = args.Length > 0 ? args[0] : "gpt-6-luna";
+
+// The model name picks the provider; each needs its key in the environment. One line per provider:
+static bool Has(string key) => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable(key));
+if (Has("ANTHROPIC_API_KEY")) Console.WriteLine(await Llm.AskAsync("claude-haiku", "Say hi in three words."));
+if (Has("OPENAI_API_KEY")) Console.WriteLine(await Llm.AskAsync("gpt-6-luna", "Say hi in three words."));
+if (Has("GEMINI_API_KEY")) Console.WriteLine(await Llm.AskAsync("gemini-flash", "Say hi in three words."));
 
 // Ask: one question, the text back.
 string answer = await Llm.AskAsync(model, "In one sentence, what is a monad?");

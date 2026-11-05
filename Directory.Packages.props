@@ -12,6 +12,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" />
     <PackageVersion Include="RecursiveAI.OneLite" Version="1.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.11.0" />
   </ItemGroup>
   <!-- Build-time and test-only packages. The library depends on none of these. -->
   <ItemGroup>

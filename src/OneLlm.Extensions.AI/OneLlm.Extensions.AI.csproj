@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AssemblyName>$(LibName).Extensions.AI</AssemblyName>
+    <RootNamespace>$(LibName).Extensions.AI</RootNamespace>
+    <PackageId>$(PackagePrefix)$(LibName).Extensions.AI</PackageId>
+    <IsPackable>true</IsPackable>
+    <Description>LLM inference and agent runtime for .NET: the Microsoft.Extensions.AI bridge for OneLLM. OneLLM models as IChatClient, IEmbeddingGenerator, ISpeechToTextClient, ITextToSpeechClient and IImageGenerator, any IChatClient or IEmbeddingGenerator as a OneLLM provider, and AIFunction and ITool in both directions. Unaffiliated with the PyPI onellm package and the OneLLM research model.</Description>
+    <IsAotCompatible>true</IsAotCompatible>
+    <IsTrimmable>true</IsTrimmable>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
+    <PackageTags>llm;ai;agents;microsoft-extensions-ai;ichatclient;nativeaot;trimmable</PackageTags>
+    <PackageReleaseNotes>See CHANGELOG.md in the repository.</PackageReleaseNotes>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <!-- An adapter references the core package and the one package it adapts. -->
+  <ItemGroup>
+    <ProjectReference Include="../OneLlm/OneLlm.csproj" />
+    <PackageReference Include="Microsoft.Extensions.AI.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(LibName).Extensions.AI.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../PACKAGE.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE-MIT" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE-APACHE" Pack="true" PackagePath="/" />
+    <None Include="../../THIRD-PARTY-NOTICES.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

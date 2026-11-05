@@ -35,6 +35,15 @@
     <PackageReference Include="RecursiveAI.OneImage" />
   </ItemGroup>
 
+  <!-- The shipped catalog files are embedded so a model catalog needs no files on disk. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Providers/OpenAI/*.llm-provider.yaml" LogicalName="OneLlm.Providers.OpenAI.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Providers/Anthropic/llm-provider.yaml" LogicalName="OneLlm.Providers.Anthropic.llm-provider.yaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="$(LibName).Tests" />
     <InternalsVisibleTo Include="$(LibName).Conformance" />

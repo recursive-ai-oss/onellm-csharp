@@ -1,0 +1,84 @@
+{
+  "format": 1,
+  "description": "The first call of reasoning.json streamed: summary parts arrive as deltas, the encrypted item at the end. Written from the reference (https://developers.openai.com/api/reference/resources/responses/streaming-events); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "What is the answer?"
+            }
+          ],
+          "reasoning": {
+            "effort": "medium",
+            "summary": "auto"
+          },
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false,
+          "stream": true
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_rs_1\",\"object\":\"response\",\"",
+          "created_at\":1741476777,\"status\":\"in_progress\",\"error\":null,\"incomplete_details\":null,\"model\":\"gpt-6.1-terra\",\"output\":[],\"paral",
+          "lel_tool_calls\":true,\"store\":false,\"usage\":null}}\n\nevent: response.output_item.added\ndata: {\"type\":\"response.output_item.added\"",
+          ",\"sequence_number\":1,\"output_index\":0,\"item\":{\"type\":\"reasoning\",\"id\":\"rs_1\",\"summary\":[]}}\n\nevent: response.reasoning_summary_",
+          "part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"sequence_number\":2,\"item_id\":\"rs_1\",\"output_index\":0,\"summary",
+          "_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"}}\n\nevent: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reaso",
+          "ning_summary_text.delta\",\"sequence_number\":3,\"item_id\":\"rs_1\",\"output_index\":0,\"summary_index\":0,\"delta\":\"Considerin\"}\n\nevent: ",
+          "response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"sequence_number\":4,\"item_id\":\"rs_1",
+          "\",\"output_index\":0,\"summary_index\":0,\"delta\":\"g the question.\"}\n\nevent: response.reasoning_summary_text.done\ndata: {\"type\":\"res",
+          "ponse.reasoning_summary_text.done\",\"sequence_number\":5,\"item_id\":\"rs_1\",\"output_index\":0,\"summary_index\":0,\"text\":\"Considering ",
+          "the question.\"}\n\nevent: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"sequence_num",
+          "ber\":6,\"item_id\":\"rs_1\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"Considering the question.\"}}\n\n",
+          "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"sequence_number\":7,\"item_id",
+          "\":\"rs_1\",\"output_index\":0,\"summary_index\":1,\"part\":{\"type\":\"summary_text\",\"text\":\"\"}}\n\nevent: response.reasoning_summary_text.d",
+          "elta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"sequence_number\":8,\"item_id\":\"rs_1\",\"output_index\":0,\"summary_index",
+          "\":1,\"delta\":\"Choosing a\"}\n\nevent: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"",
+          "sequence_number\":9,\"item_id\":\"rs_1\",\"output_index\":0,\"summary_index\":1,\"delta\":\" short answer.\"}\n\nevent: response.reasoning_sum",
+          "mary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"sequence_number\":10,\"item_id\":\"rs_1\",\"output_index\":0,\"sum",
+          "mary_index\":1,\"text\":\"Choosing a short answer.\"}\n\nevent: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning",
+          "_summary_part.done\",\"sequence_number\":11,\"item_id\":\"rs_1\",\"output_index\":0,\"summary_index\":1,\"part\":{\"type\":\"summary_text\",\"tex",
+          "t\":\"Choosing a short answer.\"}}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":1",
+          "2,\"output_index\":0,\"item\":{\"type\":\"reasoning\",\"id\":\"rs_1\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"Considering the question.\"}",
+          ",{\"type\":\"summary_text\",\"text\":\"Choosing a short answer.\"}],\"encrypted_content\":\"gAAAAA_synthetic_encrypted_content_1\"}}\n\nevent",
+          ": response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":13,\"output_index\":1,\"item\":{\"type\":\"m",
+          "essage\",\"id\":\"msg_rs_1\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]}}\n\nevent: response.content_part.added\ndata: {\"ty",
+          "pe\":\"response.content_part.added\",\"sequence_number\":14,\"item_id\":\"msg_rs_1\",\"output_index\":1,\"content_index\":0,\"part\":{\"type\":\"",
+          "output_text\",\"text\":\"\",\"annotations\":[],\"logprobs\":[]}}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.",
+          "delta\",\"sequence_number\":15,\"item_id\":\"msg_rs_1\",\"output_index\":1,\"content_index\":0,\"delta\":\"4\",\"logprobs\":[]}\n\nevent: response",
+          ".output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":16,\"item_id\":\"msg_rs_1\",\"output_index\":1,\"conte",
+          "nt_index\":0,\"delta\":\"2\",\"logprobs\":[]}\n\nevent: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_nu",
+          "mber\":17,\"item_id\":\"msg_rs_1\",\"output_index\":1,\"content_index\":0,\"text\":\"42\",\"logprobs\":[]}\n\nevent: response.content_part.done\n",
+          "data: {\"type\":\"response.content_part.done\",\"sequence_number\":18,\"item_id\":\"msg_rs_1\",\"output_index\":1,\"content_index\":0,\"part\":",
+          "{\"type\":\"output_text\",\"text\":\"42\",\"annotations\":[],\"logprobs\":[]}}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.ou",
+          "tput_item.done\",\"sequence_number\":19,\"output_index\":1,\"item\":{\"type\":\"message\",\"id\":\"msg_rs_1\",\"status\":\"completed\",\"role\":\"ass",
+          "istant\",\"content\":[{\"type\":\"output_text\",\"text\":\"42\",\"annotations\":[],\"logprobs\":[]}]}}\n\nevent: response.completed\ndata: {\"type",
+          "\":\"response.completed\",\"sequence_number\":20,\"response\":{\"id\":\"resp_rs_1\",\"object\":\"response\",\"created_at\":1741476777,\"status\":\"",
+          "completed\",\"error\":null,\"incomplete_details\":null,\"model\":\"gpt-6.1-terra\",\"output\":[{\"type\":\"reasoning\",\"id\":\"rs_1\",\"summary\":[",
+          "{\"type\":\"summary_text\",\"text\":\"Considering the question.\"},{\"type\":\"summary_text\",\"text\":\"Choosing a short answer.\"}],\"encrypte",
+          "d_content\":\"gAAAAA_synthetic_encrypted_content_1\"},{\"type\":\"message\",\"id\":\"msg_rs_1\",\"status\":\"completed\",\"role\":\"assistant\",\"c",
+          "ontent\":[{\"type\":\"output_text\",\"text\":\"42\",\"annotations\":[],\"logprobs\":[]}]}],\"parallel_tool_calls\":true,\"store\":false,\"usage\":",
+          "{\"input_tokens\":30,\"input_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0},\"output_tokens\":160,\"output_tokens_details",
+          "\":{\"reasoning_tokens\":120},\"total_tokens\":190},\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\",\"context\":\"auto\"}}}\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

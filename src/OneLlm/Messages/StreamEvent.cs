@@ -78,6 +78,13 @@ public enum StreamEventKind
 
     /// <summary>The response is complete. <see cref="StreamEvent.Finish"/> says why; <see cref="StreamEvent.Name"/> holds the provider's own word.</summary>
     Done = 14,
+
+    /// <summary>
+    /// Provider fields that belong to the whole message and have no neutral name (a reusable container, the stop sequence that ended the turn):
+    /// <see cref="StreamEvent.Name"/> is the key they are kept under in <see cref="Message.ExtensionData"/> and
+    /// <see cref="StreamEvent.Extension"/> the JSON object.
+    /// </summary>
+    MessageExtension = 15,
 }
 
 /// <summary>
@@ -139,6 +146,13 @@ public readonly struct StreamEvent
     /// <summary>The replay payload carried by <see cref="StreamEventKind.ReasoningEnd"/>.</summary>
     public JsonObject? Data => _payload as JsonObject;
 
+    /// <summary>
+    /// A JSON object of provider fields with no neutral name, on <see cref="StreamEventKind.ToolCallStart"/> (kept in the call's
+    /// <see cref="ToolCall.ExtensionData"/>) and <see cref="StreamEventKind.MessageExtension"/>. Empty on other kinds and when there is none.
+    /// Valid only until the next event is requested.
+    /// </summary>
+    public ReadOnlyMemory<byte> Extension => Kind is StreamEventKind.ToolCallStart or StreamEventKind.MessageExtension ? Utf8 : default;
+
     /// <summary>Decodes <see cref="Utf8"/> to a string. This allocates; consumers that only append can use <see cref="Utf8"/> directly.</summary>
     /// <returns>The delta text.</returns>
     public string GetText() => Encoding.UTF8.GetString(Utf8.Span);
@@ -180,6 +194,20 @@ public readonly struct StreamEvent
     /// <param name="tool">The tool's name.</param>
     /// <returns>The event.</returns>
     public static StreamEvent ToolCallStart(int index, string id, string tool) => new(StreamEventKind.ToolCallStart, index, default, id, tool, null, default);
+
+    /// <summary>Creates a <see cref="StreamEventKind.ToolCallStart"/> event that also carries provider fields.</summary>
+    /// <param name="index">The block index.</param>
+    /// <param name="id">The call id.</param>
+    /// <param name="tool">The tool's name.</param>
+    /// <param name="extensionJson">A JSON object of the block's other fields, as UTF-8; they end up in <see cref="ToolCall.ExtensionData"/>.</param>
+    /// <returns>The event.</returns>
+    public static StreamEvent ToolCallStart(int index, string id, string tool, ReadOnlyMemory<byte> extensionJson) => new(StreamEventKind.ToolCallStart, index, extensionJson, id, tool, null, default);
+
+    /// <summary>Creates a <see cref="StreamEventKind.MessageExtension"/> event.</summary>
+    /// <param name="key">The key to keep the object under in the message's extension data (the provider's name).</param>
+    /// <param name="extensionJson">A JSON object, as UTF-8.</param>
+    /// <returns>The event.</returns>
+    public static StreamEvent MessageExtension(string key, ReadOnlyMemory<byte> extensionJson) => new(StreamEventKind.MessageExtension, 0, extensionJson, null, key, null, default);
 
     /// <summary>Creates a <see cref="StreamEventKind.ToolCallArgumentsDelta"/> event.</summary>
     /// <param name="index">The block index.</param>

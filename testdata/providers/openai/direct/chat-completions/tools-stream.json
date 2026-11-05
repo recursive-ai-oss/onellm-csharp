@@ -1,0 +1,97 @@
+{
+  "format": 1,
+  "description": "The first call of tools.json streamed: argument fragments arrive per call index. Written from the reference (https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "gpt-4.1",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Weather and time in Paris?"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "get_weather",
+                "description": "Gets the weather for a city.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "city": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "city"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "get_time",
+                "description": "Gets the time in a zone.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "zone": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "zone"
+                  ]
+                }
+              }
+            }
+          ],
+          "tool_choice": "required",
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "data: {\"id\":\"chatcmpl-syn2\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"gpt-4.1-20",
+          "25-04-14\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null},\"finish_reason\":null}]}\n\n",
+          "data: {\"id\":\"chatcmpl-syn2\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"gpt-4.1-20",
+          "25-04-14\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_a1\",\"type\":\"function\",\"f",
+          "unction\":{\"name\":\"get_weather\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-syn2",
+          "\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"gpt-4.1-2025-04-14\",\"choices\":[{\"ind",
+          "ex\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"ci\"}}]},\"finish_reason\":null}]}\n\n",
+          "data: {\"id\":\"chatcmpl-syn2\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"gpt-4.1-20",
+          "25-04-14\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"ty\\\":\\\"Par",
+          "is\\\"}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-syn2\",\"object\":\"chat.completion.chunk\",\"cre",
+          "ated\":1741476777,\"model\":\"gpt-4.1-2025-04-14\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":1",
+          ",\"id\":\"call_b2\",\"type\":\"function\",\"function\":{\"name\":\"get_time\",\"arguments\":\"{\\\"zone\\\":\"}}]},\"finish_",
+          "reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-syn2\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"m",
+          "odel\":\"gpt-4.1-2025-04-14\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":1,\"function\":{\"argum",
+          "ents\":\"\\\"Europe/Paris\\\"}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-syn2\",\"object\":\"chat.com",
+          "pletion.chunk\",\"created\":1741476777,\"model\":\"gpt-4.1-2025-04-14\",\"choices\":[{\"index\":0,\"delta\":{},\"fi",
+          "nish_reason\":\"tool_calls\"}]}\n\ndata: {\"id\":\"chatcmpl-syn2\",\"object\":\"chat.completion.chunk\",\"created\":",
+          "1741476777,\"model\":\"gpt-4.1-2025-04-14\",\"choices\":[],\"usage\":{\"prompt_tokens\":80,\"completion_tokens\":",
+          "30,\"total_tokens\":110,\"prompt_tokens_details\":{\"cached_tokens\":0,\"audio_tokens\":0},\"completion_tokens",
+          "_details\":{\"reasoning_tokens\":0,\"audio_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_",
+          "tokens\":0}}}\n\ndata: [DONE]\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

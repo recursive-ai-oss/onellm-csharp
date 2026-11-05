@@ -1,0 +1,101 @@
+{
+  "format": 1,
+  "description": "The web search hosted tool: a search call item and a message with a URL citation. Written from the reference (https://developers.openai.com/api/reference/resources/responses/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Search."
+            }
+          ],
+          "tools": [
+            {
+              "type": "web_search"
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "resp_ws_1",
+          "object": "response",
+          "created_at": 1741476777,
+          "status": "completed",
+          "error": null,
+          "incomplete_details": null,
+          "model": "gpt-6.1-terra",
+          "output": [
+            {
+              "type": "web_search_call",
+              "id": "ws_1",
+              "status": "completed",
+              "action": {
+                "type": "search",
+                "query": "example topic",
+                "sources": [
+                  {
+                    "type": "url",
+                    "url": "https://example.com/a"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "message",
+              "id": "msg_ws_1",
+              "status": "completed",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "Example topic facts.",
+                  "annotations": [
+                    {
+                      "type": "url_citation",
+                      "url": "https://example.com/a",
+                      "title": "Example A",
+                      "start_index": 0,
+                      "end_index": 17
+                    }
+                  ],
+                  "logprobs": []
+                }
+              ]
+            }
+          ],
+          "parallel_tool_calls": true,
+          "store": false,
+          "usage": {
+            "input_tokens": 300,
+            "input_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0
+            },
+            "output_tokens": 40,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 340
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

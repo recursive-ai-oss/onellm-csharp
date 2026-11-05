@@ -1,0 +1,100 @@
+# OpenAI-compatible servers: one preset each, over the Chat Completions codec.
+# Base URLs, key variables and quirks are from each server's own documentation (see the docs/ notes in the repository). Models are not listed:
+# a preset accepts any model name its server serves. A preset on this machine (local: true) is priced at zero unless a user catalog says otherwise.
+#
+# properties understood by the provider: maxTokensField, streamUsage, reasoningEffort, requiredToolChoice, jsonSchema.
+# properties that only describe: local, reasoningField, reportsCost, notes.
+name: openai-compatible
+displayName: OpenAI-compatible servers
+modelPatterns: []
+presets:
+  ollama:
+    displayName: Ollama
+    baseUrl: http://localhost:11434/v1
+    protocol: chat-completions
+    modelPatterns: ["*"]
+    capabilities: { streaming: true, tools: true, structuredOutput: true, embeddings: true, imageInputs: true, tokenCounting: false, batch: false }
+    properties:
+      local: true
+      reasoningField: reasoning
+      notes: The API key is required by client libraries but ignored by the server.
+  vllm:
+    displayName: vLLM
+    baseUrl: http://localhost:8000/v1
+    protocol: chat-completions
+    modelPatterns: ["*"]
+    capabilities: { streaming: true, tools: true, structuredOutput: true, embeddings: true, imageInputs: true, tokenCounting: false, batch: false }
+    properties:
+      local: true
+      reasoningField: reasoning_content
+  lmstudio:
+    displayName: LM Studio
+    baseUrl: http://localhost:1234/v1
+    protocol: chat-completions
+    modelPatterns: ["*"]
+    capabilities: { streaming: true, tools: true, structuredOutput: true, embeddings: true, imageInputs: true, tokenCounting: false, batch: false }
+    properties:
+      local: true
+      reasoningField: reasoning_content
+  openrouter:
+    displayName: OpenRouter
+    baseUrl: https://openrouter.ai/api/v1
+    apiKeyEnvVar: OPENROUTER_API_KEY
+    protocol: chat-completions
+    modelPatterns: ["*"]
+    capabilities: { streaming: true, tools: true, structuredOutput: true, embeddings: true, imageInputs: true, tokenCounting: false, batch: false }
+    properties:
+      reasoningField: reasoning
+      reportsCost: true
+      notes: Streams carry comment lines as keep-alives; usage includes the credits charged.
+  groq:
+    displayName: Groq
+    baseUrl: https://api.groq.com/openai/v1
+    apiKeyEnvVar: GROQ_API_KEY
+    protocol: chat-completions
+    modelPatterns: ["*"]
+    capabilities: { streaming: true, tools: true, structuredOutput: true, embeddings: false, imageInputs: true, tokenCounting: false, batch: false }
+    properties:
+      reasoningField: reasoning
+  deepseek:
+    displayName: DeepSeek
+    baseUrl: https://api.deepseek.com
+    apiKeyEnvVar: DEEPSEEK_API_KEY
+    protocol: chat-completions
+    modelPatterns: ["*"]
+    capabilities: { streaming: true, tools: true, structuredOutput: false, embeddings: false, imageInputs: false, tokenCounting: false, batch: false }
+    properties:
+      jsonSchema: false
+      reasoningEffort: false
+      reasoningField: reasoning_content
+      notes: Cache hits are reported as prompt_cache_hit_tokens.
+  xai:
+    displayName: xAI
+    baseUrl: https://api.x.ai/v1
+    apiKeyEnvVar: XAI_API_KEY
+    protocol: chat-completions
+    modelPatterns: ["*"]
+    capabilities: { streaming: true, tools: true, structuredOutput: true, embeddings: false, imageInputs: true, tokenCounting: false, batch: false }
+    properties:
+      reasoningField: reasoning_content
+  mistral:
+    displayName: Mistral
+    baseUrl: https://api.mistral.ai/v1
+    apiKeyEnvVar: MISTRAL_API_KEY
+    protocol: chat-completions
+    modelPatterns: ["*"]
+    capabilities: { streaming: true, tools: true, structuredOutput: true, embeddings: true, imageInputs: true, tokenCounting: false, batch: false }
+    properties:
+      requiredToolChoice: any
+      streamUsage: false
+      reasoningEffort: false
+      notes: Streams report usage in their last chunk without being asked.
+  together:
+    displayName: Together AI
+    baseUrl: https://api.together.ai/v1
+    apiKeyEnvVar: TOGETHER_API_KEY
+    protocol: chat-completions
+    modelPatterns: ["*"]
+    capabilities: { streaming: true, tools: true, structuredOutput: true, embeddings: true, imageInputs: true, tokenCounting: false, batch: false }
+    properties:
+      reasoningField: reasoning_content

@@ -1,0 +1,64 @@
+{
+  "format": 1,
+  "description": "A model with a manual thinking budget: the budget is sent as enabled thinking. Written from the API reference (https://platform.claude.com/docs/en/build-with-claude/extended-thinking); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-4-5-20250929",
+          "max_tokens": 4096,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "What is the weather in Paris?"
+                }
+              ]
+            }
+          ],
+          "thinking": {
+            "type": "enabled",
+            "budget_tokens": 2048
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-4-5-20250929",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "Let me think.",
+              "signature": "sigmanual"
+            },
+            {
+              "type": "text",
+              "text": "Probably mild."
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 12,
+            "output_tokens": 9
+          }
+        }
+      }
+    }
+  ]
+}

@@ -451,33 +451,57 @@ public interface IModerationProvider : IProvider
     Task<ModerationResponse> ModerateAsync(ModerationRequest request, CancellationToken cancellationToken = default);
 }
 
-/// <summary>A request for typed judgments: answers to questions about a state, from a decisions engine.</summary>
+/// <summary>One question as it goes to an engine: its id on the wire and the question object as rendered JSON.</summary>
+/// <param name="Id">The id the engine sees: the declared id, or <c>id[n]</c> for the <c>n</c>th element of a repeated question.</param>
+/// <param name="Type">The question type: <c>choice</c>, <c>score</c> or <c>noul</c>.</param>
+/// <param name="Json">The rendered question object (UTF-8 JSON), keys in the order the file wrote them, with <c>forEach</c> removed.</param>
+public sealed record WireQuestion(string Id, string Type, ReadOnlyMemory<byte> Json);
+
+/// <summary>An image a decision request refers to by a placeholder string that appears in its state or questions.</summary>
+/// <param name="Reference">The placeholder text. Wherever it appears inside a string of the state or a question, the image belongs there.</param>
+/// <param name="Data">The encoded image (PNG or JPEG).</param>
+/// <param name="MediaType">The media type, <c>image/png</c> or <c>image/jpeg</c>.</param>
+public sealed record DecisionImage(string Reference, ReadOnlyMemory<byte> Data, string MediaType);
+
+/// <summary>
+/// A request for typed judgments: answers to questions about a state, from a decisions engine. The state and each question are carried
+/// as the JSON a decider renders, because request bytes for an engine are specified byte for byte.
+/// </summary>
 public sealed record DecisionRequest
 {
-    /// <summary>The model's name.</summary>
+    /// <summary>The model name to send, as the decider wrote it (an engine resolves its own aliases).</summary>
     public string Model { get; init; } = "";
 
-    /// <summary>Instructions that frame the questions.</summary>
-    public string? Instructions { get; init; }
+    /// <summary>The state as UTF-8 JSON: a string, object or array.</summary>
+    public ReadOnlyMemory<byte> State { get; init; }
 
-    /// <summary>The state the questions are about.</summary>
-    public JsonNode? State { get; init; }
+    /// <summary>The questions in order. Ids are unique; an engine answers every one.</summary>
+    public IReadOnlyList<WireQuestion> Questions { get; init; } = [];
 
-    /// <summary>The questions in the engine's own wire form (choice, score and noul questions).</summary>
-    public JsonArray? Questions { get; init; }
+    /// <summary>Images referenced from the state or the questions. Empty for text-only requests.</summary>
+    public IReadOnlyList<DecisionImage> Images { get; init; } = [];
+
+    /// <summary>Partitions prompt cache reuse, for engines that cache. At most 64 characters.</summary>
+    public string? PromptCacheKey { get; init; }
+
+    /// <summary>Mark the end of the state as an explicit cache breakpoint and turn the engine's implicit breakpoint off.</summary>
+    public bool ExplicitCacheBreakpoint { get; init; }
 
     /// <summary>Parameters written into the request body as given.</summary>
-    public JsonObject? ExtraParameters { get; init; }
+    public System.Text.Json.Nodes.JsonObject? ExtraParameters { get; init; }
 }
 
 /// <summary>The answers to a decision request.</summary>
 public sealed record DecisionResponse
 {
-    /// <summary>The answers by question id, in the engine's wire form.</summary>
-    public JsonObject? Answers { get; init; }
+    /// <summary>
+    /// The answers by question id, in the common answer shape: <c>{"type":"noul","noul":p}</c>, <c>{"type":"choice","choice":..,"confidence":..,"probabilities":{..}}</c>
+    /// and <c>{"type":"score","score":..,"confidence":..,"legend":{..},"probabilities":{..}}</c>; a question the engine declined is <c>{"type":"refusal"}</c>.
+    /// </summary>
+    public System.Text.Json.Nodes.JsonObject Answers { get; init; } = [];
 
-    /// <summary>The model's explanation, when it refused to answer.</summary>
-    public string? Refusal { get; init; }
+    /// <summary>The model that answered, which can be a versioned name for the alias that was asked.</summary>
+    public string? Model { get; init; }
 
     /// <summary>What the call consumed.</summary>
     public Usage? Usage { get; init; }
@@ -486,10 +510,11 @@ public sealed record DecisionResponse
 /// <summary>A decisions engine (TypeSafe Jev, OpenAI Decisions).</summary>
 public interface IDecisionProvider : IProvider
 {
-    /// <summary>Answers questions about a state.</summary>
+    /// <summary>Answers questions about a state in one request.</summary>
     /// <param name="request">The request.</param>
     /// <param name="cancellationToken">Cancels the call.</param>
     /// <returns>The answers.</returns>
+    /// <exception cref="ContextOverflowException">The state and questions do not fit one request (Jev's <c>max_tokens_exceeded</c>).</exception>
     /// <exception cref="ProviderException">The provider failed.</exception>
     Task<DecisionResponse> DecideAsync(DecisionRequest request, CancellationToken cancellationToken = default);
 }

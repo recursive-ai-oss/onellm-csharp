@@ -1,0 +1,54 @@
+# TypeSafe Jev (System One) models: limits, capabilities and prices.
+# Read from https://docs.typesafe.ai/models.md on 2026-11-05 (models, aliases, context length, price) and https://docs.typesafe.ai/api/system-one.md (the request and answer shapes).
+# Jev is a decisions engine, not a chat model: it answers typed questions about a state, so chat requests to its models are refused.
+name: typesafe
+displayName: TypeSafe
+
+modelPatterns:
+  - "jev-*"
+
+# TypeSafe resolves the same aliases on its side; resolving them here pins the alias to the version the prices were read for.
+aliases:
+  jev-latest: jev-1.14.0
+  jev-preview: jev-1.14.0
+
+apiKeyEnvVar: TYPESAFE_API_KEY
+
+capabilities:
+  streaming: false
+  promptCaching: false
+  imageInputs: false
+  systemOne: true
+  decisions: true
+
+models:
+  - name: jev-1.14.0
+    displayName: Jev 1.14
+    family: jev
+    kind: decision
+    # 64k tokens for the state plus all questions in one request; 32k for the state plus the longest single question.
+    contextWindow: 64000
+    supportsCaching: false
+    supportsVision: false
+    supportsTools: false
+    supportsTemperature: false
+    pricing:
+      # $42 per billion input tokens. Output tokens are free.
+      inputPerMillion: 0.042
+      outputPerMillion: 0
+      asOf: "2026-11-05"
+      source: https://docs.typesafe.ai/models.md
+  - name: jev-1.13.0
+    displayName: Jev 1.13
+    family: jev
+    kind: decision
+    contextWindow: 64000
+    supportsCaching: false
+    supportsVision: false
+    supportsTools: false
+    supportsTemperature: false
+    pricing:
+      inputPerMillion: 0.042
+      outputPerMillion: 0
+      asOf: "2026-11-05"
+      source: https://docs.typesafe.ai/models.md

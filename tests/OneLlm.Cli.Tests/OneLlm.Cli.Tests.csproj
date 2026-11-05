@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Cli.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);xUnit1051;xUnit1031;IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
+    <ProjectReference Include="../../src/OneLlm.Web/OneLlm.Web.csproj" />
+  </ItemGroup>
+
+  <!-- The tool is an executable, which a test executable cannot reference, so the tests compile the tool's sources and embedded examples. -->
+  <ItemGroup>
+    <Compile Include="../../src/OneLlm.Cli/*.cs" LinkBase="Cli" />
+    <Compile Remove="../../src/OneLlm.Cli/Program.cs" />
+    <EmbeddedResource Include="../../agents/*/agent.yaml" LogicalName="examples/%(RecursiveDir)agent.yaml" />
+  </ItemGroup>
+
+</Project>

@@ -185,7 +185,7 @@ public sealed partial class Runtime
         string? Str(string key) => info.TryGetValue(key, out object? v) ? v as string : null;
         JsonElement? Element(string key) => info.TryGetValue(key, out object? v) && v is not null ? PlainJson.ToElement(v) : null;
         decimal cost = instance.Messages.Sum(static m => m.Usage?.Cost ?? 0m);
-        double ms = info.TryGetValue("durationMs", out object? d) ? Convert.ToDouble(d, CultureInfo.InvariantCulture) : 0;
+        long ms = info.TryGetValue("durationMs", out object? d) ? Convert.ToInt64(d, CultureInfo.InvariantCulture) : 0;
         return new DecisionRun(
             instance.InstanceId,
             instance.Name,
@@ -328,7 +328,7 @@ public sealed partial class Runtime
                     ["engine"] = engine,
                     ["origin"] = origin,
                     ["replayOf"] = replayOf,
-                    ["durationMs"] = elapsed.TotalMilliseconds,
+                    ["durationMs"] = (long)elapsed.TotalMilliseconds,
                     ["error"] = RecordText.Bound(ex.Message),
                 };
                 Exception e = await run.FailAsync(ex, null, cancellationToken).ConfigureAwait(false);
@@ -348,7 +348,7 @@ public sealed partial class Runtime
             ["answeredBy"] = output.Model,
             ["origin"] = origin,
             ["replayOf"] = replayOf,
-            ["durationMs"] = elapsed.TotalMilliseconds,
+            ["durationMs"] = (long)elapsed.TotalMilliseconds,
             ["calls"] = output.Calls.Select(static c => (object?)new Dictionary<string, object?>(StringComparer.Ordinal)
             {
                 ["engine"] = c.Engine,

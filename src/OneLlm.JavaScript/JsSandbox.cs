@@ -113,7 +113,7 @@ public sealed class JsSandbox
     }
 
     /// <summary>Calls an exported function of a module with JSON arguments (and, when asked, <c>ctx</c> as the last one) and returns what it returned.</summary>
-    internal Task<JsRunResult> CallAsync(string source, string fileName, string function, IReadOnlyList<JsonNode?> args, bool passCtx, ToolContext context, ToolCapability declared, TimeSpan? limit, CancellationToken cancellationToken) =>
+    internal Task<JsRunResult> CallAsync(string source, string fileName, string function, IReadOnlyList<JsonNode?> args, bool passCtx, ToolContext context, ToolCapability declared, TimeSpan? limit, CancellationToken cancellationToken, bool undefinedAsNull = false) =>
         RunAsync(
             new HostModule(fileName, source),
             fileName,
@@ -146,7 +146,8 @@ public sealed class JsSandbox
                 JsValue result = engine.Call(fn, JsValue.Undefined, values.ToArray(), token);
                 return await engine.AwaitAsync(result, token);
             },
-            cancellationToken);
+            cancellationToken,
+            undefinedAsNull);
 
     private ScriptEngine CreateEngine(SandboxHost host, HostEnv? env, JsonNode? input, TimeSpan limit, bool hasInput = false)
     {
@@ -176,10 +177,11 @@ public sealed class JsSandbox
         ToolCapability declared,
         TimeSpan? limit,
         Func<ScriptEngine, CancellationToken, Task<JsValue>> body,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool undefinedAsNull = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.Run(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, cancellationToken), CancellationToken.None);
+        return Task.Run(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, cancellationToken), CancellationToken.None);
     }
 
     private async Task<JsRunResult> RunCoreAsync(
@@ -191,6 +193,7 @@ public sealed class JsSandbox
         ToolCapability declared,
         TimeSpan? limit,
         Func<ScriptEngine, CancellationToken, Task<JsValue>> body,
+        bool undefinedAsNull,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -216,7 +219,7 @@ public sealed class JsSandbox
                 return new JsRunResult(null, false, output.ToString());
             }
 
-            string? json = JsonBridge.Stringify(realm, stringify, value);
+            string? json = JsonBridge.Stringify(realm, stringify, value, undefinedAsNull ? JsonBridge.NullForUndefined(realm) : default);
             if (json is null)
             {
                 return new JsRunResult(null, false, output.ToString());

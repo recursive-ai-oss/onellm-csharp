@@ -61,11 +61,15 @@ internal static class JsonBridge
 
     /// <summary>Turns a script value into JSON with the engine's own <c>JSON.stringify</c> (so <c>toJSON</c> and the usual rules apply).</summary>
     /// <returns>The JSON text, or null when the value is <c>undefined</c> (or a function or symbol).</returns>
-    public static string? Stringify(JsRealm realm, JsValue stringify, JsValue value)
+    public static string? Stringify(JsRealm realm, JsValue stringify, JsValue value, JsValue replacer = default)
     {
-        JsValue text = realm.Call(stringify, JsValue.Undefined, value);
+        JsValue text = replacer.IsUndefined ? realm.Call(stringify, JsValue.Undefined, value) : realm.Call(stringify, JsValue.Undefined, value, replacer);
         return text.IsString ? text.AsString : null;
     }
+
+    /// <summary>A replacer for <see cref="Stringify"/> that writes <c>undefined</c> properties as JSON <c>null</c> instead of leaving them out, the form decider logic results use.</summary>
+    public static JsValue NullForUndefined(JsRealm realm) =>
+        JsValue.FromObject(realm.NewFunction("replacer", 2, (_, args) => args.Length > 1 && !args[1].IsUndefined ? args[1] : JsValue.Null));
 
     /// <summary>Reads a YAML node as JSON. Scalars keep their YAML type: numbers, booleans and null are not turned into strings.</summary>
     public static JsonNode? FromYaml(YamlNode node, int depth = 0)

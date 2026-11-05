@@ -75,7 +75,7 @@ public class AgentIntegrationTests
         using var env = new AgentEnv();
         env.Provider.Enqueue(Calls(("c1", "task_complete", """{"result":"r","summary":"s"}""")));
         AgentDefinition def = AgentDefinition.Parse(
-            "name: a\nmodel: demo\nreferences:\n  - routine: /agent-tools/os/read-file\n  - routine: /agent-tools/task-complete\n  - routine: /alera/agents/runtime/await-agent\n");
+            "name: a\nmodel: demo\nreferences:\n  - routine: /agent-tools/os/read-file\n  - routine: /agent-tools/task-complete\n  - routine: /runtime/agents/await-agent\n");
 
         AgentResult r = await Within(env.Rt.RunAgentAsync(def, null, Go()));
 

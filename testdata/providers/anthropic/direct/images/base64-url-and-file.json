@@ -1,0 +1,77 @@
+{
+  "format": 1,
+  "description": "An inline image, an image by URL and an image by file id in one turn. Written from the API reference (https://platform.claude.com/docs/en/build-with-claude/vision); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC"
+                  }
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "url",
+                    "url": "https://example.com/cat.jpg"
+                  }
+                },
+                {
+                  "type": "image",
+                  "source": {
+                    "type": "file",
+                    "file_id": "file_011CNha8iCJcU1wXNR6q4V8w"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "Describe these."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "Three small images."
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 190,
+            "output_tokens": 6
+          }
+        }
+      }
+    }
+  ]
+}

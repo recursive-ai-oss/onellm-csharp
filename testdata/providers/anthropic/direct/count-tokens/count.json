@@ -1,0 +1,58 @@
+{
+  "format": 1,
+  "description": "Counting the input tokens of a request with a system prompt and a tool. Written from the API reference (https://platform.claude.com/docs/en/build-with-claude/token-counting); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages/count_tokens",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "system": "You are terse.",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Say hello."
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "get_weather",
+              "description": "Get the current weather in a given location",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "location": {
+                    "type": "string",
+                    "description": "The city and state, e.g. San Francisco, CA"
+                  }
+                },
+                "required": [
+                  "location"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "input_tokens": 2095
+        }
+      }
+    }
+  ]
+}

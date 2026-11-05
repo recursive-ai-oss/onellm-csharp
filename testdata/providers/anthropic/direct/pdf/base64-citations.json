@@ -1,0 +1,104 @@
+{
+  "format": 1,
+  "description": "A PDF document with citations on and a plain text document; the answer cites the PDF by page and the text by characters. Written from the API reference (https://platform.claude.com/docs/en/build-with-claude/citations); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "document",
+                  "source": {
+                    "type": "base64",
+                    "media_type": "application/pdf",
+                    "data": "JVBERi0xLjQKJcfsj6IKJSVFT0YK"
+                  },
+                  "title": "Report",
+                  "citations": {
+                    "enabled": true
+                  }
+                },
+                {
+                  "type": "document",
+                  "source": {
+                    "type": "text",
+                    "media_type": "text/plain",
+                    "data": "The grass is green. The sky is blue."
+                  },
+                  "title": "Notes",
+                  "context": "Field notes",
+                  "citations": {
+                    "enabled": true
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "What colour is the sky, and what does the report conclude?"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "The sky is blue",
+              "citations": [
+                {
+                  "type": "char_location",
+                  "cited_text": "The sky is blue.",
+                  "document_index": 1,
+                  "document_title": "Notes",
+                  "start_char_index": 20,
+                  "end_char_index": 36
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": " and the report concludes growth.",
+              "citations": [
+                {
+                  "type": "page_location",
+                  "cited_text": "Growth was strong.",
+                  "document_index": 0,
+                  "document_title": "Report",
+                  "start_page_number": 3,
+                  "end_page_number": 4
+                }
+              ]
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 2300,
+            "output_tokens": 40
+          }
+        }
+      }
+    }
+  ]
+}

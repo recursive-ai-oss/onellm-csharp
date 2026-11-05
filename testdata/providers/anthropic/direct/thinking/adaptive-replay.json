@@ -1,0 +1,194 @@
+{
+  "format": 1,
+  "description": "Adaptive thinking with a summary and high effort; the thinking block goes back with its signature after the tool result. Written from the API reference (https://platform.claude.com/docs/en/build-with-claude/thinking); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "What is the weather in Paris?"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "get_weather",
+              "description": "Get the current weather in a given location",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "location": {
+                    "type": "string",
+                    "description": "The city and state, e.g. San Francisco, CA"
+                  }
+                },
+                "required": [
+                  "location"
+                ]
+              }
+            }
+          ],
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "high"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "The user wants Paris weather; I should call the tool.",
+              "signature": "EqQBCgIYAhIM1gbcDa9GJwZA2b3hGgxBdjrkzLoky3dl1pkiMOYds"
+            },
+            {
+              "type": "tool_use",
+              "id": "toolu_01T",
+              "name": "get_weather",
+              "input": {
+                "location": "Paris, France"
+              }
+            }
+          ],
+          "stop_reason": "tool_use",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 300,
+            "output_tokens": 150,
+            "output_tokens_details": {
+              "thinking_tokens": 90
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "What is the weather in Paris?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "thinking",
+                  "thinking": "The user wants Paris weather; I should call the tool.",
+                  "signature": "EqQBCgIYAhIM1gbcDa9GJwZA2b3hGgxBdjrkzLoky3dl1pkiMOYds"
+                },
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01T",
+                  "name": "get_weather",
+                  "input": {
+                    "location": "Paris, France"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "toolu_01T",
+                  "content": "12 degrees"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "get_weather",
+              "description": "Get the current weather in a given location",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "location": {
+                    "type": "string",
+                    "description": "The city and state, e.g. San Francisco, CA"
+                  }
+                },
+                "required": [
+                  "location"
+                ]
+              }
+            }
+          ],
+          "thinking": {
+            "type": "adaptive",
+            "display": "summarized"
+          },
+          "output_config": {
+            "effort": "high"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "It is 12 degrees in Paris."
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 12,
+            "output_tokens": 9
+          }
+        }
+      }
+    }
+  ]
+}

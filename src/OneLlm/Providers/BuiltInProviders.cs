@@ -1,4 +1,6 @@
+using System.Runtime.CompilerServices;
 using OneLlm.Providers.Anthropic;
+using OneLlm.Providers.Gemini;
 using OneLlm.Providers.OpenAI;
 
 namespace OneLlm.Providers;
@@ -14,7 +16,9 @@ public static class BuiltInProviders
     {
         AnthropicCatalog.Register();
         OpenAICatalog.Register();
-        // The Gemini catalog registers here when its provider joins the package.
+        // The Gemini provider registers its catalog in its static constructor (the first time the type is used); running it here
+        // makes the default catalog the same whether or not a Gemini client has been made yet.
+        RuntimeHelpers.RunClassConstructor(typeof(GeminiProvider).TypeHandle);
     }
 
     /// <summary>Registers the core package's provider factories on a registry.</summary>
@@ -37,6 +41,10 @@ public static class BuiltInProviders
 
             return new OpenAICompatibleProvider(ctx.Model.PresetName ?? OpenAICompatibleProvider.CatalogProvider, new OpenAIOptions { ApiKey = ctx.ApiKey, BaseUrl = address }, ctx.TimeProvider);
         });
-        // Gemini registers here by provider name when its client joins the package.
+        registry.Register("gemini", static ctx => new GeminiProvider(new GeminiOptions
+        {
+            Time = ctx.TimeProvider,
+            Auth = new GeminiApiKeyAuth(ctx.ApiKey ?? throw new AuthException("gemini", "No API key. Set the environment variable GEMINI_API_KEY.", null)),
+        }));
     }
 }

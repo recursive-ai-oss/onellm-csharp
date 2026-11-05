@@ -169,7 +169,7 @@ public sealed class StreamingAnswer : IAsyncEnumerable<StreamEvent>
     private async Task<AskResult> FinishAsync(InferenceCall call, RunScope scope, Catalog.ResolvedModel model, MessageAccumulator accumulator, CancellationToken cancellationToken)
     {
         (Message stamped, Cost cost, FinishReason finish, IReadOnlyList<ResponseWarning> warnings) = await call
-            .CompleteAsync(accumulator.ToMessage(), accumulator.Finish, accumulator.FinishReasonRaw, accumulator.ResponseId, cancellationToken).ConfigureAwait(false);
+            .CompleteAsync(accumulator.ToMessage(), accumulator.Finish, accumulator.FinishReasonRaw, accumulator.ResponseId, cancellationToken, accumulator.Warnings).ConfigureAwait(false);
         await scope.AppendAsync(stamped, cancellationToken).ConfigureAwait(false);
         await scope.CompleteAsync(_endState, cancellationToken).ConfigureAwait(false);
         return new AskResult(stamped.GetAssistantText(), stamped, scope.Instance, model.Id, cost, finish, warnings);

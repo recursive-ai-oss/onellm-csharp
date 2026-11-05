@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs deciders whose logic is a JavaScript module through the whole decide pipeline against a stub engine that answers from files, and writes
+       the prepared inputs and outputs for comparison with a reference runner. Not shipped. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).JsDeciderParity</RootNamespace>
+    <AssemblyName>onellm-jsdeciderparity</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneLlm.JavaScript/OneLlm.JavaScript.csproj" />
+  </ItemGroup>
+
+</Project>

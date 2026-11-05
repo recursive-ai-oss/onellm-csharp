@@ -70,8 +70,11 @@ public sealed class JsSandbox
             cancellationToken);
     }
 
-    /// <summary>Runs a tool module's top level once and reads its <c>tool</c> export (as JSON) and whether <c>invoke</c> is a function. Used when a tool file is loaded.</summary>
-    internal (JsonNode? Tool, bool HasInvoke) Inspect(string source, string fileName)
+    /// <summary>
+    /// Runs a module's top level once and reads what it exports: which of <paramref name="functions"/> are functions, and the value of the
+    /// export called <paramref name="dataExport"/> as JSON (null when absent). Used when a tool, hook or decider file is loaded.
+    /// </summary>
+    internal (JsonNode? Data, HashSet<string> Functions) Inspect(string source, string fileName, string? dataExport, params string[] functions)
     {
         var host = new SandboxHost(_loadClock, Options, new HostModule(fileName, source), new OutputBuffer(1024));
         ScriptEngine engine = CreateEngine(host, null, null, Options.TimeLimit);
@@ -79,16 +82,29 @@ public sealed class JsSandbox
         {
             JsValue ns = engine.EvaluateModule(fileName);
             JsRealm realm = engine.MainRealm;
-            bool hasInvoke = JsRealm.IsCallable(realm.Get(ns.AsObject!, "invoke"));
-            JsValue value = realm.Get(ns.AsObject!, "tool");
+            var found = new HashSet<string>(StringComparer.Ordinal);
+            foreach (string f in functions)
+            {
+                if (JsRealm.IsCallable(realm.Get(ns.AsObject!, f)))
+                {
+                    found.Add(f);
+                }
+            }
+
+            if (dataExport is null)
+            {
+                return (null, found);
+            }
+
+            JsValue value = realm.Get(ns.AsObject!, dataExport);
             if (value.IsUndefined)
             {
-                return (null, hasInvoke);
+                return (null, found);
             }
 
             JsValue stringify = realm.Get(realm.Get(realm.Global, "JSON").AsObject!, "stringify");
             string? json = JsonBridge.Stringify(realm, stringify, value);
-            return (json is null ? null : JsonNode.Parse(json), hasInvoke);
+            return (json is null ? null : JsonNode.Parse(json), found);
         }
         catch (Exception e) when (e is JsException or JsLimitException)
         {
@@ -96,8 +112,8 @@ public sealed class JsSandbox
         }
     }
 
-    /// <summary>Runs a tool module's <c>invoke(inputs, ctx)</c> and returns what it returned.</summary>
-    internal Task<JsRunResult> InvokeAsync(string source, string fileName, JsonObject inputs, ToolContext context, ToolCapability declared, TimeSpan? limit, CancellationToken cancellationToken) =>
+    /// <summary>Calls an exported function of a module with JSON arguments (and, when asked, <c>ctx</c> as the last one) and returns what it returned.</summary>
+    internal Task<JsRunResult> CallAsync(string source, string fileName, string function, IReadOnlyList<JsonNode?> args, bool passCtx, ToolContext context, ToolCapability declared, TimeSpan? limit, CancellationToken cancellationToken) =>
         RunAsync(
             new HostModule(fileName, source),
             fileName,
@@ -110,14 +126,24 @@ public sealed class JsSandbox
             {
                 JsRealm realm = engine.MainRealm;
                 JsValue ns = engine.EvaluateModule(fileName, token);
-                JsValue invoke = realm.Get(ns.AsObject!, "invoke");
-                if (!JsRealm.IsCallable(invoke))
+                JsValue fn = realm.Get(ns.AsObject!, function);
+                if (!JsRealm.IsCallable(fn))
                 {
-                    throw new BadDefinitionException("the module does not export a function named 'invoke'.", fileName);
+                    throw new BadDefinitionException($"the module does not export a function named '{function}'.", fileName);
                 }
 
-                JsValue ctx = realm.Get(realm.Global, "ctx");
-                JsValue result = engine.Call(invoke, JsValue.Undefined, [JsonBridge.ToJs(realm, inputs), ctx], token);
+                var values = new List<JsValue>(args.Count + 1);
+                foreach (JsonNode? a in args)
+                {
+                    values.Add(JsonBridge.ToJs(realm, a));
+                }
+
+                if (passCtx)
+                {
+                    values.Add(realm.Get(realm.Global, "ctx"));
+                }
+
+                JsValue result = engine.Call(fn, JsValue.Undefined, values.ToArray(), token);
                 return await engine.AwaitAsync(result, token);
             },
             cancellationToken);

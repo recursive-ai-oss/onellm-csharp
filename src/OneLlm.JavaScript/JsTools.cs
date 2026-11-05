@@ -49,7 +49,9 @@ public static class JsTools
         bool hasInvoke;
         try
         {
-            (description, hasInvoke) = sandbox.Inspect(source, file);
+            (JsonNode? data, HashSet<string> fns) = sandbox.Inspect(source, file, "tool", "invoke");
+            description = data;
+            hasInvoke = fns.Contains("invoke");
         }
         catch (JsSandboxException e)
         {
@@ -236,7 +238,7 @@ internal sealed class JsTool : ICapabilityTool
         JsRunResult run;
         try
         {
-            run = await _sandbox.InvokeAsync(_source, _file, inputs, context, Requires, Definition.Timeout, cancellationToken);
+            run = await _sandbox.CallAsync(_source, _file, "invoke", [inputs], passCtx: true, context, Requires, Definition.Timeout, cancellationToken);
         }
         catch (JsSandboxException e)
         {

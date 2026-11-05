@@ -19,5 +19,6 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/AotSmoke/AotSmoke.csproj" />
+    <Project Path="samples/HappyPath/HappyPath.csproj" />
   </Folder>
 </Solution>

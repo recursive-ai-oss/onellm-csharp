@@ -276,6 +276,13 @@ public sealed class PricingSpec
     /// <summary>Price changes above a size, for example long-context rates expressed as multipliers.</summary>
     public List<PriceTier>? Tiers { get; set; }
 
+    /// <summary>
+    /// Counters that are counted inside another counter, as <c>child: parent</c>, for example <c>inputAudioTokens: inputTokens</c>. A priced child is taken out
+    /// of its parent's quantity and charged at its own price. These add to the relations OneLLM knows (<c>reasoningTokens</c> in <c>outputTokens</c>,
+    /// <c>cacheCreation1hInputTokens</c> in <c>cacheCreationInputTokens</c>, the audio, image and video input and output counters in the token counters).
+    /// </summary>
+    public Dictionary<string, string>? SubsetOf { get; set; }
+
     /// <summary>Named factors a caller can apply by name: <c>batch</c>, <c>region:eu</c>, ...</summary>
     public Dictionary<string, decimal>? Multipliers { get; set; }
 

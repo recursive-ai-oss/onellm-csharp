@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <!-- A local HTTP server that replays recorded or synthetic provider responses and SSE streams, for benchmarks. -->
   <PropertyGroup>
@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="../../tests/OneLlm.Conformance/OneLlm.Conformance.csproj" />
   </ItemGroup>
 

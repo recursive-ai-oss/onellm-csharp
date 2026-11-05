@@ -16,6 +16,12 @@ public static class AnthropicCatalog
     /// <summary>A catalog holding only the shipped Anthropic layer. Used by <see cref="AnthropicProvider"/> when no catalog is given.</summary>
     public static ModelCatalog Default => s_default.Value;
 
+    /// <summary>
+    /// Registers the shipped Anthropic file with <see cref="CatalogLoader"/> so catalogs built there include it. Safe to call more than once;
+    /// creating an <see cref="AnthropicProvider"/> calls it too.
+    /// </summary>
+    public static void Register() => CatalogLoader.RegisterShipped(typeof(AnthropicCatalog).Assembly, ResourceName);
+
     private static CatalogLayer LoadLayer()
     {
         Assembly assembly = typeof(AnthropicCatalog).Assembly;

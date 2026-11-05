@@ -56,7 +56,7 @@ internal sealed class MessagesBodyWriter
     private readonly BodyMode _mode;
     private readonly AnthropicOptions _options;
     private readonly TimeProvider _time;
-    private readonly List<string>? _warnings;
+    private readonly List<ResponseWarning>? _warnings;
     private readonly IReadOnlyDictionary<AssetRef, ReadOnlyMemory<byte>> _assets;
 
     public MessagesBodyWriter(
@@ -67,7 +67,7 @@ internal sealed class MessagesBodyWriter
         AnthropicOptions options,
         TimeProvider time,
         IReadOnlyDictionary<AssetRef, ReadOnlyMemory<byte>> assets,
-        List<string>? warnings = null)
+        List<ResponseWarning>? warnings = null)
     {
         _warnings = warnings;
         _request = request;
@@ -297,7 +297,9 @@ internal sealed class MessagesBodyWriter
 
     private static bool IsImage(string contentType) => contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
 
-    private void Log(string message) => _warnings?.Add(message);
+    // Notices carry the codes the shared request adjuster uses: parameter_stripped when something was left out, parameter_adjusted when it was changed.
+    private void Log(string message) =>
+        _warnings?.Add(new ResponseWarning(message.Contains("dropped", StringComparison.Ordinal) ? "parameter_stripped" : "parameter_adjusted", message.Replace("anthropic: ", "", StringComparison.Ordinal)));
 
     private int ResolveMaxTokens()
     {

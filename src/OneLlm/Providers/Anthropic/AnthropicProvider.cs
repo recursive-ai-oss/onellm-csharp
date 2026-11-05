@@ -35,6 +35,7 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
         _deployment = deployment ?? throw new ArgumentNullException(nameof(deployment));
         _time = time ?? throw new ArgumentNullException(nameof(time));
         _options = options ?? new AnthropicOptions();
+        AnthropicCatalog.Register();
         _http = new ProviderHttpClient(ProviderName, time, _options.Http, _options.Retry, deployment.Secrets, _options.Timeout, _options.Jitter, AnthropicErrors.FromResponse);
     }
 
@@ -58,7 +59,7 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
     public async Task<ChatResponse> SendAsync(ChatRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var warnings = new List<string>();
+        var warnings = new List<ResponseWarning>();
         (ReadOnlyMemory<byte> body, string model) = await BuildChatBodyAsync(request, BodyMode.Message, cancellationToken, warnings).ConfigureAwait(false);
         var info = new AnthropicRequestInfo(AnthropicOperation.Messages, model, false, null);
         using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, body), cancellationToken).ConfigureAwait(false);
@@ -188,11 +189,11 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
             w.WriteStartArray("requests");
             foreach (BatchItem item in request.Items)
             {
-                (string model, ModelSpec? spec) = ResolveModel(item.Chat!.Model);
+                (ChatRequest chat, string model, ModelSpec? spec) = Adjust(item.Chat!, null);
                 w.WriteStartObject();
                 w.WriteString("custom_id", item.CustomId);
                 w.WritePropertyName("params");
-                new MessagesBodyWriter(item.Chat, model, spec, BodyMode.BatchItem, _options, _time, assets).Write(w);
+                new MessagesBodyWriter(chat, model, spec, BodyMode.BatchItem, _options, _time, assets).Write(w);
                 w.WriteEndObject();
             }
 
@@ -368,20 +369,25 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
 
     // ---- shared steps ----
 
-    private (string Model, ModelSpec? Spec) ResolveModel(string name)
+    // The shared adjuster strips or refuses what the catalog says the model cannot take (once per request); the body writer then applies the
+    // Anthropic-specific rules (API version, thinking shapes, cache limits) and adds its own notices.
+    private (ChatRequest Request, string Model, ModelSpec? Spec) Adjust(ChatRequest request, List<ResponseWarning>? warnings)
     {
         ModelCatalog catalog = _options.Catalog ?? AnthropicCatalog.Default;
-        if (catalog.TryResolve(name, out ResolvedModel? resolved) && resolved is not null && resolved.Provider.Name == ProviderName)
+        if (catalog.TryResolve(request.Model, out ResolvedModel? resolved) && resolved is not null && resolved.Provider.Name == ProviderName)
         {
-            return (resolved.Name, resolved.Model);
+            AdjustedRequest adjusted = RequestAdjuster.Adjust(resolved, request);
+            warnings?.AddRange(adjusted.Warnings);
+            return (adjusted.Request, resolved.Name, resolved.Model);
         }
 
-        return (name, null);
+        return (request, request.Model, null);
     }
 
-    private async Task<(ReadOnlyMemory<byte> Body, string Model)> BuildChatBodyAsync(ChatRequest request, BodyMode mode, CancellationToken cancellationToken, List<string>? warnings = null)
+    private async Task<(ReadOnlyMemory<byte> Body, string Model)> BuildChatBodyAsync(ChatRequest request, BodyMode mode, CancellationToken cancellationToken, List<ResponseWarning>? warnings = null)
     {
-        (string model, ModelSpec? spec) = ResolveModel(request.Model);
+        (ChatRequest adjusted, string model, ModelSpec? spec) = Adjust(request, warnings);
+        request = adjusted;
         IReadOnlyDictionary<AssetRef, ReadOnlyMemory<byte>> assets = await ResolveAssetsAsync(request.Messages, cancellationToken).ConfigureAwait(false);
         var buffer = new ArrayBufferWriter<byte>(4096);
         using (var w = new Utf8JsonWriter(buffer, AnthropicJson.WriterOptions))
@@ -459,7 +465,7 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
     private static string? RequestIdOf(HttpResponseMessage response) =>
         response.Headers.TryGetValues("request-id", out IEnumerable<string>? ids) ? ids.FirstOrDefault() : null;
 
-    private ChatResponse ToChatResponse(JsonObject message, string? requestId, IReadOnlyList<string>? warnings = null)
+    private ChatResponse ToChatResponse(JsonObject message, string? requestId, IReadOnlyList<ResponseWarning>? warnings = null)
     {
         var decoder = new MessageDecoder(_http.Scrub) { RequestId = requestId };
         decoder.DecodeMessage(message);

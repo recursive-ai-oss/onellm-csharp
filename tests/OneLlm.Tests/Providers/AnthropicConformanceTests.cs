@@ -33,6 +33,25 @@ public class AnthropicConformanceTests
     }
 
     [Fact]
+    public async Task Settings_the_model_cannot_take_are_stripped_once_and_reported_on_the_response()
+    {
+        (AnthropicProvider p, var h) = Open("chat/basic");
+        ChatResponse r = await p.SendAsync(Hi() with { System = "You are terse.", Temperature = 0.3, TopP = 0.9 });
+        h.AssertAllUsed();
+        ResponseWarning w = Assert.Single(r.Warnings);
+        Assert.Equal("parameter_stripped", w.Code);
+        Assert.Contains("temperature", w.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_setting_that_would_change_the_meaning_is_refused_before_anything_is_sent()
+    {
+        (AnthropicProvider p, var h) = Open("chat/basic");
+        await Assert.ThrowsAsync<OneLlm.Catalog.UnsupportedParameterException>(() => p.SendAsync(Hi() with { ServiceTier = "no-such-tier" }));
+        Assert.Empty(h.Requests);
+    }
+
+    [Fact]
     public async Task Chat_stop_sequence_and_max_tokens()
     {
         (AnthropicProvider p, var h) = Open("chat/stop-sequence-max-tokens");

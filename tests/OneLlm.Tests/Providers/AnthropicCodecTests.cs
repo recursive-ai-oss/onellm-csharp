@@ -231,7 +231,7 @@ public class AnthropicCodecTests
 
     // ---- request body writer ----
 
-    private static JsonObject Body(ChatRequest request, out List<string> warnings, AnthropicOptions? options = null, BodyMode mode = BodyMode.Message, ModelCatalog? catalog = null)
+    private static JsonObject Body(ChatRequest request, out List<ResponseWarning> warnings, AnthropicOptions? options = null, BodyMode mode = BodyMode.Message, ModelCatalog? catalog = null)
     {
         ResolvedModel resolved = (catalog ?? AnthropicCatalog.Default).Resolve(request.Model);
         warnings = [];
@@ -264,24 +264,24 @@ public class AnthropicCodecTests
     [Fact]
     public void Sampling_parameters_are_dropped_from_the_current_api_version_and_say_so()
     {
-        JsonObject body = Body(Hi() with { Temperature = 0.2, TopP = 0.9 }, out List<string> warnings);
+        JsonObject body = Body(Hi() with { Temperature = 0.2, TopP = 0.9 }, out List<ResponseWarning> warnings);
         Assert.False(body.ContainsKey("temperature"));
         Assert.False(body.ContainsKey("top_p"));
         Assert.Equal(2, warnings.Count);
-        Assert.All(warnings, w => Assert.DoesNotContain("Say hello", w, StringComparison.Ordinal));
+        Assert.All(warnings, w => Assert.DoesNotContain("Say hello", w.Message, StringComparison.Ordinal));
     }
 
     [Fact]
     public void Sampling_parameters_are_sent_on_the_old_version_when_the_model_takes_them()
     {
         var old = new AnthropicOptions { ApiVersion = "2023-06-01" };
-        JsonObject kept = Body(Hi() with { Model = "claude-sonnet-4-5", Temperature = 0.25, TopP = 0.5 }, out List<string> none, old);
+        JsonObject kept = Body(Hi() with { Model = "claude-sonnet-4-5", Temperature = 0.25, TopP = 0.5 }, out List<ResponseWarning> none, old);
         Assert.Equal(0.25, kept["temperature"]!.GetValue<double>());
         Assert.Equal(0.5, kept["top_p"]!.GetValue<double>());
         Assert.Empty(none);
 
         // A model that does not take sampling at all still drops it, whatever the version.
-        JsonObject dropped = Body(Hi() with { Temperature = 0.25 }, out List<string> warnings, old);
+        JsonObject dropped = Body(Hi() with { Temperature = 0.25 }, out List<ResponseWarning> warnings, old);
         Assert.False(dropped.ContainsKey("temperature"));
         Assert.Single(warnings);
     }
@@ -310,7 +310,7 @@ public class AnthropicCodecTests
     [Fact]
     public void An_unknown_service_tier_is_dropped_with_a_warning()
     {
-        JsonObject body = Body(Hi() with { ServiceTier = "flex" }, out List<string> warnings);
+        JsonObject body = Body(Hi() with { ServiceTier = "flex" }, out List<ResponseWarning> warnings);
         Assert.False(body.ContainsKey("service_tier"));
         Assert.Single(warnings);
     }
@@ -326,7 +326,7 @@ public class AnthropicCodecTests
     [Fact]
     public void An_adaptive_model_drops_a_token_budget_and_says_so()
     {
-        JsonObject body = Body(Hi() with { Reasoning = new ReasoningOptions { BudgetTokens = 4000 } }, out List<string> warnings);
+        JsonObject body = Body(Hi() with { Reasoning = new ReasoningOptions { BudgetTokens = 4000 } }, out List<ResponseWarning> warnings);
         Assert.Equal("adaptive", body["thinking"]!["type"]!.GetValue<string>());
         Assert.Single(warnings);
     }
@@ -337,17 +337,17 @@ public class AnthropicCodecTests
         ChatRequest r = new() { Model = "claude-sonnet-4-5", Messages = [Message.FromUser("hi")], MaxOutputTokens = 4096 };
         Assert.Equal(2048, Body(r with { Reasoning = new ReasoningOptions { BudgetTokens = 2048 } })["thinking"]!["budget_tokens"]!.GetValue<int>());
 
-        JsonObject low = Body(r with { Reasoning = new ReasoningOptions { BudgetTokens = 100 } }, out List<string> w1);
+        JsonObject low = Body(r with { Reasoning = new ReasoningOptions { BudgetTokens = 100 } }, out List<ResponseWarning> w1);
         Assert.Equal(1024, low["thinking"]!["budget_tokens"]!.GetValue<int>());
         Assert.Single(w1);
 
         // The budget must stay below max_tokens.
-        JsonObject high = Body(r with { Reasoning = new ReasoningOptions { BudgetTokens = 9000 }, MaxOutputTokens = 3000 }, out List<string> w2);
+        JsonObject high = Body(r with { Reasoning = new ReasoningOptions { BudgetTokens = 9000 }, MaxOutputTokens = 3000 }, out List<ResponseWarning> w2);
         Assert.Equal(2999, high["thinking"]!["budget_tokens"]!.GetValue<int>());
         Assert.Single(w2);
 
         // No room for the smallest budget: thinking is dropped, not sent invalid.
-        JsonObject none = Body(r with { Reasoning = new ReasoningOptions { BudgetTokens = 2048 }, MaxOutputTokens = 1000 }, out List<string> w3);
+        JsonObject none = Body(r with { Reasoning = new ReasoningOptions { BudgetTokens = 2048 }, MaxOutputTokens = 1000 }, out List<ResponseWarning> w3);
         Assert.False(none.ContainsKey("thinking"));
         Assert.Single(w3);
     }
@@ -356,7 +356,7 @@ public class AnthropicCodecTests
     public void An_effort_on_a_budget_model_picks_the_catalog_budget_and_drops_the_effort_member()
     {
         ChatRequest r = new() { Model = "claude-sonnet-4-5", Messages = [Message.FromUser("hi")], MaxOutputTokens = 32000, Reasoning = new ReasoningOptions { Effort = "medium" } };
-        JsonObject body = Body(r, out List<string> warnings);
+        JsonObject body = Body(r, out List<ResponseWarning> warnings);
         Assert.Equal(8192, body["thinking"]!["budget_tokens"]!.GetValue<int>());
         Assert.False(body.ContainsKey("output_config"));
         Assert.Single(warnings);
@@ -373,7 +373,7 @@ public class AnthropicCodecTests
                 maxOutputTokens: 8000
             """);
         ModelCatalog catalog = ModelCatalog.Create([AnthropicCatalog.Shipped, user]);
-        JsonObject body = Body(Hi() with { Model = "claude-plain-1", Reasoning = new ReasoningOptions { Effort = "high" } }, out List<string> warnings, catalog: catalog);
+        JsonObject body = Body(Hi() with { Model = "claude-plain-1", Reasoning = new ReasoningOptions { Effort = "high" } }, out List<ResponseWarning> warnings, catalog: catalog);
         Assert.False(body.ContainsKey("thinking"));
         Assert.False(body.ContainsKey("output_config"));
         Assert.NotEmpty(warnings);
@@ -402,7 +402,7 @@ public class AnthropicCodecTests
         Message[] messages = [.. Enumerable.Range(0, 6).Select(i => new Message { User = [new TextPart("part " + i)], Cache = true })];
         // Alternate roles so the messages are not merged into one block run.
         Message[] mixed = [.. messages.SelectMany((m, i) => new[] { m, Message.FromAssistant("reply " + i) })];
-        JsonObject body = Body(new ChatRequest { Model = Model, Messages = mixed, MaxOutputTokens = 100 }, out List<string> warnings);
+        JsonObject body = Body(new ChatRequest { Model = Model, Messages = mixed, MaxOutputTokens = 100 }, out List<ResponseWarning> warnings);
         string json = body.ToJsonString();
         Assert.Equal(4, json.Split("cache_control", StringSplitOptions.None).Length - 1);
         Assert.Single(warnings);
@@ -413,7 +413,7 @@ public class AnthropicCodecTests
     [Fact]
     public void Cache_marks_are_dropped_when_caching_is_switched_off()
     {
-        JsonObject body = Body(new ChatRequest { Model = Model, Messages = [new Message { User = [new TextPart("x")], Cache = true }], Cache = CachePolicy.Off, MaxOutputTokens = 10 }, out List<string> warnings);
+        JsonObject body = Body(new ChatRequest { Model = Model, Messages = [new Message { User = [new TextPart("x")], Cache = true }], Cache = CachePolicy.Off, MaxOutputTokens = 10 }, out List<ResponseWarning> warnings);
         Assert.DoesNotContain("cache_control", body.ToJsonString(), StringComparison.Ordinal);
         Assert.Single(warnings);
     }

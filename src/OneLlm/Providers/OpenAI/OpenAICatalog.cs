@@ -6,6 +6,17 @@ namespace OneLlm.Providers.OpenAI;
 /// <summary>The catalog entries shipped for the OpenAI provider and the OpenAI-compatible presets.</summary>
 public static class OpenAICatalog
 {
+    /// <summary>Registers the OpenAI and compatible-server catalog text with <see cref="CatalogLoader.RegisterShipped(string, Func{string})"/> so the default catalog loads it. Safe to call repeatedly.</summary>
+    public static void Register()
+    {
+        foreach (string file in Files)
+        {
+            CatalogLoader.RegisterShipped("openai/" + file, () => ReadResource(file));
+        }
+    }
+
+    private static readonly string[] Files = ["openai.llm-provider.yaml", "openai-compatible.llm-provider.yaml"];
+
     /// <summary>The shipped layer: every OpenAI model with its limits, capabilities and prices, and the compatible-server presets.</summary>
     /// <returns>A new layer named <see cref="CatalogLayer.Shipped"/>.</returns>
     public static CatalogLayer Shipped()

@@ -6,7 +6,7 @@ using OneLlm.Messages;
 namespace OneLlm.Providers.OpenAI;
 
 /// <summary>What the catalog says about the model of one request, and where dropped parameters are reported.</summary>
-internal sealed class RequestPolicy(string provider, ModelSpec? spec, List<string>? warnings)
+internal sealed class RequestPolicy(string provider, ModelSpec? spec, List<ResponseWarning>? warnings)
 {
     public string Provider { get; } = provider;
 
@@ -15,7 +15,7 @@ internal sealed class RequestPolicy(string provider, ModelSpec? spec, List<strin
     /// <summary>Temperature and top_p are dropped for models whose entry says they take none.</summary>
     public bool TakesSampling => Spec?.SupportsTemperature != false;
 
-    public void Dropped(string parameter, string reason) => warnings?.Add($"dropped {parameter}: {reason}");
+    public void Dropped(string parameter, string reason) => warnings?.Add(new ResponseWarning("parameter_stripped", $"{parameter}: {reason}", parameter));
 
     /// <summary>Refuses a parameter whose absence would change what the request means.</summary>
     public BadRequestException Refuse(string message) => new(Provider, message, null);

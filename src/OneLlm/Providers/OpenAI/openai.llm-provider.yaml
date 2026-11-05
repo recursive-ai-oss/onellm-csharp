@@ -48,6 +48,7 @@ models:
       cacheCreationPerMillion: 12.5
       asOf: "2026-11-05"
       source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
       items:
         - counter: cacheCreation12hInputTokens
           price: 25
@@ -104,6 +105,7 @@ models:
       cacheCreationPerMillion: 2.5
       asOf: "2026-11-05"
       source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
       items:
         - counter: cacheCreation12hInputTokens
           price: 5
@@ -159,6 +161,7 @@ models:
       cacheCreationPerMillion: 1.25
       asOf: "2026-11-05"
       source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
       items:
         - counter: cacheCreation12hInputTokens
           price: 2.5
@@ -214,6 +217,7 @@ models:
       cacheCreationPerMillion: 0.125
       asOf: "2026-11-05"
       source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
       items:
         - counter: cacheCreation12hInputTokens
           price: 0.25
@@ -269,6 +273,7 @@ models:
       cacheCreationPerMillion: 2.5
       asOf: "2026-11-05"
       source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
       items:
         - counter: cacheCreation12hInputTokens
           price: 5
@@ -321,6 +326,7 @@ models:
       cacheCreationPerMillion: 5
       asOf: "2026-11-05"
       source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
       items:
         - counter: cacheCreation12hInputTokens
           price: 10
@@ -373,6 +379,7 @@ models:
       cacheCreationPerMillion: 2.5
       asOf: "2026-11-05"
       source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
       items:
         - counter: cacheCreation12hInputTokens
           price: 5
@@ -425,6 +432,7 @@ models:
       cacheCreationPerMillion: 0.25
       asOf: "2026-11-05"
       source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
       items:
         - counter: cacheCreation12hInputTokens
           price: 0.5

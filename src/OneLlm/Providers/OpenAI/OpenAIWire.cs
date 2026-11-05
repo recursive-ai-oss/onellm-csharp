@@ -61,7 +61,7 @@ internal sealed class OpenAIWire
     public async Task<ChatResponse> SendAsync(ChatRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        var warnings = new List<string>();
+        var warnings = new List<ResponseWarning>();
         ReadOnlyMemory<byte> body = WriteChat(request, stream: false, warnings);
         using HttpResponseMessage response = await PostAsync(ChatPath, request.Model, body, stream: false, cancellationToken).ConfigureAwait(false);
         byte[] bytes = await Http.ReadBodyAsync(response, MaxBodyBytes, cancellationToken).ConfigureAwait(false);
@@ -182,8 +182,16 @@ internal sealed class OpenAIWire
             FinishReasonRaw = acc.FinishReasonRaw,
         };
 
-    public ReadOnlyMemory<byte> WriteChat(ChatRequest request, bool stream, List<string>? warnings = null)
+    public ReadOnlyMemory<byte> WriteChat(ChatRequest request, bool stream, List<ResponseWarning>? warnings = null)
     {
+        // One catalog pass per request: the adjuster strips what the model does not take and refuses what would change the request's meaning.
+        if (FindResolved(request.Model) is { } resolved)
+        {
+            AdjustedRequest adjusted = RequestAdjuster.Adjust(resolved, request);
+            request = adjusted.Request;
+            warnings?.AddRange(adjusted.Warnings);
+        }
+
         RequestPolicy policy = PolicyFor(request.Model, warnings);
         return Protocol == OpenAIProtocol.Responses
             ? ResponsesRequestWriter.Write(request, policy, _options.Store, stream, forCount: false)
@@ -197,10 +205,12 @@ internal sealed class OpenAIWire
 
     public string BatchEndpointPath(bool embeddings) => embeddings ? "/v1/embeddings" : Protocol == OpenAIProtocol.Responses ? "/v1/responses" : "/v1/chat/completions";
 
-    internal RequestPolicy PolicyFor(string model, List<string>? warnings = null) => new(Provider, FindSpec(model), warnings);
+    internal RequestPolicy PolicyFor(string model, List<ResponseWarning>? warnings = null) => new(Provider, FindSpec(model), warnings);
 
     // The catalog may know the model by a dated snapshot's family: "gpt-5.5-2026-04-23" falls back to "gpt-5.5".
-    private ModelSpec? FindSpec(string model)
+    private ModelSpec? FindSpec(string model) => FindResolved(model)?.Model;
+
+    private ResolvedModel? FindResolved(string model)
     {
         if (_catalog is null)
         {
@@ -208,13 +218,13 @@ internal sealed class OpenAIWire
         }
 
         string qualified = CatalogScope + ":";
-        if (_catalog.TryResolve(qualified + model, out ResolvedModel? resolved) && resolved!.Model is { } spec)
+        if (_catalog.TryResolve(qualified + model, out ResolvedModel? resolved) && resolved!.Model is not null)
         {
-            return spec;
+            return resolved;
         }
 
         string trimmed = StripSnapshot(model);
-        return trimmed != model && _catalog.TryResolve(qualified + trimmed, out resolved) ? resolved!.Model : null;
+        return trimmed != model && _catalog.TryResolve(qualified + trimmed, out resolved) && resolved!.Model is not null ? resolved : null;
     }
 
     internal static string StripSnapshot(string model)

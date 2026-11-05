@@ -11,7 +11,7 @@ public class OpenAIRequestTests
     private static OpenAIWire Wire(OpenAIProtocol protocol = OpenAIProtocol.Responses, bool store = false, ChatDialect? dialect = null, string scope = "openai") =>
         new("openai", scope, protocol, dialect ?? ChatDialect.OpenAI, OpenAIEndpoint.Direct(null), new OpenAIOptions { Catalog = OpenAIFx.Catalog, Store = store }, TimeProvider.System);
 
-    private static JsonObject Body(OpenAIWire wire, ChatRequest r, bool stream = false, List<string>? warnings = null) =>
+    private static JsonObject Body(OpenAIWire wire, ChatRequest r, bool stream = false, List<ResponseWarning>? warnings = null) =>
         (JsonObject)JsonNode.Parse(wire.WriteChat(r, stream, warnings).Span)!;
 
     private static ChatRequest Basic(string model = "gpt-6.1-terra") => new() { Model = model, Messages = [Message.FromUser("hi")] };
@@ -19,24 +19,24 @@ public class OpenAIRequestTests
     [Fact]
     public void Temperature_is_dropped_and_logged_for_a_model_that_takes_none_and_kept_for_one_that_does()
     {
-        var log = new List<string>();
+        var log = new List<ResponseWarning>();
         OpenAIWire wire = Wire();
         Assert.Null(Body(wire, Basic() with { Temperature = 0.3, TopP = 0.9 }, warnings: log)["temperature"]);
-        Assert.Equal(2, log.Count);
-        Assert.Contains("temperature", log[0], StringComparison.Ordinal);
+        Assert.Single(log);
+        Assert.Contains("temperature", log[0].Message, StringComparison.Ordinal);
         Assert.Equal(0.3, Body(wire, Basic("gpt-4.1") with { Temperature = 0.3 }, warnings: log)["temperature"]!.GetValue<double>());
-        Assert.Equal(2, log.Count);
+        Assert.Single(log);
     }
 
     [Fact]
     public void An_effort_the_model_does_not_take_is_refused_and_a_model_without_reasoning_drops_it()
     {
-        var log = new List<string>();
+        var log = new List<ResponseWarning>();
         OpenAIWire wire = Wire();
-        BadRequestException e = Assert.Throws<BadRequestException>(() => wire.WriteChat(Basic("gpt-6-astra") with { Reasoning = new ReasoningOptions { Effort = "none" } }, false));
+        OneLlm.Catalog.UnsupportedParameterException e = Assert.Throws<OneLlm.Catalog.UnsupportedParameterException>(() => wire.WriteChat(Basic("gpt-6-astra") with { Reasoning = new ReasoningOptions { Effort = "none" } }, false));
         Assert.Contains("low, medium, high, xhigh, max", e.Message, StringComparison.Ordinal);
         Assert.Null(Body(wire, Basic("gpt-4.1") with { Reasoning = new ReasoningOptions { Effort = "high" } }, warnings: log)["reasoning"]);
-        Assert.Contains(log, l => l.Contains("not a reasoning model", StringComparison.Ordinal));
+        Assert.Contains(log, l => l.Message.Contains("reason", StringComparison.Ordinal));
         Assert.Equal("high", Body(wire, Basic("gpt-6-astra") with { Reasoning = new ReasoningOptions { Effort = "high" } })["reasoning"]!["effort"]!.GetValue<string>());
     }
 
@@ -165,7 +165,7 @@ public class OpenAIRequestTests
     [Fact]
     public void Dated_snapshots_use_their_familys_rules()
     {
-        var log = new List<string>();
+        var log = new List<ResponseWarning>();
         Body(Wire(), Basic("gpt-5.5-2026-04-23") with { Temperature = 1 }, warnings: log);
         Assert.Single(log);
     }

@@ -340,7 +340,7 @@ public class OpenAIResponsesTests
     {
         using var fx = OpenAIFx.Open(Dir + "chat.json");
         ChatResponse r = await OpenAIFx.OpenAI(fx).SendAsync(Hello() with { Temperature = 0.5 });
-        Assert.Contains(r.Warnings, w => w.Contains("temperature", StringComparison.Ordinal));
+        Assert.Contains(r.Warnings, w => w.Parameter!.Contains("temperature", StringComparison.Ordinal));
     }
 
     [Fact]

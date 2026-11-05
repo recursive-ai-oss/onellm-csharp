@@ -47,13 +47,29 @@ public class CountBench
     public TokenCount Info_CoreEstimate() => _counter.Count(_request);
 }
 
-/// <summary>Loading the shipped model catalog (every provider's models and prices) from its embedded files.</summary>
+/// <summary>
+/// Building the model catalog from the shipped layers (their embedded files are parsed once per process and kept) and resolving one model
+/// name against it. The one-time parse is a start-up cost and is not repeated here.
+/// </summary>
 [MemoryDiagnoser]
 public class CatalogBench
 {
+    private string _model = "";
+
+    [GlobalSetup]
+    public void Setup()
+    {
+        OneLlm.Catalog.ModelCatalog c = OneLlm.Catalog.CatalogLoader.Load(null, null, _ => null);
+        var first = c.Providers[0];
+        _model = first.Name + ":" + first.Models![0].Name;
+    }
+
     [GlobalCleanup]
     public void Cleanup() => Peak.Record();
 
     [Benchmark, BenchmarkCategory("catalog")]
-    public OneLlm.Catalog.ModelCatalog Own_LoadShippedCatalog() => OneLlm.Catalog.CatalogLoader.Load(null, null, _ => null);
+    public OneLlm.Catalog.ModelCatalog Own_BuildCatalog() => OneLlm.Catalog.CatalogLoader.Load(null, null, _ => null);
+
+    [Benchmark, BenchmarkCategory("catalog")]
+    public OneLlm.Catalog.ResolvedModel Own_BuildAndResolve() => OneLlm.Catalog.CatalogLoader.Load(null, null, _ => null).Resolve(_model);
 }

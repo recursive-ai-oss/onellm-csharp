@@ -131,7 +131,8 @@ public static class Report
         }
 
         sb.Append("\n## Rows without a comparison\n\n| Benchmark | Parameters | Mean | Alloc | Peak MB |\n|---|---|---:|---:|---:|\n");
-        foreach (Row r in rows.Where(r => !r.Method.StartsWith("Ours_", StringComparison.Ordinal) && !r.Method.StartsWith("Ref_", StringComparison.Ordinal))
+        var comparedGroups = rows.Where(r => r.Method.StartsWith("Ours_", StringComparison.Ordinal)).Select(r => (r.Category, r.Parameters)).ToHashSet();
+        foreach (Row r in rows.Where(r => !r.Method.StartsWith("Ours_", StringComparison.Ordinal) && (!r.Method.StartsWith("Ref_", StringComparison.Ordinal) || !comparedGroups.Contains((r.Category, r.Parameters))))
                      .OrderBy(r => r.Type, StringComparer.Ordinal).ThenBy(r => r.Method, StringComparer.Ordinal).ThenBy(r => r.Parameters, StringComparer.Ordinal))
         {
             sb.Append("| ").Append(r.Type).Append('.').Append(r.Method).Append(" | ").Append(r.Parameters).Append(" | ").Append(Time(r.MeanNs))

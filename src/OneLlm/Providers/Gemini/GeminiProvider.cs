@@ -105,8 +105,15 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
     public async IAsyncEnumerable<StreamEvent> StreamAsync(ChatRequest request, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        (ChatRequest adjusted, GeminiRequestWriter writer) = Prepare(request, new List<ResponseWarning>());
+        var warnings = new List<ResponseWarning>();
+        (ChatRequest adjusted, GeminiRequestWriter writer) = Prepare(request, warnings);
         byte[] body = writer.GenerateContent(adjusted, SpecFor(request.Model));
+        // Notices about the request go out first, as events, since a stream has no response object to carry them.
+        foreach (ResponseWarning w in warnings)
+        {
+            yield return StreamEvent.Warning(w);
+        }
+
         using HttpResponseMessage response = await PostAsync(_endpoint.Model(request.Model, "streamGenerateContent", sse: true), body, cancellationToken).ConfigureAwait(false);
         using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         using var reader = new GeminiSseReader(stream);

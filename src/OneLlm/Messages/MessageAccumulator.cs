@@ -51,6 +51,8 @@ public sealed class MessageAccumulator
     private Usage? _usage;
     private Dictionary<string, object?>? _messageExtension;
 
+    private readonly List<Providers.ResponseWarning> _warnings = [];
+
     /// <summary>The provider's response id, once <see cref="StreamEventKind.MessageStart"/> was seen.</summary>
     public string? ResponseId { get; private set; }
 
@@ -62,6 +64,9 @@ public sealed class MessageAccumulator
 
     /// <summary>The provider's own word for the finish reason.</summary>
     public string? FinishReasonRaw { get; private set; }
+
+    /// <summary>The notices from <see cref="StreamEventKind.Warning"/> events, in arrival order.</summary>
+    public IReadOnlyList<Providers.ResponseWarning> Warnings => _warnings;
 
     /// <summary>True once a <see cref="StreamEventKind.Done"/> event was added.</summary>
     public bool IsDone { get; private set; }
@@ -139,6 +144,13 @@ public sealed class MessageAccumulator
                 if (e.Usage is { } u)
                 {
                     _usage = _usage is null ? u : _usage.MergeLater(u);
+                }
+
+                break;
+            case StreamEventKind.Warning:
+                if (e.Notice is { } notice)
+                {
+                    _warnings.Add(notice);
                 }
 
                 break;

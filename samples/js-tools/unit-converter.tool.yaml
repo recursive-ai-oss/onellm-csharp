@@ -1,0 +1,16 @@
+name: convert_units
+description: Converts a number between units of length (m, km, cm, mm, mi, yd, ft, in), mass (g, kg, mg, lb, oz) or temperature (c, f, k).
+inputSchema:
+  type: object
+  properties:
+    value:
+      type: number
+      description: The amount to convert.
+    from:
+      type: string
+      description: The unit the amount is in.
+    to:
+      type: string
+      description: The unit to convert to.
+  required: [value, from, to]
+  additionalProperties: false

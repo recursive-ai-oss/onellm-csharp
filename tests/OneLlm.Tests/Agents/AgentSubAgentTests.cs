@@ -167,6 +167,15 @@ public partial class AgentSubAgentTests
 
         ToolResult absolute = await Call(Path.Combine(outside, "secret.yaml"));
         Assert.True(absolute.IsError);
+
+        // The child started above keeps saving its instance in the background; let it finish before the
+        // environment deletes its directory.
+        string childId = ToolText(ok).Split("Instance Id: ", 2)[1].Split('\n', 2)[0].Trim();
+        AgentRun? child = await env.Rt.GetAgentAsync(childId);
+        if (child is not null)
+        {
+            await child.AwaitAsync();
+        }
     }
 
     [Fact]

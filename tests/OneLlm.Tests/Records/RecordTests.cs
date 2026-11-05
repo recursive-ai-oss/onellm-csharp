@@ -143,7 +143,7 @@ public class RecordTests : IDisposable
         {
             ShouldListenTo = s => s.Name == GenAiTelemetry.SourceName,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = activities.Add,
+            ActivityStopped = a => { if ((a.GetTagItem("gen_ai.request.model") as string) == "otel-probe-model") { lock (activities) { activities.Add(a); } } },
         };
         ActivitySource.AddActivityListener(activityListener);
 
@@ -157,25 +157,56 @@ public class RecordTests : IDisposable
                 l.EnableMeasurementEvents(inst);
             }
         };
+        // Other tests running in parallel use the same meter; keep only this test's model.
+        static bool Ours(ReadOnlySpan<KeyValuePair<string, object?>> tags)
+        {
+            foreach (KeyValuePair<string, object?> t in tags)
+            {
+                if (t.Key == "gen_ai.request.model")
+                {
+                    return (t.Value as string) == "otel-probe-model";
+                }
+            }
+
+            return false;
+        }
+
         meterListener.SetMeasurementEventCallback<long>((inst, v, tags, _) =>
         {
+            if (!Ours(tags))
+            {
+                return;
+            }
+
             foreach (KeyValuePair<string, object?> t in tags)
             {
                 if (t.Key == "gen_ai.token.type")
                 {
-                    tokens.Add((v, (string)t.Value!));
+                    lock (tokens)
+                    {
+                        tokens.Add((v, (string)t.Value!));
+                    }
                 }
             }
         });
-        meterListener.SetMeasurementEventCallback<double>((inst, v, tags, _) => durations.Add(v));
+        meterListener.SetMeasurementEventCallback<double>((inst, v, tags, _) =>
+        {
+            if (Ours(tags))
+            {
+                lock (durations)
+                {
+                    durations.Add(v);
+                }
+            }
+        });
         meterListener.Start();
 
         Cycle(usage);
         Activity a = Assert.Single(activities);
-        Assert.Equal("chat claude-x", a.DisplayName);
+        Assert.Equal("chat otel-probe-model", a.DisplayName);
         Assert.Equal("chat", a.GetTagItem("gen_ai.operation.name"));
         Assert.Equal("anthropic", a.GetTagItem("gen_ai.provider.name"));
-        Assert.Equal("claude-x", a.GetTagItem("gen_ai.request.model"));
+        Assert.Equal("otel-probe-model", a.GetTagItem("gen_ai.request.model"));
         Assert.Equal("m", a.GetTagItem("gen_ai.response.model"));
         Assert.Equal(105L, a.GetTagItem("gen_ai.usage.input_tokens"));
         Assert.Equal(20L, a.GetTagItem("gen_ai.usage.output_tokens"));
@@ -184,8 +215,8 @@ public class RecordTests : IDisposable
         Assert.Equal([(105L, "input"), (20L, "output")], tokens);
         Assert.Equal(0.25, Assert.Single(durations));
 
-        Activity? failing = GenAiTelemetry.StartOperation("chat", "anthropic", "claude-x");
-        GenAiTelemetry.Fail(failing, "chat", "anthropic", "claude-x", new RateLimitException("anthropic", "slow"), TimeSpan.FromSeconds(1));
+        Activity? failing = GenAiTelemetry.StartOperation("chat", "anthropic", "otel-probe-model");
+        GenAiTelemetry.Fail(failing, "chat", "anthropic", "otel-probe-model", new RateLimitException("anthropic", "slow"), TimeSpan.FromSeconds(1));
         failing?.Dispose();
         Assert.Equal(ActivityStatusCode.Error, activities[^1].Status);
         Assert.Contains("RateLimitException", (string)activities[^1].GetTagItem("error.type")!);
@@ -193,8 +224,8 @@ public class RecordTests : IDisposable
 
     private static void Cycle(Usage usage)
     {
-        Activity? a = GenAiTelemetry.StartOperation("chat", "anthropic", "claude-x");
-        GenAiTelemetry.Complete(a, "chat", "anthropic", "claude-x", usage, TimeSpan.FromMilliseconds(250), "stop");
+        Activity? a = GenAiTelemetry.StartOperation("chat", "anthropic", "otel-probe-model");
+        GenAiTelemetry.Complete(a, "chat", "anthropic", "otel-probe-model", usage, TimeSpan.FromMilliseconds(250), "stop");
         a?.Dispose();
     }
 }

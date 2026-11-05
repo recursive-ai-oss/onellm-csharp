@@ -429,12 +429,22 @@ internal sealed class Parser
             }
             else if (after.Kind == Tk.Comma)
             {
-                if (context == "range")
+                if (context == "range" && PeekAt(2).Kind == Tk.Variable)
+                {
+                    // "range $i, $x ..." where the second variable is not followed by := or =: only $i is declared and
+                    // the second variable starts the command (observed from the reference implementation).
+                    Next();
+                    Next();
+                    AddDecl(pipe, v);
+                }
+                else if (context == "range")
                 {
                     throw Fail(after.Pos, "range can only initialize variables");
                 }
-
-                throw Fail(after.Pos, $"too many declarations in {context}");
+                else
+                {
+                    throw Fail(after.Pos, $"too many declarations in {context}");
+                }
             }
         }
 

@@ -363,8 +363,9 @@ internal static class StandardFunctions
         return v is string or bool or long or double or byte ? v : Convert.ToString(v, CultureInfo.InvariantCulture);
     }
 
-    // RFC 3339: "Z" or a numeric offset with a colon, and an optional fraction (up to 7 digits).
-    private static readonly string[] Rfc3339Formats = { "yyyy-MM-dd'T'HH:mm:ssK", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK" };
+    // RFC 3339: "Z" or a numeric offset with a colon, and an optional fraction (up to 7 digits). Like the reference parser, a
+    // one-digit hour is accepted.
+    private static readonly string[] Rfc3339Formats = { "yyyy-MM-dd'T'H:mm:ssK", "yyyy-MM-dd'T'H:mm:ss.FFFFFFFK" };
 
     private static DateTimeOffset ToTime(object? v)
     {
@@ -375,7 +376,8 @@ internal static class StandardFunctions
                 return t;
             case long unix:
                 return DateTimeOffset.FromUnixTimeSeconds(unix);
-            case string s when s.Length > 6 && (s[^1] == 'Z' || s[^3] == ':') && DateTimeOffset.TryParseExact(s, Rfc3339Formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTimeOffset parsed):
+            // A fraction needs at least one digit after the point (Go rejects "23:59:59.Z").
+            case string s when s.Length > 6 && (s[^1] == 'Z' || (s[^6] is '+' or '-' && char.IsAsciiDigit(s[^5]) && char.IsAsciiDigit(s[^4]) && s[^3] == ':' && char.IsAsciiDigit(s[^2]) && char.IsAsciiDigit(s[^1]))) && !(s.Length > 20 && s[19] == '.' && !char.IsAsciiDigit(s[20])) && DateTimeOffset.TryParseExact(s, Rfc3339Formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTimeOffset parsed):
                 return parsed;
             default:
                 throw new TemplateFunctionException("date needs a time from now, an RFC 3339 string or Unix seconds");

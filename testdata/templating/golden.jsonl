@@ -175,3 +175,25 @@
 {"name":"index-of-call-result","t":"{{index (split \u0022,\u0022 .s) 1}}","data":{"s":"a,b,c"},"missingKey":"default","embeds":{},"ok":true,"out":"b"}
 {"name":"chained-pipes-many","t":"{{.s | trim | lower | replace \u0022 \u0022 \u0022_\u0022 | printf \u0022%s!\u0022 | upper}}","data":{"s":" Mixed Case "},"missingKey":"default","embeds":{},"ok":true,"out":" !"}
 {"name":"printf-bad-index-args","t":"{{printf \u0022%s\u0022 .nope}} {{printf \u0022%d\u0022 nil}} {{printf \u0022%v\u0022 nil}} {{printf \u0022%s %s\u0022 \u0022a\u0022}}","data":{},"missingKey":"default","embeds":{},"ok":true,"out":"%!s(\u003Cnil\u003E) %!d(\u003Cnil\u003E) \u003Cnil\u003E a %!s(MISSING)"}
+{"name":"nil-root-field","t":"[{{.s}}]","data":null,"missingKey":"default","embeds":{},"ok":true,"out":"[\u003Cno value\u003E]"}
+{"name":"nil-root-dot","t":"[{{.}}]","data":null,"missingKey":"default","embeds":{},"ok":true,"out":"[\u003Cno value\u003E]"}
+{"name":"nil-root-range","t":"{{range $:=.s}}x{{end}}","data":null,"missingKey":"default","embeds":{},"ok":true,"out":""}
+{"name":"range-else-var","t":"{{range $e := 0}}{{else}}[{{$e}}]{{end}}","data":{"l":[1,2]},"missingKey":"default","embeds":{},"ok":true,"out":"[0]"}
+{"name":"range-else-var2","t":"{{range $i, $e := .l}}{{else}}[{{$i}}|{{$e}}]{{end}}","data":{"l":[]},"missingKey":"default","embeds":{},"ok":true,"out":"[[]|[]]"}
+{"name":"range-else-dollar","t":"{{range $, $e := .l}}{{else}}[{{$}}]{{end}}","data":{"l":[]},"missingKey":"default","embeds":{},"ok":true,"out":"[[]]"}
+{"name":"range-dollar-body","t":"{{range $, $e := .l}}[{{$}}|{{$e}}]{{end}}","data":{"l":[5,6]},"missingKey":"default","embeds":{},"ok":true,"out":"[0|5][1|6]"}
+{"name":"range-elem-slice","t":"{{range $e := .i}}{{slice $.l $e}}{{end}}","data":{"l":[1,2,3],"i":[1]},"missingKey":"default","embeds":{},"ok":false,"stage":"exec"}
+{"name":"range-elem-index-dot","t":"{{range .i}}{{slice $.l .}}{{end}}","data":{"l":[1,2,3],"i":[1]},"missingKey":"default","embeds":{},"ok":false,"stage":"exec"}
+{"name":"range-elem-list","t":"{{range $e := (list 3)}}{{slice $.l $e}}{{end}}","data":{"l":[1,2,3]},"missingKey":"default","embeds":{},"ok":false,"stage":"exec"}
+{"name":"date-dot","t":"{{date \u00222006\u0022 \u00222020-12-31T23:59:59.\u002B5:30\u0022}}","data":{},"missingKey":"default","embeds":{},"ok":false,"stage":"exec"}
+{"name":"date-frac","t":"{{date \u00222006 05\u0022 \u00222020-12-31T23:59:59.5\u002B05:30\u0022}}","data":{},"missingKey":"default","embeds":{},"ok":true,"out":"2020 59"}
+{"name":"range-noassign","t":"{{range $i, $e (len .l)}}x{{end}}","data":{"l":[1]},"missingKey":"default","embeds":{},"ok":false,"stage":"parse"}
+{"name":"range-noassign2","t":"{{range $i, $e}}x{{end}}","data":{"l":[1]},"missingKey":"default","embeds":{},"ok":false,"stage":"parse"}
+{"name":"printf-byte","t":"{{printf \u0022%f\u0022 (index \u0022lo\u0022 1)}}","data":{},"missingKey":"default","embeds":{},"ok":true,"out":"%!f(uint8=111)"}
+{"name":"fuzz-range-comma-root","t":"{{range $,$}}x{{end}}|{{range $i,$ .l}}y{{end}}","data":{"l":[1,2]},"missingKey":"default","embeds":{},"ok":false,"stage":"exec"}
+{"name":"fuzz-range-comma-else","t":"{{range $,$e:=.l}}x{{else}}[{{$}}]{{end}}","data":{"l":[]},"missingKey":"default","embeds":{},"ok":true,"out":"[[]]"}
+{"name":"fuzz-printf-u-negative","t":"{{printf \u0022%U\u0022 -1}} {{printf \u0022%U\u0022 -2}} {{printf \u0022%U\u0022 65}}","data":{},"missingKey":"default","embeds":{},"ok":true,"out":"U\u002BFFFFFFFFFFFFFFFF U\u002BFFFFFFFFFFFFFFFE U\u002B0041"}
+{"name":"fuzz-printf-nested-nil-width","t":"{{printf \u0022%8f\u0022 .m}}|{{printf \u0022%8f\u0022 .l}}|{{printf \u0022%8v\u0022 .l}}","data":{"m":{"a":null},"l":[null,1]},"missingKey":"default","embeds":{},"ok":true,"out":"map[%!f(string=       a):\u003Cnil\u003E]|[\u003Cnil\u003E %!f(int=       1)]|[\u003Cnil\u003E        1]"}
+{"name":"fuzz-date-hour-and-offset","t":"{{date \u002215\u0022 \u00222024-03-05T4:07:09Z\u0022}}","data":{},"missingKey":"default","embeds":{},"ok":true,"out":"04"}
+{"name":"fuzz-date-offset-one-digit","t":"{{date \u002215\u0022 \u00221999-01-01T00:00:00-8:00\u0022}}","data":{},"missingKey":"default","embeds":{},"ok":false,"stage":"exec"}
+{"name":"fuzz-date-offset-colon","t":"{{date \u00222006-01-02 15:04\u0022 \u00221999-01-01T10:30:00\u002B05:30\u0022}}","data":{},"missingKey":"default","embeds":{},"ok":true,"out":"1999-01-01 10:30"}

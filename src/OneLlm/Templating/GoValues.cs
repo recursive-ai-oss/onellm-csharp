@@ -572,7 +572,12 @@ internal static class GoFmt
         switch (arg)
         {
             case null:
-                if (verb == 'v' || !top)
+                if (!top)
+                {
+                    // Observed: a nil inside a list or map is never padded, whatever the verb.
+                    sb.Append("<nil>");
+                }
+                else if (verb == 'v')
                 {
                     Pad(sb, "<nil>", spec);
                 }
@@ -762,10 +767,11 @@ internal static class GoFmt
                 Pad(sb, GoQuoteWriter.QuoteRune(v), spec);
                 return;
             case 'U':
-                Pad(sb, "U+" + mag.ToString("X4", CultureInfo.InvariantCulture), spec);
+                // Go formats the two's-complement bits of a negative number.
+                Pad(sb, "U+" + ((ulong)v).ToString("X4", CultureInfo.InvariantCulture), spec);
                 return;
             default:
-                BadVerb(sb, verbStr, typeName is null ? v : (byte)v, spec);
+                BadVerb(sb, verbStr, typeName is null ? (object)v : (byte)v, spec);
                 return;
         }
 

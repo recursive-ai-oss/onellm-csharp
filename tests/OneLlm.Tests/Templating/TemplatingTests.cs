@@ -170,12 +170,28 @@ public class TemplateBehaviourTests
         Assert.Throws<TemplateException>(() => Render("{{shout}}", null, null, parse));
         Assert.Throws<TemplateException>(() => Render("{{shout 1}}", null, null, parse));
         Assert.Throws<TemplateException>(() => Render("{{sum 1 \"x\"}}", null, null, parse));
-        Assert.Throws<TemplateException>(() => Render("{{half 3}}", null, null, parse));
+        Assert.Throws<TemplateException>(() => Render("{{half \"x\"}}", null, null, parse));
         TemplateException ex = Assert.Throws<TemplateException>(() => Render("{{boom \"x\"}}", null, null, parse));
         Assert.Contains("kaboom", ex.Message, StringComparison.Ordinal);
         // The shared standard registry stays as it was.
         Assert.Throws<TemplateException>(() => Template.Parse("{{shout \"x\"}}"));
         Assert.Throws<InvalidOperationException>(() => TemplateFunctions.Standard.Add("x", s => s));
+    }
+
+    // Differences from the reference that the smoke fuzz found and that are accepted (see docs/templating.md). Each pins
+    // what OneLLM does so a change is deliberate.
+    [Fact]
+    public void Accepted_differences_from_the_reference_are_pinned()
+    {
+        // Strings are UTF-16: a slice that cuts a multi-byte character becomes U+FFFD (3 bytes) where the reference keeps
+        // the 1 raw byte, so the lengths differ.
+        Assert.Equal("3", Render("""{{len (slice "é" 1)}}""", null));
+
+        // A slice of a slice cannot grow past its length (the reference allows up to the backing array's capacity).
+        Assert.Throws<TemplateException>(() => Render("{{slice (slice (list 1 2 3) 0 0) 0 2}}", null));
+
+        // Complex number constants are not supported.
+        Assert.Throws<TemplateException>(() => Render("{{with 1i}}{{end}}", null));
     }
 
     [Fact]

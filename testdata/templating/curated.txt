@@ -943,3 +943,107 @@ tmpl:
 data: {}
 tmpl:
 {{printf "%s" .nope}} {{printf "%d" nil}} {{printf "%v" nil}} {{printf "%s %s" "a"}}
+
+### nil-root-field
+data: null
+tmpl:
+[{{.s}}]
+
+### nil-root-dot
+data: null
+tmpl:
+[{{.}}]
+
+### nil-root-range
+data: null
+tmpl:
+{{range $:=.s}}x{{end}}
+
+### range-else-var
+data: {"l": [1,2]}
+tmpl:
+{{range $e := 0}}{{else}}[{{$e}}]{{end}}
+
+### range-else-var2
+data: {"l": []}
+tmpl:
+{{range $i, $e := .l}}{{else}}[{{$i}}|{{$e}}]{{end}}
+
+### range-else-dollar
+data: {"l": []}
+tmpl:
+{{range $, $e := .l}}{{else}}[{{$}}]{{end}}
+
+### range-dollar-body
+data: {"l": [5,6]}
+tmpl:
+{{range $, $e := .l}}[{{$}}|{{$e}}]{{end}}
+
+### range-elem-slice
+data: {"l": [1,2,3], "i": [1]}
+tmpl:
+{{range $e := .i}}{{slice $.l $e}}{{end}}
+
+### range-elem-index-dot
+data: {"l": [1,2,3], "i": [1]}
+tmpl:
+{{range .i}}{{slice $.l .}}{{end}}
+
+### range-elem-list
+data: {"l": [1,2,3]}
+tmpl:
+{{range $e := (list 3)}}{{slice $.l $e}}{{end}}
+
+### date-dot
+data: {}
+tmpl:
+{{date "2006" "2020-12-31T23:59:59.+5:30"}}
+
+### date-frac
+data: {}
+tmpl:
+{{date "2006 05" "2020-12-31T23:59:59.5+05:30"}}
+
+### range-noassign
+data: {"l": [1]}
+tmpl:
+{{range $i, $e (len .l)}}x{{end}}
+
+### range-noassign2
+data: {"l": [1]}
+tmpl:
+{{range $i, $e}}x{{end}}
+
+### printf-byte
+data: {}
+tmpl:
+{{printf "%f" (index "lo" 1)}}
+
+### fuzz-range-comma-root
+data: {"l": [1, 2]}
+tmpl:
+{{range $,$}}x{{end}}|{{range $i,$ .l}}y{{end}}
+### fuzz-range-comma-else
+data: {"l": []}
+tmpl:
+{{range $,$e:=.l}}x{{else}}[{{$}}]{{end}}
+### fuzz-printf-u-negative
+data: {}
+tmpl:
+{{printf "%U" -1}} {{printf "%U" -2}} {{printf "%U" 65}}
+### fuzz-printf-nested-nil-width
+data: {"m": {"a": null}, "l": [null, 1]}
+tmpl:
+{{printf "%8f" .m}}|{{printf "%8f" .l}}|{{printf "%8v" .l}}
+### fuzz-date-hour-and-offset
+data: {}
+tmpl:
+{{date "15" "2024-03-05T4:07:09Z"}}
+### fuzz-date-offset-one-digit
+data: {}
+tmpl:
+{{date "15" "1999-01-01T00:00:00-8:00"}}
+### fuzz-date-offset-colon
+data: {}
+tmpl:
+{{date "2006-01-02 15:04" "1999-01-01T10:30:00+05:30"}}

@@ -9,7 +9,7 @@ using OneYaml;
 //
 // This reads files in place and prints counts only: no prompt text, input value or file name is written anywhere.
 //
-//   TemplateParity <instances-dir> <results-file> [sample-size] [candidates] [seed] [reference-driver]
+//   TemplateParity <instances-dir> <results-file> [sample-size] [candidates] [seed] [reference-driver|-] [swarm-root]
 //
 // With a reference driver (the differential tool's Go program) every sampled template is also rendered by it with the same
 // scope, which checks the engine on real templates even where the stored text cannot be reproduced.
@@ -22,15 +22,18 @@ internal static partial class Program
 {
     private sealed record Candidate(
         string Path, DateTime Modified, string Template, string Rendered, object? Inputs, string? WorkingDirectory,
-        string? InvocationMode, string? CallerInstanceId, string Features, DateTimeOffset? StartedAt);
+        string? InvocationMode, string? CallerInstanceId, string Features, DateTimeOffset? StartedAt, string? AgentDefinition);
 
     private static GoRef? s_go;
+    private static string? s_swarmRoot;
+    private static int s_clockMatches;
+    private static readonly SortedDictionary<int, int> s_clockLag = new();
 
     private static int Main(string[] args)
     {
         if (args.Length < 2)
         {
-            Console.Error.WriteLine("usage: TemplateParity <instances-dir> <results-file> [sample-size] [candidates] [seed] [reference-driver]");
+            Console.Error.WriteLine("usage: TemplateParity <instances-dir> <results-file> [sample-size] [candidates] [seed] [reference-driver|-] [swarm-root]");
             return 2;
         }
 
@@ -39,7 +42,8 @@ internal static partial class Program
         int sampleSize = args.Length > 2 ? int.Parse(args[2], CultureInfo.InvariantCulture) : 300;
         int candidates = args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : 12000;
         int seed = args.Length > 4 ? int.Parse(args[4], CultureInfo.InvariantCulture) : 20261105;
-        s_go = args.Length > 5 ? new GoRef(args[5]) : null;
+        s_go = args.Length > 5 && args[5] != "-" ? new GoRef(args[5]) : null;
+        s_swarmRoot = args.Length > 6 ? args[6] : null;
 
         var report = new StringBuilder();
         void Line(string s)
@@ -95,7 +99,7 @@ internal static partial class Program
 
                 cands.Add(new Candidate(path, fi.LastWriteTimeUtc, tmpl, rendered, doc.GetValueOrDefault("inputs"),
                     doc.GetValueOrDefault("workingDirectory") as string, doc.GetValueOrDefault("invocationMode") as string,
-                    doc.GetValueOrDefault("callerInstanceId") as string, Features(tmpl), FirstMessageTime(doc)));
+                    doc.GetValueOrDefault("callerInstanceId") as string, Features(tmpl), FirstMessageTime(doc), doc.GetValueOrDefault("agentDefinition") as string));
             }
             catch (Exception)
             {
@@ -179,7 +183,7 @@ internal static partial class Program
 
             if (s_go is not null)
             {
-                string? g = s_go.Render(c.Template, BuildScope(c));
+                string? g = s_go.Render(c.Template, BuildScope(c, c.StartedAt));
                 if (string.Equals(ours, g, StringComparison.Ordinal))
                 {
                     goEqual++;
@@ -230,6 +234,7 @@ internal static partial class Program
         }
 
         Line("");
+        Line($"clock derived from the first message time (render happened this many seconds later) for {s_clockMatches} matches: " + string.Join(", ", s_clockLag.Select(kv => $"{kv.Key}s x{kv.Value}")));
         Line($"total: sampled {sample.Count}, matched {matched}, unrecoverable scope {unrecoverable}, missed {sample.Count - matched - unrecoverable}");
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(resultsPath))!);
@@ -278,9 +283,21 @@ internal static partial class Program
     [GeneratedRegex(@"\{\{-?\s*(if|range|with|define|template|block)\b")]
     private static partial Regex ControlRef();
 
-    // Scope the saved file does not record: clock, git state, process environment, host details, platform config.
-    [GeneratedRegex(@"\.(time|git|env|agentDefinition|swarm)\b|\.system\.(os|arch|hostname|username|homeDir|tempDir)\b")]
-    private static partial Regex UnrecordedScope();
+    // Scope the saved file does not record: git state, process environment, host details and the host's own configuration
+    // namespace (its template key comes from ONELLM_PARITY_CONFIG_KEY, so no deployment name is built into this tool).
+    private static readonly Regex s_unrecorded = new(
+        @"\.(git|env|agentDefinition|swarm" + (Environment.GetEnvironmentVariable("ONELLM_PARITY_CONFIG_KEY") is { Length: > 0 } k ? "|" + Regex.Escape(k) : "")
+        + @")\b|\.system\.(os|arch|hostname|username|homeDir|tempDir)\b",
+        RegexOptions.CultureInvariant);
+
+    private static Regex UnrecordedScope() => s_unrecorded;
+
+    // A reference to the clock; the part of it that needs the second (the others only need the date and zone).
+    [GeneratedRegex(@"\.time\b")]
+    private static partial Regex TimeRef();
+
+    [GeneratedRegex(@"\.time(\.now\b|\s*(\||\}\}|\)))")]
+    private static partial Regex TimeNowRef();
 
     private static DateTimeOffset? FirstMessageTime(Dictionary<string, object?> doc)
     {
@@ -296,9 +313,9 @@ internal static partial class Program
 
     // The scope as the runtime built it, as far as the file and this host allow: inputs, mode, working directory and caller
     // come from the file; the clock comes from the first message; host details and environment come from this machine.
-    private static Dictionary<string, object?> BuildScope(Candidate c)
+    private static Dictionary<string, object?> BuildScope(Candidate c, DateTimeOffset? at)
     {
-        DateTimeOffset now = c.StartedAt ?? DateTimeOffset.UnixEpoch;
+        DateTimeOffset now = at ?? DateTimeOffset.UnixEpoch;
         // Only a few harmless names: the process environment can hold credentials, and templates must not see those.
         var env = new Dictionary<string, object?>();
         foreach (string name in new[] { "HOME", "USER", "LANG", "SHELL", "PWD" })
@@ -325,31 +342,230 @@ internal static partial class Program
             {
                 ["now"] = now.ToString("yyyy-MM-dd'T'HH:mm:ssK", CultureInfo.InvariantCulture),
                 ["today"] = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-                ["timezone"] = "UTC",
+                ["timezone"] = ZoneName(now) ?? "UTC",
             },
             ["git"] = new Dictionary<string, object?> { ["isRepo"] = false, ["branch"] = "", ["root"] = "", ["remote"] = "" },
             ["env"] = env,
         };
     }
 
+    // The zone abbreviation the runtime would have printed, from the offset the first message recorded: the host's own zone
+    // (named as the platform's database names it) or UTC. Anything else cannot be derived.
+    private static string? ZoneName(DateTimeOffset t)
+    {
+        if (t.Offset == TimeSpan.Zero)
+        {
+            return "UTC";
+        }
+
+        TimeZoneInfo local = TimeZoneInfo.Local;
+        if (local.GetUtcOffset(t) != t.Offset)
+        {
+            return null;
+        }
+
+        string name = local.IsDaylightSavingTime(t) ? local.DaylightName : local.StandardName;
+        return name switch
+        {
+            "Central Standard Time" or "Central Daylight Time" or "Central Time" => local.IsDaylightSavingTime(t) ? "CDT" : "CST",
+            _ => null,
+        };
+    }
+
+    // Finds the markdown body stored for a swarm URI: <root>/<uri>/prompt.md without its front matter. Relative references
+    // are tried against the directory of the instance's agent definition URI.
+    private sealed class SwarmPromptSource(string root, string? agentDefinition) : IEmbedSource
+    {
+        public int Unresolved;
+        public int Resolved;
+        public DateTime NewestFile;
+        public bool UsesUnrecorded;
+
+        public EmbedContent? Resolve(string reference, string? referrerKey)
+        {
+            string uri = reference;
+            if (!uri.StartsWith('/'))
+            {
+                string? baseUri = agentDefinition is null ? null : agentDefinition[..Math.Max(0, agentDefinition.LastIndexOf('/'))];
+                if (string.IsNullOrEmpty(baseUri))
+                {
+                    Unresolved++;
+                    return null;
+                }
+
+                uri = baseUri + "/" + uri;
+            }
+
+            string full = Path.GetFullPath(Path.Combine(root, uri.TrimStart('/'), "prompt.md"));
+            string rootFull = Path.GetFullPath(root).TrimEnd('/') + "/";
+            if (!full.StartsWith(rootFull, StringComparison.Ordinal) || !File.Exists(full))
+            {
+                Unresolved++;
+                return null;
+            }
+
+            Resolved++;
+            DateTime mtime = File.GetLastWriteTimeUtc(full);
+            NewestFile = mtime > NewestFile ? mtime : NewestFile;
+            string body = StripFrontMatter(File.ReadAllText(full));
+            UsesUnrecorded |= UnrecordedScope().IsMatch(body);
+            return new EmbedContent("swarm:" + uri, body);
+        }
+
+        // A leading "---" line opens YAML front matter that ends at the next "---" line; the body is what follows.
+        private static string StripFrontMatter(string text)
+        {
+            if (!text.StartsWith("---", StringComparison.Ordinal))
+            {
+                return text;
+            }
+
+            int nl = text.IndexOf('\n', StringComparison.Ordinal);
+            if (nl < 0)
+            {
+                return text;
+            }
+
+            int pos = nl + 1;
+            while (pos < text.Length)
+            {
+                int end = text.IndexOf('\n', pos);
+                string line = (end < 0 ? text[pos..] : text[pos..end]).TrimEnd('\r');
+                if (line == "---")
+                {
+                    return end < 0 ? "" : text[(end + 1)..];
+                }
+
+                if (end < 0)
+                {
+                    break;
+                }
+
+                pos = end + 1;
+            }
+
+            return text;
+        }
+    }
+
     private static string Check(Candidate c, out long diffAt, out string? ours)
+    {
+        string cause = CheckCore(c, out diffAt, out ours);
+        if (cause != "match" && !cause.StartsWith("unrecoverable:", StringComparison.Ordinal) && c.Inputs is Dictionary<string, object?> inputs)
+        {
+            // A saved multi-line string input comes back with a trailing newline the caller may not have sent. Greedily drop
+            // that newline from the inputs whose removal moves the first difference later; if the render then matches, the
+            // stored input (not the engine) is what differs.
+            var trial = new Dictionary<string, object?>(inputs);
+            long at = diffAt;
+            bool progress = true;
+            while (progress)
+            {
+                progress = false;
+                foreach (string key in trial.Keys.ToArray())
+                {
+                    if (trial[key] is not string text || !text.EndsWith('\n'))
+                    {
+                        continue;
+                    }
+
+                    var next = new Dictionary<string, object?>(trial) { [key] = text[..^1] };
+                    string again = CheckCore(c with { Inputs = next }, out long nextAt, out _);
+                    if (again == "match")
+                    {
+                        return "unrecoverable: a stored string input has a trailing newline the original lacked";
+                    }
+
+                    if (nextAt > at)
+                    {
+                        trial = next;
+                        at = nextAt;
+                        progress = true;
+                    }
+                }
+            }
+        }
+
+        return cause;
+    }
+
+    private static string CheckCore(Candidate c, out long diffAt, out string? ours)
     {
         diffAt = -1;
         ours = null;
         bool unrecorded = UnrecordedScope().IsMatch(c.Template);
         bool embeds = EmbedRef().IsMatch(c.Template);
-
-        string got;
-        try
+        bool usesTime = TimeRef().IsMatch(c.Template);
+        if (usesTime && (c.StartedAt is null || ZoneName(c.StartedAt.Value) is null))
         {
-            got = Template.Render(c.Template, BuildScope(c));
-            ours = got;
+            unrecorded = true;
         }
-        catch (TemplateException ex)
+
+        // The file records no render time, but the first message is stamped just before the prompt is rendered (observed: seconds
+        // to minutes); search a window of seconds after it and count which offset matched.
+        int[] lags = usesTime && TimeNowRef().IsMatch(c.Template) ? Enumerable.Range(-10, 911).ToArray() : new[] { 0 };
+        DateTimeOffset? at0 = c.StartedAt is null ? null : new DateTimeOffset(c.StartedAt.Value.Ticks - c.StartedAt.Value.Ticks % TimeSpan.TicksPerSecond, c.StartedAt.Value.Offset);
+        SwarmPromptSource? src = embeds && s_swarmRoot is not null ? new SwarmPromptSource(s_swarmRoot, c.AgentDefinition) : null;
+        var render = new TemplateRenderOptions { EmbedSources = src is null ? null : new IEmbedSource[] { src } };
+
+        string got = "";
+        TemplateException? failure = null;
+        foreach (int lag in lags)
         {
-            if (embeds)
+            DateTimeOffset? now = at0?.AddSeconds(lag);
+            try
             {
-                return "unrecoverable: embed content is not available";
+                got = Template.Render(c.Template, BuildScope(c, now), null, render);
+                failure = null;
+            }
+            catch (TemplateException ex)
+            {
+                failure = ex;
+                got = "";
+                break;
+            }
+
+            if (lag == 0)
+            {
+                ours = got;
+            }
+
+            if (string.Equals(got, c.Rendered, StringComparison.Ordinal))
+            {
+                if (usesTime && lags.Length > 1)
+                {
+                    s_clockMatches++;
+                    s_clockLag[lag] = s_clockLag.GetValueOrDefault(lag) + 1;
+                }
+
+                return "match";
+            }
+
+            if (lags.Length > 1 && string.Equals(got.TrimEnd('\n'), c.Rendered.TrimEnd('\n'), StringComparison.Ordinal))
+            {
+                return "unrecoverable: stored text lost trailing newlines";
+            }
+        }
+
+        got = ours ?? got;
+        if (usesTime && c.StartedAt is not null && Environment.GetEnvironmentVariable("ONELLM_PARITY_SHAPE") == "1")
+        {
+            Match tm = Regex.Match(c.Rendered, @"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(Z|[-+]\d\d:\d\d)");
+            if (tm.Success && DateTimeOffset.TryParse(tm.Value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset st))
+            {
+                Console.WriteLine($"[clock] stored minus first message: {(long)(st - c.StartedAt.Value).TotalSeconds}s");
+            }
+            else
+            {
+                Console.WriteLine("[clock] no timestamp in stored text");
+            }
+        }
+
+        if (failure is not null)
+        {
+            if (embeds && (src is null || src.Unresolved > 0))
+            {
+                return "unrecoverable: embed target is not a stored prompt file on disk";
             }
 
             if (unrecorded)
@@ -357,24 +573,25 @@ internal static partial class Program
                 return "unrecoverable: needs scope the file does not record";
             }
 
-            string kind = Regex.Replace(ex.Detail, "\"[^\"]*\"", "\"..\"");
+            string kind = Regex.Replace(failure.Detail, "\"[^\"]*\"", "\"..\"");
             kind = Regex.Replace(kind, @"\d+", "N");
-            return $"{ex.Kind} error: {kind}";
-        }
-
-        if (string.Equals(got, c.Rendered, StringComparison.Ordinal))
-        {
-            return "match";
-        }
-
-        if (embeds)
-        {
-            return "unrecoverable: embed content is not available";
+            return $"{failure.Kind} error: {kind}";
         }
 
         if (unrecorded)
         {
             return "unrecoverable: needs scope the file does not record";
+        }
+
+        if (src is { UsesUnrecorded: true })
+        {
+            return "unrecoverable: needs scope the file does not record";
+        }
+
+        // The embedded files are read as they are now; one edited after the instance rendered cannot reproduce its prompt.
+        if (src is { Resolved: > 0 } && c.StartedAt is not null && src.NewestFile > c.StartedAt.Value.UtcDateTime)
+        {
+            return "unrecoverable: an embedded file was modified after the instance rendered";
         }
 
         // Text with no actions renders as itself, so a stored prompt that differs was not produced by rendering this template.
@@ -402,6 +619,10 @@ internal static partial class Program
         if (Environment.GetEnvironmentVariable("ONELLM_PARITY_SHAPE") == "1")
         {
             Console.WriteLine($"[shape] offset {i}: ours …{Shape(got, i)}… stored …{Shape(c.Rendered, i)}…");
+            if (Environment.GetEnvironmentVariable("ONELLM_PARITY_ACTIONS") == "1")
+            {
+                Console.WriteLine("[actions] " + string.Join(" ", Regex.Matches(c.Template, @"\{\{.*?\}\}", RegexOptions.Singleline).Select(m => Regex.Replace(m.Value, @"(?<![\w.])(\w{5,})", "w").Replace("\n", "↵")).Take(25)));
+            }
         }
 
         if (a.Length == b.Length)

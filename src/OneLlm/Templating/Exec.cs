@@ -12,6 +12,9 @@ internal sealed class Exec
     {
         public string Name;
         public object? Value;
+
+        // True for a range variable over a list or map: its value is still an interface value, which `slice` does not unwrap.
+        public bool Iface;
     }
 
     private const int MaxTemplateCallDepth = 100_000;
@@ -23,12 +26,15 @@ internal sealed class Exec
     private ParsedTemplate _tmpl;
     private List<Var> _vars = new();
     private int _callDepth;
+    private bool _dotIface;
     private Node? _callNode;
 
     public Exec(ParsedTemplate tmpl, object? root, StringBuilder sb, TemplateRenderOptions opts, List<string> embedStack)
     {
         _tmpl = tmpl;
-        _root = V.Norm(root);
+        // Nil data is no value at all in the reference: field access on it yields no value instead of failing.
+        object? normRoot = V.Norm(root);
+        _root = normRoot ?? V.Missing;
         _sb = sb;
         _opts = opts;
         _embedStack = embedStack;
@@ -114,7 +120,21 @@ internal sealed class Exec
             object? val = EvalPipeline(dot, b.Pipe);
             if (V.IsTrue(val))
             {
-                return WalkList(b.List, b.Kind == BranchKind.With ? val : dot);
+                if (b.Kind != BranchKind.With)
+                {
+                    return WalkList(b.List, dot);
+                }
+
+                bool savedIface = _dotIface;
+                _dotIface = false;
+                try
+                {
+                    return WalkList(b.List, val);
+                }
+                finally
+                {
+                    _dotIface = savedIface;
+                }
             }
 
             if (b.ElseList is not null)
@@ -138,7 +158,9 @@ internal sealed class Exec
         {
             foreach (VariableNode d in pipe.Decl)
             {
-                _vars.Add(new Var { Name = d.Name, Value = null });
+                // Until an iteration sets them, the variables hold the whole range operand (observed: an empty range's
+                // else branch sees it).
+                _vars.Add(new Var { Name = d.Name, Value = val });
             }
         }
         else
@@ -159,6 +181,7 @@ internal sealed class Exec
 
         bool any = false;
         Flow result = Flow.Normal;
+        bool ifaceElems = V.IsList(val) || V.IsMap(val);
 
         bool Iteration(object? key, object? elem)
         {
@@ -166,16 +189,27 @@ internal sealed class Exec
             any = true;
             if (pipe.Decl.Count == 1)
             {
-                SetRangeVar(pipe.Decl[0].Name, elem);
+                SetRangeVar(pipe.Decl[0].Name, elem, ifaceElems);
             }
             else if (pipe.Decl.Count == 2)
             {
-                SetRangeVar(pipe.Decl[0].Name, key);
-                SetRangeVar(pipe.Decl[1].Name, elem);
+                SetRangeVar(pipe.Decl[0].Name, key, false);
+                SetRangeVar(pipe.Decl[1].Name, elem, ifaceElems);
             }
 
             int inner = _vars.Count;
-            Flow f = WalkList(b.List, elem);
+            bool savedIface = _dotIface;
+            _dotIface = ifaceElems;
+            Flow f;
+            try
+            {
+                f = WalkList(b.List, elem);
+            }
+            finally
+            {
+                _dotIface = savedIface;
+            }
+
             _vars.RemoveRange(inner, _vars.Count - inner);
             return f != Flow.Break;
         }
@@ -232,10 +266,10 @@ internal sealed class Exec
         return result == Flow.Normal ? Flow.Normal : result;
     }
 
-    private void SetRangeVar(string name, object? value)
+    private void SetRangeVar(string name, object? value, bool iface)
     {
         int i = FindVar(name);
-        _vars[i] = new Var { Name = name, Value = value };
+        _vars[i] = new Var { Name = name, Value = value, Iface = iface };
     }
 
     private void WalkTemplate(TemplateCallNode tc, object? dot)
@@ -260,7 +294,9 @@ internal sealed class Exec
         // No pipeline means the called template starts with no value at all (not even nil), as in the reference.
         object? arg = tc.Pipe is null ? V.Missing : EvalPipeline(dot, tc.Pipe);
         List<Var> saved = _vars;
+        bool savedIface = _dotIface;
         _vars = new List<Var> { new() { Name = "$", Value = arg } };
+        _dotIface = false;
         _callDepth++;
         try
         {
@@ -270,6 +306,7 @@ internal sealed class Exec
         {
             _callDepth--;
             _vars = saved;
+            _dotIface = savedIface;
         }
     }
 
@@ -544,7 +581,7 @@ internal sealed class Exec
         {
             ArgKind kind = i < fixedCount ? fn.Parameters[i] : fn.Variadic!.Value;
             int nodeIndex = i + 1;
-            if (i > 0 && ReferenceEquals(fn, Builtins.SliceFunction) && nodeIndex < argNodes.Count && argNodes[nodeIndex] is FieldNode or ChainNode or VariableNode { Fields.Length: > 0 })
+            if (i > 0 && ReferenceEquals(fn, Builtins.SliceFunction) && nodeIndex < argNodes.Count && IsInterfaceValued(argNodes[nodeIndex]))
             {
                 // Observed from the reference implementation: slice does not unwrap an index that comes straight from a
                 // field of the data (it is still an interface value there), so it fails; index does unwrap.
@@ -555,6 +592,29 @@ internal sealed class Exec
         }
 
         return Invoke(fn, values, node);
+    }
+
+    // An argument expression whose value is still an interface value in the reference: a field of the data, a chain, a
+    // range variable over a list or map, or the dot inside such a range.
+    private bool IsInterfaceValued(Node n)
+    {
+        switch (n)
+        {
+            case FieldNode or ChainNode:
+                return true;
+            case VariableNode { Fields.Length: > 0 }:
+                return true;
+            case VariableNode v:
+            {
+                int i = FindVar(v.Name);
+                return i >= 0 && _vars[i].Iface;
+            }
+
+            case DotNode:
+                return _dotIface;
+            default:
+                return false;
+        }
     }
 
     private object? Invoke(TemplateFunction fn, object?[] args, Node node)

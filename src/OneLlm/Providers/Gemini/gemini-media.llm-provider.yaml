@@ -1,0 +1,161 @@
+# Gemini media models: image generation and text to speech through generateContent.
+# Prices: https://ai.google.dev/gemini-api/docs/pricing, Standard tier, paid, US dollars per million tokens, read on 2026-11-05.
+# Image models bill image output tokens at their own rate (outputImageTokens); the text and thinking output rate is outputPerMillion. Speech models bill
+# audio output tokens (outputAudioTokens, 25 tokens per second of audio). A price the page says will change on a date is noted in properties.scheduledPriceChange.
+name: gemini
+capabilities:
+  imageGeneration: true
+  textToSpeech: true
+models:
+  - name: gemini-nano-banana-2.1
+    displayName: Gemini Nano Banana 2.1
+    kind: image
+    pricing:
+      inputPerMillion: 1.5
+      outputPerMillion: 7.5
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+        - counter: outputImageTokens
+          price: 30
+          label: image output
+          asOf: "2026-11-05"
+          source: https://ai.google.dev/gemini-api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      maxImages: 8
+  - name: gemini-3.1-flash-image
+    displayName: Gemini 3.1 Flash Image (Nano Banana 2)
+    kind: image
+    pricing:
+      inputPerMillion: 0.5
+      outputPerMillion: 3
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+        - counter: outputImageTokens
+          price: 60
+          label: image output
+          asOf: "2026-11-05"
+          source: https://ai.google.dev/gemini-api/docs/pricing
+    properties:
+      maxImages: 8
+  - name: gemini-3.1-flash-lite-image
+    displayName: Gemini 3.1 Flash Lite Image (Nano Banana 2 Lite)
+    kind: image
+    pricing:
+      inputPerMillion: 0.25
+      outputPerMillion: 1.5
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+        - counter: outputImageTokens
+          price: 30
+          label: image output
+          asOf: "2026-11-05"
+          source: https://ai.google.dev/gemini-api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      maxImages: 8
+  - name: gemini-3-pro-image
+    displayName: Gemini 3 Pro Image (Nano Banana Pro)
+    kind: image
+    pricing:
+      inputPerMillion: 2
+      outputPerMillion: 12
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+        - counter: outputImageTokens
+          price: 120
+          label: image output
+          asOf: "2026-11-05"
+          source: https://ai.google.dev/gemini-api/docs/pricing
+    properties:
+      maxImages: 8
+  - name: gemini-3.8-flash-tts
+    displayName: Gemini 3.8 Flash TTS
+    kind: speech
+    pricing:
+      inputPerMillion: 0.5
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+        - counter: outputAudioTokens
+          price: 9
+          label: audio output
+          asOf: "2026-11-05"
+          source: https://ai.google.dev/gemini-api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      speechMetadata: true
+      scheduledPriceChange: "From 2027-01-01 input 1.00, output (audio) 18.00 per million tokens."
+  - name: gemini-3.8-flash-lite-tts
+    displayName: Gemini 3.8 Flash-Lite TTS
+    kind: speech
+    pricing:
+      inputPerMillion: 0.5
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+        - counter: outputAudioTokens
+          price: 6
+          label: audio output
+          asOf: "2026-11-05"
+          source: https://ai.google.dev/gemini-api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties:
+      speechMetadata: true
+      scheduledPriceChange: "From 2027-01-01 input 1.00, output (audio) 12.00 per million tokens."
+  - name: gemini-3.1-flash-tts-preview
+    displayName: Gemini 3.1 Flash TTS Preview
+    kind: speech
+    pricing:
+      inputPerMillion: 1
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+        - counter: outputAudioTokens
+          price: 20
+          label: audio output
+          asOf: "2026-11-05"
+          source: https://ai.google.dev/gemini-api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties: {}
+  - name: gemini-2.5-flash-preview-tts
+    displayName: Gemini 2.5 Flash Preview TTS
+    kind: speech
+    pricing:
+      inputPerMillion: 0.5
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+        - counter: outputAudioTokens
+          price: 10
+          label: audio output
+          asOf: "2026-11-05"
+          source: https://ai.google.dev/gemini-api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties: {}
+  - name: gemini-2.5-pro-preview-tts
+    displayName: Gemini 2.5 Pro Preview TTS
+    kind: speech
+    pricing:
+      inputPerMillion: 1
+      asOf: "2026-11-05"
+      source: https://ai.google.dev/gemini-api/docs/pricing
+      items:
+        - counter: outputAudioTokens
+          price: 20
+          label: audio output
+          asOf: "2026-11-05"
+          source: https://ai.google.dev/gemini-api/docs/pricing
+      multipliers:
+        batch: 0.5
+    properties: {}

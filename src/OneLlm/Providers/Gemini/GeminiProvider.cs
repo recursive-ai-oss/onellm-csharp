@@ -20,6 +20,7 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
 {
     private const int MaxResponseBytes = 256 * 1024 * 1024;
     private const string ResourceName = "OneLlm.Providers.Gemini.llm-provider.yaml";
+    private const string MediaResourceName = "OneLlm.Providers.Gemini.gemini-media.llm-provider.yaml";
 
     private readonly GeminiAuth _auth;
     private readonly GeminiEndpoint _endpoint;
@@ -27,9 +28,14 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
     private readonly ModelCatalog? _catalog;
     private readonly Action<string>? _dropped;
     private readonly GeminiRequestWriter _writer;
+    private readonly TimeProvider _time;
 
     // The shipped catalog entries join the registry the default catalog loads, once, the first time the provider is used.
-    static GeminiProvider() => CatalogLoader.RegisterShipped(typeof(GeminiProvider).Assembly, ResourceName);
+    static GeminiProvider()
+    {
+        CatalogLoader.RegisterShipped(typeof(GeminiProvider).Assembly, ResourceName);
+        CatalogLoader.RegisterShipped(typeof(GeminiProvider).Assembly, MediaResourceName);
+    }
 
     /// <summary>Creates the provider.</summary>
     /// <param name="options">The settings.</param>
@@ -39,6 +45,7 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
         _auth = options.Auth;
         _endpoint = options.Endpoint ?? new GeminiDirectEndpoint();
         _catalog = options.Catalog;
+        _time = options.Time;
         _dropped = options.OnParameterDropped;
         Name = options.Name;
         Deployment = options.Deployment;
@@ -79,10 +86,16 @@ public sealed partial class GeminiProvider : IChatProvider, IEmbeddingProvider, 
     /// <returns>The shipped layer.</returns>
     public static CatalogLayer GetCatalogLayer()
     {
-        using Stream stream = typeof(GeminiProvider).Assembly.GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException("The Gemini catalog is missing from the assembly.");
-        using var reader = new StreamReader(stream);
-        return CatalogLayer.FromYaml(CatalogLayer.Shipped, reader.ReadToEnd(), "gemini/llm-provider.yaml");
+        var providers = new List<ProviderSpec>();
+        foreach ((string resource, string source) in new[] { (ResourceName, "gemini/llm-provider.yaml"), (MediaResourceName, "gemini/gemini-media.llm-provider.yaml") })
+        {
+            using Stream stream = typeof(GeminiProvider).Assembly.GetManifestResourceStream(resource)
+                ?? throw new InvalidOperationException("The Gemini catalog is missing from the assembly.");
+            using var reader = new StreamReader(stream);
+            providers.AddRange(CatalogLayer.FromYaml(CatalogLayer.Shipped, reader.ReadToEnd(), source).Providers);
+        }
+
+        return new CatalogLayer(CatalogLayer.Shipped, providers);
     }
 
     // ---- chat ----

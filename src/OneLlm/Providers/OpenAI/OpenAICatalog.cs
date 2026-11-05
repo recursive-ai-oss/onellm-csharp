@@ -15,14 +15,14 @@ public static class OpenAICatalog
         }
     }
 
-    private static readonly string[] Files = ["openai.llm-provider.yaml", "openai-compatible.llm-provider.yaml"];
+    private static readonly string[] Files = ["openai.llm-provider.yaml", "openai-media.llm-provider.yaml", "openai-compatible.llm-provider.yaml"];
 
     /// <summary>The shipped layer: every OpenAI model with its limits, capabilities and prices, and the compatible-server presets.</summary>
     /// <returns>A new layer named <see cref="CatalogLayer.Shipped"/>.</returns>
     public static CatalogLayer Shipped()
     {
         var providers = new List<ProviderSpec>();
-        foreach (string file in new[] { "openai.llm-provider.yaml", "openai-compatible.llm-provider.yaml" })
+        foreach (string file in Files)
         {
             providers.AddRange(CatalogLayer.FromYaml(CatalogLayer.Shipped, ReadResource(file), file).Providers);
         }

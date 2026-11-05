@@ -14,7 +14,8 @@ public enum OpenAIApi
 
 /// <summary>
 /// The OpenAI API: chat (Responses by default, Chat Completions on request), streaming, function, custom and hosted tools, structured output,
-/// reasoning, prompt caching, input token counting, embeddings and the Batch API.
+/// reasoning, prompt caching, input token counting, embeddings and the Batch API, plus the media endpoints
+/// (images, speech, transcription and moderation).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -35,10 +36,11 @@ public enum OpenAIApi
 /// Clients are thread-safe.
 /// </para>
 /// </remarks>
-public sealed class OpenAIProvider : IChatProvider, IEmbeddingProvider, ITokenCountingProvider, IBatchProvider
+public sealed partial class OpenAIProvider : IChatProvider, IEmbeddingProvider, ITokenCountingProvider, IBatchProvider
 {
     private readonly OpenAIWire _wire;
     private readonly OpenAIBatches _batches;
+    private readonly OpenAIMedia _media;
 
     /// <summary>Creates a provider for the OpenAI API.</summary>
     /// <param name="options">Key, base URL, HTTP client and the other settings.</param>
@@ -58,6 +60,7 @@ public sealed class OpenAIProvider : IChatProvider, IEmbeddingProvider, ITokenCo
             options,
             time);
         _batches = new OpenAIBatches(_wire);
+        _media = new OpenAIMedia(_wire, options.Catalog, time);
     }
 
     /// <inheritdoc />

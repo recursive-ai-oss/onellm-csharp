@@ -218,7 +218,9 @@ public sealed class FileInstanceStore : IInstanceStore
 public sealed class MemoryInstanceStore : IInstanceStore
 {
     private readonly object _gate = new();
-    private readonly Dictionary<string, (string Text, DateTimeOffset Modified)> _items = [];
+    // A save keeps a snapshot (header text plus the immutable messages) and writes the YAML only when something reads it back; an instance that
+    // was loaded from text keeps that text so an unchanged file still comes back byte for byte.
+    private readonly Dictionary<string, (object Content, DateTimeOffset Modified)> _items = [];
     private readonly HashSet<string> _leases = [];
     private readonly TimeProvider _time;
 
@@ -229,13 +231,15 @@ public sealed class MemoryInstanceStore : IInstanceStore
         _time = timeProvider ?? TimeProvider.System;
     }
 
+    private static string TextOf(object content) => content as string ?? ((InstanceSnapshot)content).Text();
+
     /// <inheritdoc />
     public ValueTask<Instance?> LoadAsync(string instanceId, CancellationToken cancellationToken = default)
     {
         InstanceIds.Validate(instanceId);
         lock (_gate)
         {
-            return ValueTask.FromResult(_items.TryGetValue(instanceId, out var item) ? Instance.Parse(item.Text, instanceId) : null);
+            return ValueTask.FromResult(_items.TryGetValue(instanceId, out var item) ? Instance.Parse(TextOf(item.Content), instanceId) : null);
         }
     }
 
@@ -244,10 +248,10 @@ public sealed class MemoryInstanceStore : IInstanceStore
     {
         ArgumentNullException.ThrowIfNull(instance);
         InstanceIds.Validate(instance.InstanceId);
-        string text = instance.ToYaml();
+        object content = instance.OriginalText is not null ? instance.ToYaml() : InstanceWriter.Capture(instance);
         lock (_gate)
         {
-            _items[instance.InstanceId] = (text, _time.GetUtcNow());
+            _items[instance.InstanceId] = (content, _time.GetUtcNow());
         }
 
         return ValueTask.CompletedTask;
@@ -269,9 +273,9 @@ public sealed class MemoryInstanceStore : IInstanceStore
         List<InstanceSummary> all = [];
         lock (_gate)
         {
-            foreach ((string id, (string text, DateTimeOffset modified)) in _items)
+            foreach ((string id, (object content, DateTimeOffset modified)) in _items)
             {
-                Instance i = Instance.Parse(text, id);
+                Instance i = Instance.Parse(TextOf(content), id);
                 all.Add(new InstanceSummary(id, i.Name, i.State, i.Model, i.CallerInstanceId, modified));
             }
         }

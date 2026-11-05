@@ -378,7 +378,7 @@ internal sealed partial class LiveAgent
 
     private async Task<Message> InferAsync(CancellationToken token)
     {
-        ChatRequest request = Runtime.BuildChat(Instance, Setup.Model, Setup.Settings, null) with { Tools = Setup.ToolDefinitions };
+        ChatRequest request = Runtime.BuildChat(Instance, Setup.Model, Setup.Settings, null, Setup.ToolDefinitions);
         HookSet hooks = Setup.Hooks;
         if (hooks.Has(HookPoints.BeforeInference))
         {

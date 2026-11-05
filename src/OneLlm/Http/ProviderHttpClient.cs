@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
@@ -156,24 +157,51 @@ public sealed class ProviderHttpClient
             throw new MalformedResponseException(_provider, $"the response is larger than {maxBytes} bytes.", (int)response.StatusCode);
         }
 
-        using var buffer = new MemoryStream();
+        // Read straight into the result: sized by Content-Length when the server gave one (no copy at the end), grown by doubling when not.
         Stream source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         await using (source.ConfigureAwait(false))
         {
-            byte[] chunk = new byte[16 * 1024];
-            int read;
-            while ((read = await source.ReadAsync(chunk, cancellationToken).ConfigureAwait(false)) > 0)
+            byte[] result = new byte[response.Content.Headers.ContentLength is { } known and > 0 ? (int)known : 4096];
+            int count = 0;
+            while (true)
             {
-                if (buffer.Length + read > maxBytes)
+                if (count == result.Length)
+                {
+                    // Full: ask for one more byte to learn whether the body ends here.
+                    byte[] probe = ArrayPool<byte>.Shared.Rent(1);
+                    try
+                    {
+                        if (await source.ReadAsync(probe.AsMemory(0, 1), cancellationToken).ConfigureAwait(false) == 0)
+                        {
+                            break;
+                        }
+
+                        Array.Resize(ref result, (int)Math.Min((long)result.Length * 2, (long)maxBytes + 1));
+                        result[count++] = probe[0];
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(probe);
+                    }
+
+                    continue;
+                }
+
+                int read = await source.ReadAsync(result.AsMemory(count), cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                count += read;
+                if (count > maxBytes)
                 {
                     throw new MalformedResponseException(_provider, $"the response is larger than {maxBytes} bytes.", (int)response.StatusCode);
                 }
-
-                buffer.Write(chunk, 0, read);
             }
-        }
 
-        return buffer.ToArray();
+            return count == result.Length ? result : result[..count];
+        }
     }
 
     private static ProviderException DefaultMapper(in ProviderErrorContext context)

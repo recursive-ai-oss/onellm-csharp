@@ -258,6 +258,8 @@ public static class AskUser
     /// <summary>The value of the <c>type</c> field in the result.</summary>
     public const string ResultType = "ask_user";
 
+    private static readonly AskUserRequest None = new("", []);
+
     /// <summary>Reads the question out of a result made by the <c>ask_user</c> tool.</summary>
     /// <param name="result">A tool result.</param>
     /// <param name="request">The question, when the result is an ask_user result.</param>
@@ -275,7 +277,7 @@ public static class AskUser
             }
         }
 
-        request = new AskUserRequest("", []);
+        request = None;
         return false;
     }
 }

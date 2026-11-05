@@ -136,7 +136,8 @@ public static class CostCalculator
         }
 
         // Quantities: the four main counters, then every other counter the usage carries.
-        var quantities = new Dictionary<string, decimal>(StringComparer.Ordinal);
+        // Sized up front: growing a dictionary past its first few slots allocates twice per priced call.
+        var quantities = new Dictionary<string, decimal>(BaseCounters.Length + (usage.Counters?.Count ?? 0), StringComparer.Ordinal);
         foreach (string counter in BaseCounters)
         {
             quantities[counter] = usage.GetCounter(counter);
@@ -153,13 +154,31 @@ public static class CostCalculator
             }
         }
 
-        var rates = new Dictionary<string, Rate>(StringComparer.Ordinal);
-        foreach (string counter in quantities.Keys)
+        // A usage has a handful of counters, so the rates found are kept in two small arrays and looked up by scanning, which costs far less
+        // than a dictionary of these wide structs.
+        var rateCounters = new string[quantities.Count];
+        var rateValues = new Rate[quantities.Count];
+        int rateCount = 0;
+        foreach ((string counter, decimal amount) in quantities)
         {
-            if (quantities[counter] != 0m && FindRate(pricing, counter, ctx.Qualifiers, longContext) is { } rate)
+            if (amount != 0m && FindRate(pricing, counter, ctx.Qualifiers, longContext) is { } found)
             {
-                rates[counter] = rate;
+                rateCounters[rateCount] = counter;
+                rateValues[rateCount++] = found;
             }
+        }
+
+        int RateIndex(string counter)
+        {
+            for (int i = 0; i < rateCount; i++)
+            {
+                if (rateCounters[i] == counter)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         (string Child, string Parent)[] subsets = DefaultSubsets;
@@ -170,14 +189,15 @@ public static class CostCalculator
 
         foreach ((string child, string parent) in subsets)
         {
-            if (rates.ContainsKey(child) && quantities.TryGetValue(child, out decimal childQuantity) && quantities.TryGetValue(parent, out decimal parentQuantity))
+            if (RateIndex(child) >= 0 && quantities.TryGetValue(child, out decimal childQuantity) && quantities.TryGetValue(parent, out decimal parentQuantity))
             {
                 quantities[parent] = Math.Max(0m, parentQuantity - childQuantity);
             }
         }
 
         var lines = new List<CostLine>();
-        string[] order = [.. BaseCounters, .. quantities.Keys.Except(BaseCounters).Order(StringComparer.Ordinal)];
+        // Most usages carry only the four main counters; skip the sort of the others then.
+        string[] order = quantities.Count == BaseCounters.Length ? BaseCounters : [.. BaseCounters, .. quantities.Keys.Except(BaseCounters).Order(StringComparer.Ordinal)];
         foreach (string counter in order)
         {
             decimal quantity = quantities[counter];
@@ -186,7 +206,8 @@ public static class CostCalculator
                 continue;
             }
 
-            if (!rates.TryGetValue(counter, out Rate rate))
+            int rateAt = RateIndex(counter);
+            if (rateAt < 0)
             {
                 if (!Array.Exists(subsets, s => s.Child == counter))
                 {
@@ -196,6 +217,7 @@ public static class CostCalculator
                 continue;
             }
 
+            Rate rate = rateValues[rateAt];
             decimal multiplier = factor;
             string label = rate.Label ?? DefaultLabel(counter);
             if (longContext && rate.Flat)

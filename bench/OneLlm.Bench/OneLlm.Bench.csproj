@@ -4,7 +4,9 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>$(LibName).Bench</RootNamespace>
     <IsPackable>false</IsPackable>
-    <NoWarn>$(NoWarn);CA1812</NoWarn>
+    <!-- OPENAI001: the OpenAI SDK marks its Responses client as evaluation-only; this project opts in on purpose.
+         CA2007, CA1707, CA1822, CA1515, CA1861: benchmark code is a console program with underscore method names and instance methods BenchmarkDotNet requires. -->
+    <NoWarn>$(NoWarn);CA1812;OPENAI001;CA2007;CA1707;CA1822;CA1515;CA1861;CA1001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +19,15 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" />
+    <!-- Speed references, driven only through their documented public APIs. -->
+    <PackageReference Include="OpenAI" />
+    <PackageReference Include="Anthropic" />
+    <PackageReference Include="Google.GenAI" />
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
+    <PackageReference Include="Microsoft.Agents.AI" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" />
+    <PackageReference Include="Microsoft.ML.Tokenizers.Data.O200kBase" />
   </ItemGroup>
 
   <ItemGroup>

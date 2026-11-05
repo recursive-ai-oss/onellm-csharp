@@ -19,6 +19,7 @@ using OneLlm.Conformance;
 // streamed response is written chunk by chunk, with a flush after each, the way a provider streams.
 
 string? fixtures = null;
+bool synthetic = false;
 int port = 5099;
 for (int i = 0; i < args.Length; i++)
 {
@@ -26,19 +27,23 @@ for (int i = 0; i < args.Length; i++)
     {
         fixtures = args[++i];
     }
+    else if (args[i] == "--synthetic")
+    {
+        synthetic = true;
+    }
     else if (args[i] == "--port" && i + 1 < args.Length)
     {
         port = int.Parse(args[++i], System.Globalization.CultureInfo.InvariantCulture);
     }
 }
 
-if (fixtures is null)
+if (fixtures is null && !synthetic)
 {
-    await Console.Error.WriteLineAsync("usage: onellm-mockserver --fixtures <file-or-directory> [--port 5099]");
+    await Console.Error.WriteLineAsync("usage: onellm-mockserver (--fixtures <file-or-directory> | --synthetic) [--port 5099]");
     return 2;
 }
 
-string[] files = Directory.Exists(fixtures)
+string[] files = fixtures is null ? [] : Directory.Exists(fixtures)
     ? [.. Directory.EnumerateFiles(fixtures, "*.json", SearchOption.AllDirectories).Order(StringComparer.Ordinal)]
     : [fixtures];
 var exchanges = new List<RecordedExchange>();
@@ -54,6 +59,11 @@ WebApplication app = builder.Build();
 
 app.Run(async context =>
 {
+    if (synthetic && await SyntheticServer.TryHandleAsync(context))
+    {
+        return;
+    }
+
     string path = context.Request.Path + context.Request.QueryString;
     RecordedExchange? match = exchanges.FirstOrDefault(e =>
         string.Equals(e.Request.Method, context.Request.Method, StringComparison.OrdinalIgnoreCase) && e.Request.Path == path);

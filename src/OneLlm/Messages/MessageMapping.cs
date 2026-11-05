@@ -207,7 +207,7 @@ internal static class MessageMapping
 
         return new Message
         {
-            Id = w.Id,
+            Id = w.Id ?? "",
             User = w.User ?? [],
             Assistant = parts,
             ToolCalls = calls,
@@ -274,7 +274,7 @@ internal static class MessageMapping
 
         return new MessageWire
         {
-            Id = m.Id,
+            Id = m.Id.Length == 0 ? null : m.Id,
             User = m.User.Count == 0 ? null : [.. m.User],
             Assistant = assistantItems.Count == 0 ? null : assistantItems,
             ToolCalls = calls.Count == 0 ? null : [.. calls.Select(ToolCallToWire)],
@@ -326,7 +326,7 @@ internal static class MessageMapping
     private static ReasoningPart ReasoningFromWire(ReasoningWire r) =>
         new(r.Provider) { Display = r.Display, Data = r.Data, ExtensionData = r.ExtensionData };
 
-    private static ToolCall ToolCallFromWire(ToolCallWire t, int after) => new(t.Id, t.Tool)
+    private static ToolCall ToolCallFromWire(ToolCallWire t, int after) => new(t.Id ?? "", t.Tool)
     {
         Routine = t.Routine,
         Inputs = t.Inputs,
@@ -343,10 +343,10 @@ internal static class MessageMapping
 
     private static ToolCallWire ToolCallToWire(ToolCall t) => new()
     {
-        Id = t.Id,
+        Id = t.Id.Length == 0 ? null : t.Id,
         Tool = t.Tool,
         Routine = t.Routine,
-        Inputs = t.Inputs is { Count: 0 } ? null : t.Inputs,
+        Inputs = t.Inputs,
         Result = t.Result.Count == 0 ? null : [.. t.Result],
         IsError = t.IsError,
         Cost = t.Cost,

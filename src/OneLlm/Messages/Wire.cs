@@ -10,7 +10,7 @@ namespace OneLlm.Messages;
 /// <summary>A message as written to a file: the definition format's lists, plus the order index in extension keys.</summary>
 internal sealed class MessageWire
 {
-    public string Id { get; set; } = "";
+    public string? Id { get; set; }
 
     public List<Part>? User { get; set; }
 
@@ -45,7 +45,7 @@ internal sealed class MessageWire
 /// <summary>A tool call as written to a file.</summary>
 internal sealed class ToolCallWire
 {
-    public string Id { get; set; } = "";
+    public string? Id { get; set; }
 
     public string Tool { get; set; } = "";
 

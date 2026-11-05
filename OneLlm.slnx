@@ -32,5 +32,6 @@
     <Project Path="samples/OneLiteAotSmoke/OneLiteAotSmoke.csproj" />
     <Project Path="samples/AotSmoke.Extensions/AotSmoke.Extensions.csproj" />
     <Project Path="samples/HappyPath/HappyPath.csproj" />
+    <Project Path="samples/DocSnippets/DocSnippets.csproj" />
   </Folder>
 </Solution>

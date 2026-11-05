@@ -1,0 +1,245 @@
+{
+  "format": 1,
+  "description": "Two tool calls, then the turn that returns their results. Written from the reference (https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-4.1",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Weather and time in Paris?"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "get_weather",
+                "description": "Gets the weather for a city.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "city": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "city"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "get_time",
+                "description": "Gets the time in a zone.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "zone": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "zone"
+                  ]
+                }
+              }
+            }
+          ],
+          "tool_choice": "required"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "chatcmpl-syn2",
+          "object": "chat.completion",
+          "created": 1741476777,
+          "model": "gpt-4.1-2025-04-14",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": null,
+                "refusal": null,
+                "tool_calls": [
+                  {
+                    "id": "call_a1",
+                    "type": "function",
+                    "function": {
+                      "name": "get_weather",
+                      "arguments": "{\"city\":\"Paris\"}"
+                    }
+                  },
+                  {
+                    "id": "call_b2",
+                    "type": "function",
+                    "function": {
+                      "name": "get_time",
+                      "arguments": "{\"zone\":\"Europe/Paris\"}"
+                    }
+                  }
+                ]
+              },
+              "finish_reason": "tool_calls"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 80,
+            "completion_tokens": 30,
+            "total_tokens": 110,
+            "prompt_tokens_details": {
+              "cached_tokens": 0,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-4.1",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Weather and time in Paris?"
+            },
+            {
+              "role": "assistant",
+              "content": null,
+              "tool_calls": [
+                {
+                  "id": "call_a1",
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"city\":\"Paris\"}"
+                  }
+                },
+                {
+                  "id": "call_b2",
+                  "type": "function",
+                  "function": {
+                    "name": "get_time",
+                    "arguments": "{\"zone\":\"Europe/Paris\"}"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "call_a1",
+              "content": "Sunny, 21C"
+            },
+            {
+              "role": "tool",
+              "tool_call_id": "call_b2",
+              "content": "14:05"
+            }
+          ],
+          "tools": [
+            {
+              "type": "function",
+              "function": {
+                "name": "get_weather",
+                "description": "Gets the weather for a city.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "city": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "city"
+                  ]
+                }
+              }
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "get_time",
+                "description": "Gets the time in a zone.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "zone": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "zone"
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "chatcmpl-syn3",
+          "object": "chat.completion",
+          "created": 1741476777,
+          "model": "gpt-4.1-2025-04-14",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "It is sunny and 14:05 in Paris.",
+                "refusal": null
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 130,
+            "completion_tokens": 12,
+            "total_tokens": 142,
+            "prompt_tokens_details": {
+              "cached_tokens": 64,
+              "audio_tokens": 0
+            },
+            "completion_tokens_details": {
+              "reasoning_tokens": 0,
+              "audio_tokens": 0,
+              "accepted_prediction_tokens": 0,
+              "rejected_prediction_tokens": 0
+            }
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

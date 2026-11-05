@@ -1,0 +1,195 @@
+{
+  "format": 1,
+  "description": "Submit a batch of two requests, poll it, read the JSON Lines results, cancel another batch. Written from the API reference (https://platform.claude.com/docs/en/api/messages/batches); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages/batches",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "requests": [
+            {
+              "custom_id": "first",
+              "params": {
+                "model": "claude-sonnet-5-5",
+                "max_tokens": 1024,
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Say hello."
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "custom_id": "second",
+              "params": {
+                "model": "claude-sonnet-5-5",
+                "max_tokens": 64,
+                "messages": [
+                  {
+                    "role": "user",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Say goodbye."
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msgbatch_013Zva2CMHLNnXjNJJKqJ2EF",
+          "type": "message_batch",
+          "processing_status": "in_progress",
+          "request_counts": {
+            "processing": 3,
+            "succeeded": 0,
+            "errored": 0,
+            "canceled": 0,
+            "expired": 0
+          },
+          "ended_at": null,
+          "created_at": "2026-11-05T12:00:00.100435Z",
+          "expires_at": "2026-11-06T12:00:00.100435Z",
+          "cancel_initiated_at": null,
+          "results_url": null,
+          "archived_at": null
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/messages/batches/msgbatch_013Zva2CMHLNnXjNJJKqJ2EF",
+        "headers": {
+          "anthropic-version": "2026-10-21"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msgbatch_013Zva2CMHLNnXjNJJKqJ2EF",
+          "type": "message_batch",
+          "processing_status": "in_progress",
+          "request_counts": {
+            "processing": 3,
+            "succeeded": 0,
+            "errored": 0,
+            "canceled": 0,
+            "expired": 0
+          },
+          "ended_at": null,
+          "created_at": "2026-11-05T12:00:00.100435Z",
+          "expires_at": "2026-11-06T12:00:00.100435Z",
+          "cancel_initiated_at": null,
+          "results_url": null,
+          "archived_at": null
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/messages/batches/msgbatch_013Zva2CMHLNnXjNJJKqJ2EF",
+        "headers": {
+          "anthropic-version": "2026-10-21"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msgbatch_013Zva2CMHLNnXjNJJKqJ2EF",
+          "type": "message_batch",
+          "processing_status": "ended",
+          "request_counts": {
+            "processing": 0,
+            "succeeded": 1,
+            "errored": 1,
+            "canceled": 0,
+            "expired": 1
+          },
+          "ended_at": "2026-11-05T12:30:00.000000Z",
+          "created_at": "2026-11-05T12:00:00.100435Z",
+          "expires_at": "2026-11-06T12:00:00.100435Z",
+          "cancel_initiated_at": null,
+          "results_url": "https://api.anthropic.com/v1/messages/batches/msgbatch_013Zva2CMHLNnXjNJJKqJ2EF/results",
+          "archived_at": null
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/messages/batches/msgbatch_013Zva2CMHLNnXjNJJKqJ2EF/results",
+        "headers": {
+          "anthropic-version": "2026-10-21"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/x-jsonl"
+        },
+        "bodyText": "{\"custom_id\":\"first\",\"result\":{\"type\":\"succeeded\",\"message\":{\"id\":\"msg_01Aq9w938a90dw8q\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-5-5\",\"content\":[{\"type\":\"text\",\"text\":\"Hello!\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":14,\"output_tokens\":4,\"service_tier\":\"batch\"}}}}\n{\"custom_id\":\"second\",\"result\":{\"type\":\"errored\",\"error\":{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"messages.0: content must not be empty\"},\"request_id\":\"[scrubbed]\"}}}\n{\"custom_id\":\"third\",\"result\":{\"type\":\"expired\"}}\n{\"custom_id\":\"fourth\",\"result\":{\"type\":\"canceled\"}}\n"
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages/batches/msgbatch_013Zva2CMHLNnXjNJJKqJ2EF/cancel",
+        "headers": {
+          "anthropic-version": "2026-10-21"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msgbatch_013Zva2CMHLNnXjNJJKqJ2EF",
+          "type": "message_batch",
+          "processing_status": "canceling",
+          "request_counts": {
+            "processing": 3,
+            "succeeded": 0,
+            "errored": 0,
+            "canceled": 0,
+            "expired": 0
+          },
+          "ended_at": null,
+          "created_at": "2026-11-05T12:00:00.100435Z",
+          "expires_at": "2026-11-06T12:00:00.100435Z",
+          "cancel_initiated_at": "2026-11-05T12:05:00.000000Z",
+          "results_url": null,
+          "archived_at": null
+        }
+      }
+    }
+  ]
+}

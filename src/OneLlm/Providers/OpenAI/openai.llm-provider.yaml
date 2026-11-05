@@ -1,0 +1,1199 @@
+# OpenAI models and prices. Prices are US dollars per million tokens unless an item says otherwise.
+# Read from https://developers.openai.com/api/docs/pricing and the per-model pages under https://developers.openai.com/api/docs/models/ on 2026-11-05.
+name: openai
+displayName: OpenAI
+apiKeyEnvVar: OPENAI_API_KEY
+modelPatterns: ["gpt-*", "o3*", "chatgpt-*", "text-embedding-*"]
+aliases:
+  embedding-small: text-embedding-3-small
+  embedding-large: text-embedding-3-large
+capabilities:
+  streaming: true
+  promptCaching: true
+  imageInputs: true
+  imageToolResults: true
+  tools: true
+  structuredOutput: true
+  batch: true
+  embeddings: true
+  tokenCounting: true
+models:
+  - name: gpt-6-astra
+    displayName: GPT-6 Astra
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      acceptsBudget: false
+    properties:
+      maxInputTokens: 922000
+      promptCacheOptions: true
+      chatCompletionsTools: false
+    pricing:
+      inputPerMillion: 10
+      outputPerMillion: 50
+      cacheReadPerMillion: 1
+      cacheCreationPerMillion: 12.5
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
+      items:
+        - counter: cacheCreation12hInputTokens
+          price: 25
+          per: 1000000
+          label: 12h cache write
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5, cacheCreation12hInputTokens: 2 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-6.1-sol
+    displayName: GPT-6.1 Sol
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: medium
+      acceptsBudget: false
+    properties:
+      maxInputTokens: 922000
+      promptCacheOptions: true
+      chatCompletionsTools: false
+    pricing:
+      inputPerMillion: 2
+      outputPerMillion: 10
+      cacheReadPerMillion: 0.1
+      cacheCreationPerMillion: 2.5
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
+      items:
+        - counter: cacheCreation12hInputTokens
+          price: 5
+          per: 1000000
+          label: 12h cache write
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5, cacheCreation12hInputTokens: 2 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-6.1-terra
+    displayName: GPT-6.1 Terra
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      efforts: [none, low, medium, high, xhigh, max]
+      defaultEffort: medium
+      acceptsBudget: false
+    properties:
+      maxInputTokens: 922000
+      promptCacheOptions: true
+    pricing:
+      inputPerMillion: 1
+      outputPerMillion: 5
+      cacheReadPerMillion: 0.05
+      cacheCreationPerMillion: 1.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
+      items:
+        - counter: cacheCreation12hInputTokens
+          price: 2.5
+          per: 1000000
+          label: 12h cache write
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5, cacheCreation12hInputTokens: 2 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-6-luna
+    displayName: GPT-6 Luna
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      efforts: [none, low, medium, high, xhigh, max]
+      defaultEffort: medium
+      acceptsBudget: false
+    properties:
+      maxInputTokens: 922000
+      promptCacheOptions: true
+    pricing:
+      inputPerMillion: 0.1
+      outputPerMillion: 0.5
+      cacheReadPerMillion: 0.01
+      cacheCreationPerMillion: 0.125
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
+      items:
+        - counter: cacheCreation12hInputTokens
+          price: 0.25
+          per: 1000000
+          label: 12h cache write
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5, cacheCreation12hInputTokens: 2 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-6-sol
+    displayName: GPT-6 Sol
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      efforts: [none, low, medium, high, xhigh, max]
+      defaultEffort: medium
+      acceptsBudget: false
+    properties:
+      maxInputTokens: 922000
+      promptCacheOptions: true
+    pricing:
+      inputPerMillion: 2
+      outputPerMillion: 10
+      cacheReadPerMillion: 0.2
+      cacheCreationPerMillion: 2.5
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
+      items:
+        - counter: cacheCreation12hInputTokens
+          price: 5
+          per: 1000000
+          label: 12h cache write
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5, cacheCreation12hInputTokens: 2 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.6-sol
+    displayName: GPT-5.6 Sol
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      acceptsBudget: false
+    properties:
+      promptCacheOptions: true
+    pricing:
+      inputPerMillion: 4
+      outputPerMillion: 20
+      cacheReadPerMillion: 0.4
+      cacheCreationPerMillion: 5
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
+      items:
+        - counter: cacheCreation12hInputTokens
+          price: 10
+          per: 1000000
+          label: 12h cache write
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5, cacheCreation12hInputTokens: 2 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.6-terra
+    displayName: GPT-5.6 Terra
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      acceptsBudget: false
+    properties:
+      promptCacheOptions: true
+    pricing:
+      inputPerMillion: 2
+      outputPerMillion: 12
+      cacheReadPerMillion: 0.2
+      cacheCreationPerMillion: 2.5
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
+      items:
+        - counter: cacheCreation12hInputTokens
+          price: 5
+          per: 1000000
+          label: 12h cache write
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5, cacheCreation12hInputTokens: 2 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.6-luna
+    displayName: GPT-5.6 Luna
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      acceptsBudget: false
+    properties:
+      promptCacheOptions: true
+    pricing:
+      inputPerMillion: 0.2
+      outputPerMillion: 1.2
+      cacheReadPerMillion: 0.02
+      cacheCreationPerMillion: 0.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      subsetOf: { cacheCreation12hInputTokens: cacheCreationInputTokens, cacheCreation30mInputTokens: cacheCreationInputTokens }
+      items:
+        - counter: cacheCreation12hInputTokens
+          price: 0.5
+          per: 1000000
+          label: 12h cache write
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5, cacheCreation12hInputTokens: 2 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.5
+    displayName: GPT-5.5
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2.5
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 5
+      outputPerMillion: 30
+      cacheReadPerMillion: 0.5
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.5-pro
+    displayName: GPT-5.5 Pro
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: false
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 30
+      outputPerMillion: 180
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.4
+    displayName: GPT-5.4
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 2.5
+      outputPerMillion: 15
+      cacheReadPerMillion: 0.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.4-pro
+    displayName: GPT-5.4 Pro
+    kind: chat
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: false
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 30
+      outputPerMillion: 180
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      tiers:
+        - above: 272000
+          multipliers: { inputTokens: 2, cacheReadInputTokens: 2, cacheCreationInputTokens: 2, outputTokens: 1.5 }
+          label: long context
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.4-mini
+    displayName: GPT-5.4 Mini
+    kind: chat
+    contextWindow: 400000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      acceptsBudget: false
+    properties:
+      maxInputTokens: 272000
+    pricing:
+      inputPerMillion: 0.75
+      outputPerMillion: 4.5
+      cacheReadPerMillion: 0.075
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.4-nano
+    displayName: GPT-5.4 Nano
+    kind: chat
+    contextWindow: 400000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0.2
+      outputPerMillion: 1.25
+      cacheReadPerMillion: 0.02
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.2
+    displayName: GPT-5.2
+    kind: chat
+    contextWindow: 400000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 1.75
+      outputPerMillion: 14
+      cacheReadPerMillion: 0.175
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.2-pro
+    displayName: GPT-5.2 Pro
+    kind: chat
+    contextWindow: 400000
+    maxOutputTokens: 128000
+    supportsCaching: false
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 21
+      outputPerMillion: 168
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-5.1
+    displayName: GPT-5.1
+    kind: chat
+    contextWindow: 400000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 1.25
+      outputPerMillion: 10
+      cacheReadPerMillion: 0.125
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-5
+    displayName: GPT-5
+    kind: chat
+    contextWindow: 400000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 2
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 1.25
+      outputPerMillion: 10
+      cacheReadPerMillion: 0.125
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-5-mini
+    displayName: GPT-5 mini
+    kind: chat
+    contextWindow: 400000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 1.8
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0.25
+      outputPerMillion: 2
+      cacheReadPerMillion: 0.025
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-5-nano
+    displayName: GPT-5 nano
+    kind: chat
+    contextWindow: 400000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0.05
+      outputPerMillion: 0.4
+      cacheReadPerMillion: 0.005
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-5-pro
+    displayName: GPT-5 pro
+    kind: chat
+    contextWindow: 400000
+    maxOutputTokens: 272000
+    supportsCaching: false
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 15
+      outputPerMillion: 120
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-4.1
+    displayName: GPT-4.1
+    kind: chat
+    contextWindow: 1047576
+    maxOutputTokens: 32768
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      priority:
+        pricingMultiplier: 1.75
+    pricing:
+      inputPerMillion: 2
+      outputPerMillion: 8
+      cacheReadPerMillion: 0.5
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-4.1-mini
+    displayName: GPT-4.1 mini
+    kind: chat
+    contextWindow: 1047576
+    maxOutputTokens: 32768
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      priority:
+        pricingMultiplier: 1.75
+    pricing:
+      inputPerMillion: 0.4
+      outputPerMillion: 1.6
+      cacheReadPerMillion: 0.1
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-4o
+    displayName: GPT-4o
+    kind: chat
+    contextWindow: 128000
+    maxOutputTokens: 16384
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      priority:
+        pricingMultiplier: 1.7
+    pricing:
+      inputPerMillion: 2.5
+      outputPerMillion: 10
+      cacheReadPerMillion: 1.25
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: gpt-4o-mini
+    displayName: GPT-4o mini
+    kind: chat
+    contextWindow: 128000
+    maxOutputTokens: 16384
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    pricing:
+      inputPerMillion: 0.15
+      outputPerMillion: 0.6
+      cacheReadPerMillion: 0.075
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: o3
+    displayName: o3
+    kind: chat
+    contextWindow: 200000
+    maxOutputTokens: 100000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    serviceTiers:
+      flex:
+        pricingMultiplier: 0.5
+      priority:
+        pricingMultiplier: 1.75
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 2
+      outputPerMillion: 8
+      cacheReadPerMillion: 0.5
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: o3-pro
+    displayName: o3-pro
+    kind: chat
+    contextWindow: 200000
+    maxOutputTokens: 100000
+    supportsCaching: false
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    thinking:
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 20
+      outputPerMillion: 80
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      items:
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+        - counter: toolCalls.file_search
+          price: 2.5
+          per: 1000
+          label: file search
+          asOf: "2026-11-05"
+          source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: text-embedding-3-small
+    displayName: text-embedding-3-small
+    kind: embedding
+    dimensions: 1536
+    contextWindow: 8192
+    pricing:
+      inputPerMillion: 0.02
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: text-embedding-3-large
+    displayName: text-embedding-3-large
+    kind: embedding
+    dimensions: 3072
+    contextWindow: 8192
+    pricing:
+      inputPerMillion: 0.13
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5
+  - name: text-embedding-ada-002
+    displayName: text-embedding-ada-002
+    kind: embedding
+    dimensions: 1536
+    contextWindow: 8192
+    pricing:
+      inputPerMillion: 0.1
+      asOf: "2026-11-05"
+      source: https://developers.openai.com/api/docs/pricing
+      multipliers:
+        batch: 0.5

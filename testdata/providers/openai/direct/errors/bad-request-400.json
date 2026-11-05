@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "description": "A malformed request. Written from the reference (https://developers.openai.com/api/docs/guides/error-codes); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Hi."
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "Unsupported parameter: 'foo'.",
+            "type": "invalid_request_error",
+            "param": "foo",
+            "code": "unsupported_parameter"
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

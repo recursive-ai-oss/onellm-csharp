@@ -6,11 +6,14 @@
   <Folder Name="/tests/">
     <Project Path="tests/OneLlm.Tests/OneLlm.Tests.csproj" />
     <Project Path="tests/OneLlm.Conformance/OneLlm.Conformance.csproj" />
+    <Project Path="tests/OneLlm.TemplateParity/OneLlm.TemplateParity.csproj" />
+    <Project Path="tests/OneLlm.Generators.Tests/OneLlm.Generators.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/OneLlm.CostParity/OneLlm.CostParity.csproj" />
     <Project Path="tools/OneLlm.MockServer/OneLlm.MockServer.csproj" />
     <Project Path="tools/OneLlm.Corpus/OneLlm.Corpus.csproj" />
+    <Project Path="tools/OneLlm.TemplateDiff/OneLlm.TemplateDiff.csproj" />
   </Folder>
   <Folder Name="/bench/">
     <Project Path="bench/OneLlm.Bench/OneLlm.Bench.csproj" />

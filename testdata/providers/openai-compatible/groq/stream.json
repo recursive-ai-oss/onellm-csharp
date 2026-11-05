@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "description": "The same call to the groq preset streamed: the message must equal chat.json's. Written from the reference (https://console.groq.com/docs/openai); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/openai/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "openai/gpt-oss-20b",
+          "messages": [
+            {
+              "role": "system",
+              "content": "Be brief."
+            },
+            {
+              "role": "user",
+              "content": "Say hello."
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "max_tokens": 64
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "data: {\"id\":\"cmpl-groq\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"mode",
+          "l\":\"openai/gpt-oss-20b\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\"",
+          ":\"\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-groq\",\"object\":\"chat.completion.chu",
+          "nk\",\"created\":1741476777,\"model\":\"openai/gpt-oss-20b\",\"choices\":[{\"index\":0,\"delta\"",
+          ":{\"reasoning\":\"Thinking about \"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-groq\",\"",
+          "object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"openai/gpt-oss-20b\",\"",
+          "choices\":[{\"index\":0,\"delta\":{\"reasoning\":\"a greeting.\"},\"finish_reason\":null}]}\n\nd",
+          "ata: {\"id\":\"cmpl-groq\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model",
+          "\":\"openai/gpt-oss-20b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hel\"},\"finish_reas",
+          "on\":null}]}\n\ndata: {\"id\":\"cmpl-groq\",\"object\":\"chat.completion.chunk\",\"created\":174",
+          "1476777,\"model\":\"openai/gpt-oss-20b\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"lo!\"",
+          "},\"finish_reason\":null}]}\n\ndata: {\"id\":\"cmpl-groq\",\"object\":\"chat.completion.chunk\"",
+          ",\"created\":1741476777,\"model\":\"openai/gpt-oss-20b\",\"choices\":[{\"index\":0,\"delta\":{}",
+          ",\"finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"cmpl-groq\",\"object\":\"chat.completion.chunk",
+          "\",\"created\":1741476777,\"model\":\"openai/gpt-oss-20b\",\"choices\":[],\"usage\":{\"prompt_t",
+          "okens\":24,\"completion_tokens\":9,\"total_tokens\":33,\"prompt_tokens_details\":{\"cached_",
+          "tokens\":8,\"audio_tokens\":0},\"completion_tokens_details\":{\"reasoning_tokens\":3,\"audi",
+          "o_tokens\":0,\"accepted_prediction_tokens\":0,\"rejected_prediction_tokens\":0}}}\n\ndata:",
+          " [DONE]\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

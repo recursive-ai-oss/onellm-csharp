@@ -1,0 +1,58 @@
+{
+  "format": 1,
+  "description": "Two inputs; the data array arrives out of order and is put back by index. Written from the reference (https://developers.openai.com/api/reference/resources/embeddings/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/embeddings",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "text-embedding-3-small",
+          "input": [
+            "first",
+            "second"
+          ],
+          "dimensions": 3,
+          "encoding_format": "float"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "object": "list",
+          "model": "text-embedding-3-small",
+          "data": [
+            {
+              "object": "embedding",
+              "index": 1,
+              "embedding": [
+                0.5,
+                -0.25,
+                0.125
+              ]
+            },
+            {
+              "object": "embedding",
+              "index": 0,
+              "embedding": [
+                0.0625,
+                0.25,
+                -0.5
+              ]
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 9,
+            "total_tokens": 9
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

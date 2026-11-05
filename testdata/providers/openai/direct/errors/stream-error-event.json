@@ -1,0 +1,44 @@
+{
+  "format": 1,
+  "description": "An error event in the middle of a stream. Written from the reference (https://developers.openai.com/api/reference/resources/responses/streaming-events); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Hi."
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false,
+          "stream": true
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_e_1\",\"object\"",
+          ":\"response\",\"created_at\":1741476777,\"status\":\"in_progress\",\"error\":null,\"incomplete_details\":null,\"model\":\"gpt-6.",
+          "1-terra\",\"output\":[],\"parallel_tool_calls\":true,\"store\":false,\"usage\":null}}\n\nevent: response.output_text.delta\nd",
+          "ata: {\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_e_1\",\"output_index\":0,\"content_index",
+          "\":0,\"delta\":\"Par\"}\n\nevent: error\ndata: {\"type\":\"error\",\"sequence_number\":2,\"code\":\"server_error\",\"message\":\"The s",
+          "erver had an error while processing your request.\",\"param\":null}\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,143 @@
+{
+  "format": 1,
+  "description": "A turn paused while a server tool runs; the paused content is sent back as it came so the turn continues. Written from the API reference (https://platform.claude.com/docs/en/build-with-claude/handling-stop-reasons); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Who won the 2025 men's final?"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "type": "web_search_20260209",
+              "name": "web_search",
+              "max_uses": 3
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "Searching."
+            },
+            {
+              "type": "server_tool_use",
+              "id": "srvtoolu_01PAUSE",
+              "name": "web_search",
+              "input": {
+                "query": "long running"
+              }
+            }
+          ],
+          "stop_reason": "pause_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 12,
+            "output_tokens": 9
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Who won the 2025 men's final?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Searching."
+                },
+                {
+                  "type": "server_tool_use",
+                  "id": "srvtoolu_01PAUSE",
+                  "name": "web_search",
+                  "input": {
+                    "query": "long running"
+                  }
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "type": "web_search_20260209",
+              "name": "web_search",
+              "max_uses": 3
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "Continued."
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 12,
+            "output_tokens": 9
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "format": 1,
+  "description": "A batch of embeddings requests. Written from the reference (https://developers.openai.com/api/reference/resources/batches/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/files",
+        "bodyText": "--onellm-batch-upload\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Disposition: form-data; name=purpose\r\n\r\nbatch\r\n--onellm-batch-upload\r\nContent-Type: application/jsonl\r\nContent-Disposition: form-data; name=file; filename=batch.jsonl; filename*=utf-8''batch.jsonl\r\n\r\n{\"custom_id\":\"emb-1\",\"method\":\"POST\",\"url\":\"/v1/embeddings\",\"body\":{\"model\":\"text-embedding-3-small\",\"input\":[\"hello\"],\"encoding_format\":\"float\"}}\n\r\n--onellm-batch-upload--\r\n"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "file-in-2",
+          "object": "file",
+          "purpose": "batch",
+          "filename": "batch.jsonl",
+          "bytes": 80,
+          "created_at": 1741476700,
+          "status": "processed"
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/batches",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "input_file_id": "file-in-2",
+          "endpoint": "/v1/embeddings",
+          "completion_window": "24h"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "batch_2",
+          "object": "batch",
+          "endpoint": "/v1/embeddings",
+          "input_file_id": "file-in-2",
+          "completion_window": "24h",
+          "created_at": 1741476777,
+          "expires_at": 1741563177,
+          "output_file_id": null,
+          "error_file_id": null,
+          "status": "validating",
+          "request_counts": {
+            "total": 0,
+            "completed": 0,
+            "failed": 0
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/batches/batch_2"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "batch_2",
+          "object": "batch",
+          "endpoint": "/v1/embeddings",
+          "input_file_id": "file-in-2",
+          "completion_window": "24h",
+          "created_at": 1741476777,
+          "expires_at": 1741563177,
+          "output_file_id": "file-out-2",
+          "error_file_id": null,
+          "status": "completed",
+          "request_counts": {
+            "total": 1,
+            "completed": 1,
+            "failed": 0
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/files/file-out-2/content"
+      },
+      "response": {
+        "status": 200,
+        "bodyText": "{\"id\":\"batch_req_e1\",\"custom_id\":\"emb-1\",\"response\":{\"status_code\":200,\"request_id\":\"req_syn_3\",\"body\":{\"object\":\"list\",\"model\":\"text-embedding-3-small\",\"data\":[{\"object\":\"embedding\",\"index\":0,\"embedding\":[0.5,0.25]}],\"usage\":{\"prompt_tokens\":4,\"total_tokens\":4}}},\"error\":null}\n",
+        "headers": {
+          "content-type": "application/jsonl"
+        }
+      }
+    }
+  ]
+}

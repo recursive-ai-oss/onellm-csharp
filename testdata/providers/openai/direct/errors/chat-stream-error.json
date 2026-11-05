@@ -1,0 +1,41 @@
+{
+  "format": 1,
+  "description": "An error object in the middle of a Chat Completions stream. Written from the reference (https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/chat/completions",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "text/event-stream"
+        },
+        "body": {
+          "model": "gpt-4.1",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Hi."
+            }
+          ],
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "sse": [
+          "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1741476777,\"model\":\"gpt-4.1\",",
+          "\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Par\"},\"finish_reason\":null}]",
+          "}\n\ndata: {\"error\":{\"message\":\"The server had an error.\",\"type\":\"server_error\",\"code\":\"ser",
+          "ver_error\"}}\n\ndata: [DONE]\n\n"
+        ],
+        "headers": {
+          "content-type": "text/event-stream"
+        }
+      }
+    }
+  ]
+}

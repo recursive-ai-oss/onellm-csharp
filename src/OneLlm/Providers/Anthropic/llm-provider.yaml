@@ -1,0 +1,670 @@
+# Anthropic models, limits, thinking settings and prices.
+# Prices: USD per million tokens, from the Anthropic pricing page (see each model's source and asOf).
+# Usage fields: cacheCreationInputTokens is the total of all cache writes as the API reports it; cacheCreation1hInputTokens is the part
+# of it written with the 1-hour lifetime and is priced by the item below; the rest is priced at cacheCreationPerMillion (5 minutes).
+name: anthropic
+displayName: Anthropic
+modelPatterns:
+  - "claude-*"
+aliases:
+  claude-fable: claude-fable-5-1
+  claude-mythos: claude-mythos-5-1
+  claude-opus: claude-opus-5-5
+  claude-sonnet: claude-sonnet-5-5
+  claude-haiku: claude-haiku-5-5
+  claude-opus-4-5: claude-opus-4-5-20251101
+  claude-sonnet-4-5: claude-sonnet-4-5-20250929
+  claude-haiku-4-5: claude-haiku-4-5-20251001
+apiKeyEnvVar: ANTHROPIC_API_KEY
+capabilities:
+  streaming: true
+  promptCaching: true
+  imageInputs: true
+  imageToolResults: true
+  tools: true
+  structuredOutput: true
+  batch: true
+  tokenCounting: true
+models:
+  - name: claude-fable-5-1
+    displayName: Claude Fable 5.1
+    family: fable
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: high
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 10
+      outputPerMillion: 50
+      cacheCreationPerMillion: 12.50
+      cacheReadPerMillion: 0.25
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 20
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-mythos-5-1
+    displayName: Claude Mythos 5.1
+    family: mythos
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: high
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+      availability: limited
+    pricing:
+      inputPerMillion: 10
+      outputPerMillion: 50
+      cacheCreationPerMillion: 12.50
+      cacheReadPerMillion: 0.25
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 20
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-fable-5
+    displayName: Claude Fable 5
+    family: fable
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: high
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 10
+      outputPerMillion: 50
+      cacheCreationPerMillion: 12.50
+      cacheReadPerMillion: 1
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 20
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-mythos-5
+    displayName: Claude Mythos 5
+    family: mythos
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: high
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+      availability: limited
+    pricing:
+      inputPerMillion: 10
+      outputPerMillion: 50
+      cacheCreationPerMillion: 12.50
+      cacheReadPerMillion: 1
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 20
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-opus-5-5
+    displayName: Claude Opus 5.5
+    family: opus
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    serviceTiers:
+      fast:
+        pricingMultiplier: 2
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: medium
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 4
+      outputPerMillion: 20
+      cacheCreationPerMillion: 5
+      cacheReadPerMillion: 0.20
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 8
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-opus-5
+    displayName: Claude Opus 5
+    family: opus
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    serviceTiers:
+      fast:
+        pricingMultiplier: 2
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: high
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 5
+      outputPerMillion: 25
+      cacheCreationPerMillion: 6.25
+      cacheReadPerMillion: 0.50
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 10
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-opus-4-8
+    displayName: Claude Opus 4.8
+    family: opus
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    serviceTiers:
+      fast:
+        pricingMultiplier: 2
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: high
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 5
+      outputPerMillion: 25
+      cacheCreationPerMillion: 6.25
+      cacheReadPerMillion: 0.50
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 10
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-opus-4-7
+    displayName: Claude Opus 4.7
+    family: opus
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: high
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 5
+      outputPerMillion: 25
+      cacheCreationPerMillion: 6.25
+      cacheReadPerMillion: 0.50
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 10
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-opus-4-6
+    displayName: Claude Opus 4.6
+    family: opus
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, max]
+      defaultEffort: high
+      acceptsBudget: true
+      defaultEffortBudgets: { low: 2048, medium: 8192, high: 16384, max: 32768 }
+      minBudget: 1024
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 1568
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 5
+      outputPerMillion: 25
+      cacheCreationPerMillion: 6.25
+      cacheReadPerMillion: 0.50
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 10
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-opus-4-5-20251101
+    displayName: Claude Opus 4.5
+    family: opus
+    contextWindow: 200000
+    maxOutputTokens: 64000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high]
+      defaultEffort: high
+      acceptsBudget: true
+      defaultEffortBudgets: { low: 2048, medium: 8192, high: 16384, max: 32768 }
+      minBudget: 1024
+    properties:
+      adaptiveThinking: false
+      maxImageLongEdge: 1568
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 5
+      outputPerMillion: 25
+      cacheCreationPerMillion: 6.25
+      cacheReadPerMillion: 0.50
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 10
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+  - name: claude-sonnet-5-5
+    displayName: Claude Sonnet 5.5
+    family: sonnet
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: high
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 2
+      outputPerMillion: 10
+      cacheCreationPerMillion: 2.50
+      cacheReadPerMillion: 0.10
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 4
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-sonnet-5
+    displayName: Claude Sonnet 5
+    family: sonnet
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: high
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 2
+      outputPerMillion: 10
+      cacheCreationPerMillion: 2.50
+      cacheReadPerMillion: 0.20
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 4
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-sonnet-4-6
+    displayName: Claude Sonnet 4.6
+    family: sonnet
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, max]
+      defaultEffort: high
+      acceptsBudget: true
+      defaultEffortBudgets: { low: 2048, medium: 8192, high: 16384, max: 32768 }
+      minBudget: 1024
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 1568
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 3
+      outputPerMillion: 15
+      cacheCreationPerMillion: 3.75
+      cacheReadPerMillion: 0.30
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 6
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-sonnet-4-5-20250929
+    displayName: Claude Sonnet 4.5
+    family: sonnet
+    contextWindow: 200000
+    maxOutputTokens: 64000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      acceptsBudget: true
+      defaultEffortBudgets: { low: 2048, medium: 8192, high: 16384, max: 32768 }
+      minBudget: 1024
+    properties:
+      adaptiveThinking: false
+      maxImageLongEdge: 1568
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 3
+      outputPerMillion: 15
+      cacheCreationPerMillion: 3.75
+      cacheReadPerMillion: 0.30
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 6
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5
+  - name: claude-haiku-5-5
+    displayName: Claude Haiku 5.5
+    family: haiku
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      efforts: [low, medium, high, xhigh, max]
+      defaultEffort: medium
+      acceptsBudget: false
+    properties:
+      adaptiveThinking: true
+      maxImageLongEdge: 2576
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 0.10
+      outputPerMillion: 0.50
+      cacheCreationPerMillion: 0.125
+      cacheReadPerMillion: 0.01
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 0.20
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      tiers:
+        - above: 100000
+          label: prompts over 100,000 tokens
+          multipliers: { inputTokens: 5, outputTokens: 5, cacheCreationInputTokens: 5, cacheReadInputTokens: 5, cacheCreation1hInputTokens: 5 }
+      multipliers:
+        batch: 0.5
+        "region:us": 1.1
+  - name: claude-haiku-4-5-20251001
+    displayName: Claude Haiku 4.5
+    family: haiku
+    contextWindow: 200000
+    maxOutputTokens: 64000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    supportsStructuredOutput: true
+    supportsPdfInput: true
+    manyImageThreshold: 20
+    manyImageMaxDimension: 3000
+    thinking:
+      acceptsBudget: true
+      defaultEffortBudgets: { low: 2048, medium: 8192, high: 16384, max: 32768 }
+      minBudget: 1024
+    properties:
+      adaptiveThinking: false
+      maxImageLongEdge: 1568
+      maxImageBytes: 10485760
+    pricing:
+      inputPerMillion: 1
+      outputPerMillion: 5
+      cacheCreationPerMillion: 1.25
+      cacheReadPerMillion: 0.10
+      asOf: 2026-11-05
+      source: https://platform.claude.com/docs/en/about-claude/pricing
+      items:
+        - counter: cacheCreation1hInputTokens
+          price: 2
+          label: 1-hour cache write
+        - counter: toolCalls.web_search
+          price: 10
+          per: 1000
+          label: web search
+      multipliers:
+        batch: 0.5

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).TemplateDiff</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- A test tool: generic catches and unsealed helper types are fine here. -->
+    <NoWarn>$(NoWarn);CA1031;CA1812;CA1303;CA2201;CA1859;CA1822;CA5394</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Text" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
+  </ItemGroup>
+
+</Project>

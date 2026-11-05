@@ -1,0 +1,178 @@
+{
+  "format": 1,
+  "description": "Upload, create, poll twice, read results from the output and error files. Written from the reference (https://developers.openai.com/api/reference/resources/batches/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/files",
+        "bodyText": "--onellm-batch-upload\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Disposition: form-data; name=purpose\r\n\r\nbatch\r\n--onellm-batch-upload\r\nContent-Type: application/jsonl\r\nContent-Disposition: form-data; name=file; filename=batch.jsonl; filename*=utf-8''batch.jsonl\r\n\r\n{\"custom_id\":\"req-1\",\"method\":\"POST\",\"url\":\"/v1/responses\",\"body\":{\"model\":\"gpt-6.1-terra\",\"input\":[{\"role\":\"user\",\"content\":\"Say hello.\"}],\"include\":[\"reasoning.encrypted_content\"],\"store\":false,\"max_output_tokens\":32}}\n{\"custom_id\":\"req-2\",\"method\":\"POST\",\"url\":\"/v1/responses\",\"body\":{\"model\":\"gpt-6.1-terra\",\"input\":[{\"role\":\"user\",\"content\":\"Say goodbye.\"}],\"include\":[\"reasoning.encrypted_content\"],\"store\":false,\"max_output_tokens\":32}}\n\r\n--onellm-batch-upload--\r\n"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "file-in-1",
+          "object": "file",
+          "purpose": "batch",
+          "filename": "batch.jsonl",
+          "bytes": 100,
+          "created_at": 1741476700,
+          "status": "processed"
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/batches",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "input_file_id": "file-in-1",
+          "endpoint": "/v1/responses",
+          "completion_window": "24h"
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "batch_1",
+          "object": "batch",
+          "endpoint": "/v1/responses",
+          "input_file_id": "file-in-1",
+          "completion_window": "24h",
+          "created_at": 1741476777,
+          "expires_at": 1741563177,
+          "output_file_id": null,
+          "error_file_id": null,
+          "status": "validating",
+          "request_counts": {
+            "total": 0,
+            "completed": 0,
+            "failed": 0
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/batches/batch_1"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "batch_1",
+          "object": "batch",
+          "endpoint": "/v1/responses",
+          "input_file_id": "file-in-1",
+          "completion_window": "24h",
+          "created_at": 1741476777,
+          "expires_at": 1741563177,
+          "output_file_id": null,
+          "error_file_id": null,
+          "status": "in_progress",
+          "request_counts": {
+            "total": 3,
+            "completed": 1,
+            "failed": 0
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/batches/batch_1"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "batch_1",
+          "object": "batch",
+          "endpoint": "/v1/responses",
+          "input_file_id": "file-in-1",
+          "completion_window": "24h",
+          "created_at": 1741476777,
+          "expires_at": 1741563177,
+          "output_file_id": "file-out-1",
+          "error_file_id": "file-err-1",
+          "status": "completed",
+          "request_counts": {
+            "total": 3,
+            "completed": 1,
+            "failed": 2
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/batches/batch_1"
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "batch_1",
+          "object": "batch",
+          "endpoint": "/v1/responses",
+          "input_file_id": "file-in-1",
+          "completion_window": "24h",
+          "created_at": 1741476777,
+          "expires_at": 1741563177,
+          "output_file_id": "file-out-1",
+          "error_file_id": "file-err-1",
+          "status": "completed",
+          "request_counts": {
+            "total": 3,
+            "completed": 1,
+            "failed": 2
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/files/file-out-1/content"
+      },
+      "response": {
+        "status": 200,
+        "bodyText": "{\"id\":\"batch_req_1\",\"custom_id\":\"req-1\",\"response\":{\"status_code\":200,\"request_id\":\"req_syn_1\",\"body\":{\"id\":\"resp_batch_1\",\"object\":\"response\",\"created_at\":1741476777,\"status\":\"completed\",\"error\":null,\"incomplete_details\":null,\"model\":\"gpt-6.1-terra\",\"output\":[{\"type\":\"message\",\"id\":\"msg_batch_1\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Batch hello.\",\"annotations\":[],\"logprobs\":[]}]}],\"parallel_tool_calls\":true,\"store\":false,\"usage\":{\"input_tokens\":20,\"input_tokens_details\":{\"cached_tokens\":0,\"cache_write_tokens\":0},\"output_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":24}}},\"error\":null}\n",
+        "headers": {
+          "content-type": "application/jsonl"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/files/file-err-1/content"
+      },
+      "response": {
+        "status": 200,
+        "bodyText": "{\"id\":\"batch_req_2\",\"custom_id\":\"req-2\",\"response\":{\"status_code\":400,\"request_id\":\"req_syn_2\",\"body\":{\"error\":{\"message\":\"Invalid input.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_value\"}}},\"error\":null}\r\n{\"id\":\"batch_req_3\",\"custom_id\":\"req-3\",\"response\":null,\"error\":{\"code\":\"batch_expired\",\"message\":\"This request could not be executed before the completion window expired.\"}}",
+        "headers": {
+          "content-type": "application/jsonl"
+        }
+      }
+    }
+  ]
+}

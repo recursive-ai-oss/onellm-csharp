@@ -1,0 +1,195 @@
+{
+  "format": 1,
+  "description": "A web fetch server tool call and its document result. Written from the API reference (https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool); not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Summarize https://example.com/article"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "type": "web_fetch_20260318",
+              "name": "web_fetch"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "server_tool_use",
+              "id": "srvtoolu_01234567890abcdef",
+              "name": "web_fetch",
+              "input": {
+                "url": "https://example.com/article"
+              }
+            },
+            {
+              "type": "web_fetch_tool_result",
+              "tool_use_id": "srvtoolu_01234567890abcdef",
+              "content": {
+                "type": "web_fetch_result",
+                "url": "https://example.com/article",
+                "content": {
+                  "type": "document",
+                  "source": {
+                    "type": "text",
+                    "media_type": "text/plain",
+                    "data": "Full text content of the article..."
+                  },
+                  "title": "Article Title",
+                  "citations": {
+                    "enabled": true
+                  }
+                },
+                "retrieved_at": "2025-08-25T10:30:00Z"
+              }
+            },
+            {
+              "type": "text",
+              "text": "The article says it is a full text."
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 25039,
+            "output_tokens": 931,
+            "server_tool_use": {
+              "web_fetch_requests": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/messages",
+        "headers": {
+          "anthropic-version": "2026-10-21",
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "claude-sonnet-5-5",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Summarize https://example.com/article"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "server_tool_use",
+                  "id": "srvtoolu_01234567890abcdef",
+                  "name": "web_fetch",
+                  "input": {
+                    "url": "https://example.com/article"
+                  }
+                },
+                {
+                  "type": "web_fetch_tool_result",
+                  "tool_use_id": "srvtoolu_01234567890abcdef",
+                  "content": {
+                    "type": "web_fetch_result",
+                    "url": "https://example.com/article",
+                    "content": {
+                      "type": "document",
+                      "source": {
+                        "type": "text",
+                        "media_type": "text/plain",
+                        "data": "Full text content of the article..."
+                      },
+                      "title": "Article Title",
+                      "citations": {
+                        "enabled": true
+                      }
+                    },
+                    "retrieved_at": "2025-08-25T10:30:00Z"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": "The article says it is a full text."
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Thanks."
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "type": "web_fetch_20260318",
+              "name": "web_fetch"
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "You are welcome."
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 12,
+            "output_tokens": 9
+          }
+        }
+      }
+    }
+  ]
+}

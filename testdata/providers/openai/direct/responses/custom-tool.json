@@ -1,0 +1,164 @@
+{
+  "format": 1,
+  "description": "A custom (free-text) tool call and the turn that returns its output. Written from the reference (https://developers.openai.com/api/reference/resources/responses/methods/create); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Run a query."
+            }
+          ],
+          "tools": [
+            {
+              "type": "custom",
+              "name": "run_sql",
+              "description": "Runs SQL.",
+              "format": {
+                "type": "text"
+              }
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "resp_ct_1",
+          "object": "response",
+          "created_at": 1741476777,
+          "status": "completed",
+          "error": null,
+          "incomplete_details": null,
+          "model": "gpt-6.1-terra",
+          "output": [
+            {
+              "type": "custom_tool_call",
+              "id": "ctc_1",
+              "call_id": "call_c1",
+              "name": "run_sql",
+              "input": "SELECT 1;\nSELECT \"two\";"
+            }
+          ],
+          "parallel_tool_calls": true,
+          "store": false,
+          "usage": {
+            "input_tokens": 60,
+            "input_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0
+            },
+            "output_tokens": 20,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 80
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Run a query."
+            },
+            {
+              "type": "custom_tool_call",
+              "call_id": "call_c1",
+              "name": "run_sql",
+              "input": "SELECT 1;\nSELECT \"two\";"
+            },
+            {
+              "type": "custom_tool_call_output",
+              "call_id": "call_c1",
+              "output": "1"
+            }
+          ],
+          "tools": [
+            {
+              "type": "custom",
+              "name": "run_sql",
+              "description": "Runs SQL.",
+              "format": {
+                "type": "text"
+              }
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "resp_ct_2",
+          "object": "response",
+          "created_at": 1741476777,
+          "status": "completed",
+          "error": null,
+          "incomplete_details": null,
+          "model": "gpt-6.1-terra",
+          "output": [
+            {
+              "type": "message",
+              "id": "msg_ct_2",
+              "status": "completed",
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "output_text",
+                  "text": "The query returned 1.",
+                  "annotations": [],
+                  "logprobs": []
+                }
+              ]
+            }
+          ],
+          "parallel_tool_calls": true,
+          "store": false,
+          "usage": {
+            "input_tokens": 100,
+            "input_tokens_details": {
+              "cached_tokens": 0,
+              "cache_write_tokens": 0
+            },
+            "output_tokens": 8,
+            "output_tokens_details": {
+              "reasoning_tokens": 0
+            },
+            "total_tokens": 108
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

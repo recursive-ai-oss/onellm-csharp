@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "description": "The input is longer than the context window. Written from the reference (https://developers.openai.com/api/docs/guides/error-codes); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Hi."
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 400,
+        "body": {
+          "error": {
+            "message": "This model's maximum context length is 400000 tokens. However, your messages resulted in 412345 tokens. Please reduce the length of the messages.",
+            "type": "invalid_request_error",
+            "param": null,
+            "code": "context_length_exceeded"
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "description": "A region the API is not available in. Written from the reference (https://developers.openai.com/api/docs/guides/error-codes); synthetic content, no live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Hi."
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 403,
+        "body": {
+          "error": {
+            "message": "Country, region, or territory not supported",
+            "type": "request_forbidden",
+            "param": null,
+            "code": "unsupported_country_region_territory"
+          }
+        },
+        "headers": {
+          "content-type": "application/json"
+        }
+      }
+    }
+  ]
+}

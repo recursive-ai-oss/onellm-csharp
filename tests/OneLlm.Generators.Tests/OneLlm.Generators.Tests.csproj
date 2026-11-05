@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs the tool generator over small sources and checks what it writes: schemas, diagnostics and that the output compiles cleanly. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).Generators.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);xUnit1051;xUnit1031;IL2026;IL3050</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
+    <ProjectReference Include="../../src/OneLlm.Generators/OneLlm.Generators.csproj" />
+  </ItemGroup>
+
+</Project>

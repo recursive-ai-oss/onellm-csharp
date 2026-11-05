@@ -8,7 +8,6 @@
         "path": "/model/us.anthropic.claude-sonnet-5-5/invoke",
         "headers": {
           "content-type": "application/json",
-          "x-amz-date": "20260101T000000Z",
           "accept": "application/json"
         },
         "body": {
@@ -92,7 +91,6 @@
         "path": "/model/us.anthropic.claude-sonnet-5-5/invoke",
         "headers": {
           "content-type": "application/json",
-          "x-amz-date": "20260101T000000Z",
           "accept": "application/json"
         },
         "body": {

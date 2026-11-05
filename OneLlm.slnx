@@ -17,6 +17,7 @@
     <Project Path="tools/OneLlm.MockServer/OneLlm.MockServer.csproj" />
     <Project Path="tools/OneLlm.Corpus/OneLlm.Corpus.csproj" />
     <Project Path="tools/OneLlm.TemplateDiff/OneLlm.TemplateDiff.csproj" />
+    <Project Path="tools/OneLlm.FuzzSmoke/OneLlm.FuzzSmoke.csproj" />
   </Folder>
   <Folder Name="/bench/">
     <Project Path="bench/OneLlm.Bench/OneLlm.Bench.csproj" />

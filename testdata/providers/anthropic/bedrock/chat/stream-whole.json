@@ -8,7 +8,6 @@
         "path": "/model/us.anthropic.claude-sonnet-5-5/invoke",
         "headers": {
           "content-type": "application/json",
-          "x-amz-date": "20260101T000000Z",
           "accept": "application/json"
         },
         "body": {
@@ -41,7 +40,7 @@
           "content": [
             {
               "type": "text",
-              "text": "Hello, café 😀\n\"quoted\" \\ done."
+              "text": "Hello, caf\u00e9 \ud83d\ude00\n\"quoted\" \\ done."
             }
           ],
           "stop_reason": "end_turn",

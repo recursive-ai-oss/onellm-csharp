@@ -7,8 +7,7 @@
         "method": "POST",
         "path": "/model/us.anthropic.claude-sonnet-5-5/invoke-with-response-stream",
         "headers": {
-          "content-type": "application/json",
-          "x-amz-date": "20260101T000000Z"
+          "content-type": "application/json"
         },
         "body": {
           "anthropic_version": "bedrock-2023-05-31",
@@ -30,8 +29,7 @@
       "response": {
         "status": 200,
         "headers": {
-          "content-type": "application/vnd.amazon.eventstream",
-          "x-amzn-bedrock-content-type": "application/json"
+          "content-type": "application/vnd.amazon.eventstream"
         },
         "bodyBase64": "AAABrAAAAEv6p+ZDCzpldmVudC10eXBlBwAFY2h1bmsNOmNvbnRlbnQtdHlwZQcAEGFwcGxpY2F0aW9uL2pzb24NOm1lc3NhZ2UtdHlwZQcABWV2ZW50eyJieXRlcyI6ICJleUowZVhCbElqb2dJbTFsYzNOaFoyVmZjM1JoY25RaUxDQWliV1Z6YzJGblpTSTZJSHNpYVdRaU9pQWliWE5uWHpBeFUzUnlaV0Z0VkhoMElpd2dJblI1Y0dVaU9pQWliV1Z6YzJGblpTSXNJQ0p5YjJ4bElqb2dJbUZ6YzJsemRHRnVkQ0lzSUNKamIyNTBaVzUwSWpvZ1cxMHNJQ0p0YjJSbGJDSTZJQ0pqYkdGMVpHVXRjMjl1Ym1WMExUVXROU0lzSUNKemRHOXdYM0psWVhOdmJpSTZJRzUxYkd3c0lDSnpkRzl3WDNObGNYVmxibU5sSWpvZ2JuVnNiQ3dnSW5WellXZGxJam9nZXlKcGJuQjFkRjkwYjJ0bGJuTWlPaUF4TWl3Z0ltOTFkSEIxZEY5MGIydGxibk1pT2lBeGZYMTkifVYa3ZkAAADgAAAAS6z4gK4LOmV2ZW50LXR5cGUHAAVjaHVuaw06Y29udGVudC10eXBlBwAQYXBwbGljYXRpb24vanNvbg06bWVzc2FnZS10eXBlBwAFZXZlbnR7ImJ5dGVzIjogImV5SjBlWEJsSWpvZ0ltTnZiblJsYm5SZllteHZZMnRmYzNSaGNuUWlMQ0FpYVc1a1pYZ2lPaUF3TENBaVkyOXVkR1Z1ZEY5aWJHOWpheUk2SUhzaWRIbHdaU0k2SUNKMFpYaDBJaXdnSW5SbGVIUWlPaUFpSW4xOSJ9FtyCpgAAAIAAAABLNcr34ws6ZXZlbnQtdHlwZQcABWNodW5rDTpjb250ZW50LXR5cGUHABBhcHBsaWNhdGlvbi9qc29uDTptZXNzYWdlLXR5cGUHAAVldmVudHsiYnl0ZXMiOiAiZXlKMGVYQmxJam9nSW5CcGJtY2lmUT09In1CqKewAAAAngAAAGfYwrLjDzpleGNlcHRpb24tdHlwZQcAGW1vZGVsU3RyZWFtRXJyb3JFeGNlcHRpb24NOmNvbnRlbnQtdHlwZQcAEGFwcGxpY2F0aW9uL2pzb24NOm1lc3NhZ2UtdHlwZQcACWV4Y2VwdGlvbnsibWVzc2FnZSI6ICJUaGUgbW9kZWwgc3RyZWFtIGZhaWxlZC4ifZhfqf0="
       }

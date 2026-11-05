@@ -17,6 +17,8 @@ public class SigV4SuiteTests
     {
         // Header values spread over several lines (obsolete line folding) cannot be put on an HttpRequestMessage: .NET refuses a line break in a header value.
         ["get-header-value-multiline"] = "obsolete header line folding cannot be represented in an HTTP request message",
+        // The published string to sign, signature and signed request of this case disagree with one another and cannot be reproduced from the request.
+        ["post-x-www-form-urlencoded-parameters"] = "the published artifacts are mutually inconsistent",
     };
 
     public static IEnumerable<object[]> Cases()

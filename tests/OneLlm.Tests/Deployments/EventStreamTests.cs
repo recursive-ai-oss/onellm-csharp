@@ -98,6 +98,17 @@ public class EventStreamTests
     }
 
     [Fact]
+    public async Task An_exception_payload_that_is_not_valid_utf8_still_becomes_a_typed_error()
+    {
+        // Found by fuzzing: reading a string member of such a payload used to throw InvalidOperationException.
+        byte[] frame = Frame(
+            [Str(":exception-type", "throttlingException"), Str(":content-type", "application/json"), Str(":message-type", "exception")],
+            [.. "{\"message\":\""u8.ToArray(), 0xFF, 0xFE, .. "\"}"u8.ToArray()]);
+        using var adapter = new BedrockEventStream(new MemoryStream(frame));
+        await Assert.ThrowsAsync<RateLimitException>(async () => Assert.Equal(-1, await adapter.ReadAsync(new byte[16])));
+    }
+
+    [Fact]
     public void The_checksum_is_standard_crc32()
     {
         // The CRC-32 check value for "123456789" is 0xCBF43926.
@@ -178,7 +189,7 @@ public class EventStreamTests
         byte[] all =
         [
             .. Str(":event-type", "chunk"),
-            2, (byte)'a', 2, 0xFE,                                           // byte -2
+            1, (byte)'a', 2, 0xFE,                                           // byte -2
             .. new byte[] { 1, (byte)'t', 0 },                               // bool true
             .. new byte[] { 1, (byte)'f', 1 },                               // bool false
             .. new byte[] { 1, (byte)'s', 3, 0xFF, 0xFE },                   // short -2

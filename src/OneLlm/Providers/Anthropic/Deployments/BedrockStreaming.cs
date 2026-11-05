@@ -32,8 +32,9 @@ internal static class BedrockErrors
                 type ??= Str(root["__type"]) ?? Str(root["code"]);
             }
         }
-        catch (JsonException)
+        catch (Exception e) when (e is JsonException or InvalidOperationException)
         {
+            // InvalidOperationException: a string that is not valid UTF-8 fails when its member is first read (found by fuzzing).
             // A body that is not JSON (a proxy's page) falls back to the status and the start of the text.
         }
 
@@ -53,8 +54,9 @@ internal static class BedrockErrors
                 message = Str(root["message"]) ?? Str(root["Message"]);
             }
         }
-        catch (JsonException)
+        catch (Exception e) when (e is JsonException or InvalidOperationException)
         {
+            // InvalidOperationException: a string that is not valid UTF-8 fails when its member is first read (found by fuzzing).
             // Fall through to the generic text.
         }
 

@@ -255,8 +255,10 @@ internal sealed class OpenAIWire
 
     // ---- HTTP ----
 
-    public Task<HttpResponseMessage> PostAsync(string path, string? model, ReadOnlyMemory<byte> body, bool stream, CancellationToken cancellationToken) =>
-        Http.SendAsync(
+    public async Task<HttpResponseMessage> PostAsync(string path, string? model, ReadOnlyMemory<byte> body, bool stream, CancellationToken cancellationToken)
+    {
+        await Endpoint.PrepareAsync(cancellationToken).ConfigureAwait(false);
+        return await Http.SendAsync(
             () =>
             {
                 var message = new HttpRequestMessage(HttpMethod.Post, Endpoint.GetUri(path, model)) { Content = new ReadOnlyMemoryContent(body) };
@@ -269,17 +271,21 @@ internal sealed class OpenAIWire
                 Endpoint.Authenticate(message);
                 return message;
             },
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+    }
 
-    public Task<HttpResponseMessage> GetAsync(string path, CancellationToken cancellationToken) =>
-        Http.SendAsync(
+    public async Task<HttpResponseMessage> GetAsync(string path, CancellationToken cancellationToken)
+    {
+        await Endpoint.PrepareAsync(cancellationToken).ConfigureAwait(false);
+        return await Http.SendAsync(
             () =>
             {
                 var message = new HttpRequestMessage(HttpMethod.Get, Endpoint.GetUri(path, null));
                 Endpoint.Authenticate(message);
                 return message;
             },
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+    }
 
     // ---- embeddings ----
 

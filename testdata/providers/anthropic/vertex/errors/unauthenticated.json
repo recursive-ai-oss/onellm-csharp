@@ -1,0 +1,44 @@
+{
+  "format": 1,
+  "description": "An expired or invalid access token: HTTP 401 in the Google error shape. Written from the Vertex AI documentation; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/projects/my-project/locations/us-east5/publishers/anthropic/models/claude-sonnet-5-5:rawPredict",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "anthropic_version": "vertex-2023-10-16",
+          "max_tokens": 1024,
+          "system": "You are terse.",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Say hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 401,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "error": {
+            "code": 401,
+            "message": "Request had invalid authentication credentials.",
+            "status": "UNAUTHENTICATED"
+          }
+        }
+      }
+    }
+  ]
+}

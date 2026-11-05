@@ -1,0 +1,184 @@
+{
+  "format": 1,
+  "description": "A function call and its result in the next turn. Written from the Vertex AI documentation; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-3.8-flash:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Weather in Paris?"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "get_weather",
+                  "description": "Gets the weather for a city.",
+                  "parametersJsonSchema": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "city"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "functionCall": {
+                      "id": "call-abc",
+                      "name": "get_weather",
+                      "args": {
+                        "city": "Paris"
+                      }
+                    },
+                    "thoughtSignature": "c2lnLWZj"
+                  }
+                ]
+              },
+              "finishReason": "STOP",
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 10,
+            "candidatesTokenCount": 4,
+            "totalTokenCount": 14
+          },
+          "modelVersion": "gemini-3.8-flash",
+          "responseId": "resp-0001"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/projects/my-project/locations/us-central1/publishers/google/models/gemini-3.8-flash:generateContent",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "contents": [
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "text": "Weather in Paris?"
+                }
+              ]
+            },
+            {
+              "role": "model",
+              "parts": [
+                {
+                  "functionCall": {
+                    "id": "call-abc",
+                    "name": "get_weather",
+                    "args": {
+                      "city": "Paris"
+                    }
+                  },
+                  "thoughtSignature": "c2lnLWZj"
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "parts": [
+                {
+                  "functionResponse": {
+                    "id": "call-abc",
+                    "name": "get_weather",
+                    "response": {
+                      "temp_c": 18
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "name": "get_weather",
+                  "description": "Gets the weather for a city.",
+                  "parametersJsonSchema": {
+                    "type": "object",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "city"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8"
+        },
+        "body": {
+          "candidates": [
+            {
+              "content": {
+                "role": "model",
+                "parts": [
+                  {
+                    "text": "It is 18 degrees in Paris."
+                  }
+                ]
+              },
+              "finishReason": "STOP",
+              "index": 0
+            }
+          ],
+          "usageMetadata": {
+            "promptTokenCount": 10,
+            "candidatesTokenCount": 4,
+            "totalTokenCount": 14
+          },
+          "modelVersion": "gemini-3.8-flash",
+          "responseId": "resp-0002"
+        }
+      }
+    }
+  ]
+}

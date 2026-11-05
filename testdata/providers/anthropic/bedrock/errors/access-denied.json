@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "description": "A caller without bedrock:InvokeModel permission: HTTP 403 AccessDeniedException. Written from the Bedrock InvokeModel and InvokeModelWithResponseStream references; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5-5/invoke",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 1024,
+          "system": "You are terse.",
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Say hello."
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "content-type": "application/json",
+          "x-amzn-errortype": "AccessDeniedException"
+        },
+        "body": {
+          "message": "You don't have access to the model with the specified model ID."
+        }
+      }
+    }
+  ]
+}

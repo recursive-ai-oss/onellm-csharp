@@ -1,0 +1,68 @@
+{
+  "format": 1,
+  "description": "A prompt blocked by the content filter: HTTP 400 with the categories under innererror. Written from the Azure OpenAI documentation; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/openai/v1/responses",
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "model": "gpt-6.1-terra",
+          "input": [
+            {
+              "role": "user",
+              "content": "Hi."
+            }
+          ],
+          "include": [
+            "reasoning.encrypted_content"
+          ],
+          "store": false
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "error": {
+            "message": "The response was filtered due to the prompt triggering Azure OpenAI's content management policy. Please modify your prompt and retry.",
+            "type": null,
+            "param": "prompt",
+            "code": "content_filter",
+            "status": 400,
+            "innererror": {
+              "code": "ResponsibleAIPolicyViolation",
+              "content_filter_result": {
+                "hate": {
+                  "filtered": false,
+                  "severity": "safe"
+                },
+                "jailbreak": {
+                  "filtered": false,
+                  "detected": false
+                },
+                "self_harm": {
+                  "filtered": false,
+                  "severity": "safe"
+                },
+                "sexual": {
+                  "filtered": false,
+                  "severity": "safe"
+                },
+                "violence": {
+                  "filtered": true,
+                  "severity": "medium"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

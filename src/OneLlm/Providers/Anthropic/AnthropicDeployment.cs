@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using OneLlm.Http;
 
 namespace OneLlm.Providers.Anthropic;
 
@@ -29,7 +30,8 @@ public enum AnthropicOperation
 /// <param name="Model">The model the request is for, when it has one (cloud deployments put it in the address).</param>
 /// <param name="Stream">True when the answer is read as a server-sent event stream.</param>
 /// <param name="BatchId">The batch the operation is about, for the batch operations that name one.</param>
-public readonly record struct AnthropicRequestInfo(AnthropicOperation Operation, string? Model, bool Stream, string? BatchId);
+/// <param name="RequestedModel">The model name exactly as the caller wrote it, before catalog resolution. A cloud deployment uses it to honour a provider-specific id the catalog resolved to a first-party name.</param>
+public readonly record struct AnthropicRequestInfo(AnthropicOperation Operation, string? Model, bool Stream, string? BatchId, string? RequestedModel = null);
 
 /// <summary>
 /// Where an Anthropic provider sends its requests and how it authenticates them: the endpoint and the credentials, nothing else.
@@ -49,6 +51,26 @@ public interface IAnthropicDeployment
     /// <param name="body">The JSON body, empty for requests without one.</param>
     /// <returns>The request, addressed and authenticated, with the body set.</returns>
     HttpRequestMessage CreateRequest(in AnthropicRequestInfo info, ReadOnlyMemory<byte> body);
+
+    /// <summary>
+    /// An asynchronous step to run once per call before the first attempt: fetching an OAuth token, or refusing an operation the deployment does not
+    /// offer by throwing. The default does nothing. <see cref="CreateRequest"/> then runs synchronously for each attempt and can rely on its result.
+    /// </summary>
+    /// <param name="info">The request about to be built.</param>
+    /// <param name="cancellationToken">Cancels the step.</param>
+    /// <returns>A task that completes when requests can be built.</returns>
+    ValueTask PrepareAsync(AnthropicRequestInfo info, CancellationToken cancellationToken) => ValueTask.CompletedTask;
+
+    /// <summary>Maps a failed response to a typed error, for deployments whose errors are not shaped like the Messages API's. Null uses the Messages API mapping.</summary>
+    ProviderErrorMapper? ErrorMapper => null;
+
+    /// <summary>
+    /// Turns the body of a streaming response into the server-sent event stream the Messages codec reads. The default returns it unchanged;
+    /// Bedrock overrides it to unwrap its binary event stream. Errors found in the stream are thrown from reads of the returned stream.
+    /// </summary>
+    /// <param name="body">The response body.</param>
+    /// <returns>A stream of server-sent events.</returns>
+    Stream AdaptStream(Stream body) => body;
 }
 
 /// <summary>

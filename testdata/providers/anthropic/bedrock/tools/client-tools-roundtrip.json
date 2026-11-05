@@ -1,0 +1,206 @@
+{
+  "format": 1,
+  "description": "Two parallel client tool calls and their results, answered in the next turn. Written from the Bedrock InvokeModel and InvokeModelWithResponseStream references; not recorded from a live call.",
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5-5/invoke",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "What is the weather in San Francisco and in Paris?"
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "get_weather",
+              "description": "Get the current weather in a given location",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "location": {
+                    "type": "string",
+                    "description": "The city and state, e.g. San Francisco, CA"
+                  }
+                },
+                "required": [
+                  "location"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "I'll check both cities."
+            },
+            {
+              "type": "tool_use",
+              "id": "toolu_01A09q90qw90lq917835lq9",
+              "name": "get_weather",
+              "input": {
+                "location": "San Francisco, CA"
+              }
+            },
+            {
+              "type": "tool_use",
+              "id": "toolu_01B18r01rx01mr028946mr0",
+              "name": "get_weather",
+              "input": {
+                "location": "Paris, France"
+              }
+            }
+          ],
+          "stop_reason": "tool_use",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 380,
+            "output_tokens": 92
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/model/us.anthropic.claude-sonnet-5-5/invoke",
+        "headers": {
+          "content-type": "application/json",
+          "accept": "application/json"
+        },
+        "body": {
+          "anthropic_version": "bedrock-2023-05-31",
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "What is the weather in San Francisco and in Paris?"
+                }
+              ]
+            },
+            {
+              "role": "assistant",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "I'll check both cities."
+                },
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01A09q90qw90lq917835lq9",
+                  "name": "get_weather",
+                  "input": {
+                    "location": "San Francisco, CA"
+                  }
+                },
+                {
+                  "type": "tool_use",
+                  "id": "toolu_01B18r01rx01mr028946mr0",
+                  "name": "get_weather",
+                  "input": {
+                    "location": "Paris, France"
+                  }
+                }
+              ]
+            },
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "toolu_01A09q90qw90lq917835lq9",
+                  "content": "15 degrees"
+                },
+                {
+                  "type": "tool_result",
+                  "tool_use_id": "toolu_01B18r01rx01mr028946mr0",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "raining"
+                    },
+                    {
+                      "type": "text",
+                      "text": "9 degrees"
+                    }
+                  ],
+                  "is_error": true
+                }
+              ]
+            }
+          ],
+          "tools": [
+            {
+              "name": "get_weather",
+              "description": "Get the current weather in a given location",
+              "input_schema": {
+                "type": "object",
+                "properties": {
+                  "location": {
+                    "type": "string",
+                    "description": "The city and state, e.g. San Francisco, CA"
+                  }
+                },
+                "required": [
+                  "location"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "content-type": "application/json"
+        },
+        "body": {
+          "id": "msg_01Aq9w938a90dw8q",
+          "type": "message",
+          "role": "assistant",
+          "model": "claude-sonnet-5-5",
+          "content": [
+            {
+              "type": "text",
+              "text": "San Francisco is 15 degrees. The Paris lookup failed."
+            }
+          ],
+          "stop_reason": "end_turn",
+          "stop_sequence": null,
+          "usage": {
+            "input_tokens": 470,
+            "output_tokens": 20
+          }
+        }
+      }
+    }
+  ]
+}

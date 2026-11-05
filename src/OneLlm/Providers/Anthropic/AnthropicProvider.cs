@@ -36,7 +36,7 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
         _time = time ?? throw new ArgumentNullException(nameof(time));
         _options = options ?? new AnthropicOptions();
         AnthropicCatalog.Register();
-        _http = new ProviderHttpClient(ProviderName, time, _options.Http, _options.Retry, deployment.Secrets, _options.Timeout, _options.Jitter, AnthropicErrors.FromResponse);
+        _http = new ProviderHttpClient(ProviderName, time, _options.Http, _options.Retry, deployment.Secrets, _options.Timeout, _options.Jitter, deployment.ErrorMapper ?? AnthropicErrors.FromResponse);
     }
 
     /// <summary>Creates a provider for Anthropic's own API.</summary>
@@ -61,8 +61,8 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
         ArgumentNullException.ThrowIfNull(request);
         var warnings = new List<ResponseWarning>();
         (ReadOnlyMemory<byte> body, string model) = await BuildChatBodyAsync(request, BodyMode.Message, cancellationToken, warnings).ConfigureAwait(false);
-        var info = new AnthropicRequestInfo(AnthropicOperation.Messages, model, false, null);
-        using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, body), cancellationToken).ConfigureAwait(false);
+        var info = new AnthropicRequestInfo(AnthropicOperation.Messages, model, false, null, request.Model);
+        using HttpResponseMessage response = await SendRequestAsync(info, body, cancellationToken).ConfigureAwait(false);
         JsonObject root = await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false);
         return ToChatResponse(root, RequestIdOf(response), warnings);
     }
@@ -82,9 +82,10 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
             yield return StreamEvent.Warning(w);
         }
 
-        var info = new AnthropicRequestInfo(AnthropicOperation.Messages, model, true, null);
-        using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, body), cancellationToken).ConfigureAwait(false);
-        Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var info = new AnthropicRequestInfo(AnthropicOperation.Messages, model, true, null, request.Model);
+        using HttpResponseMessage response = await SendRequestAsync(info, body, cancellationToken).ConfigureAwait(false);
+        // A cloud deployment may wrap the body (Bedrock frames events in its binary event stream); the codec still sees server-sent events.
+        Stream stream = _deployment.AdaptStream(await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false));
         await using (stream.ConfigureAwait(false))
         {
             using var sse = new SseReader(stream);
@@ -144,8 +145,8 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
     {
         ArgumentNullException.ThrowIfNull(request);
         (ReadOnlyMemory<byte> body, string model) = await BuildChatBodyAsync(request, BodyMode.Count, cancellationToken).ConfigureAwait(false);
-        var info = new AnthropicRequestInfo(AnthropicOperation.CountTokens, model, false, null);
-        using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, body), cancellationToken).ConfigureAwait(false);
+        var info = new AnthropicRequestInfo(AnthropicOperation.CountTokens, model, false, null, request.Model);
+        using HttpResponseMessage response = await SendRequestAsync(info, body, cancellationToken).ConfigureAwait(false);
         JsonObject root = await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false);
         if (!root.TryGetPropertyValue("input_tokens", out JsonNode? n) || n is not JsonValue v || !v.TryGetValue(out long tokens))
         {
@@ -219,7 +220,7 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
 
         ReadOnlyMemory<byte> body = buffer.WrittenMemory;
         var info = new AnthropicRequestInfo(AnthropicOperation.CreateBatch, null, false, null);
-        using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, body), cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await SendRequestAsync(info, body, cancellationToken).ConfigureAwait(false);
         return ParseBatch(await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false));
     }
 
@@ -228,7 +229,7 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
     {
         ArgumentException.ThrowIfNullOrEmpty(batchId);
         var info = new AnthropicRequestInfo(AnthropicOperation.GetBatch, null, false, batchId);
-        using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, default), cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await SendRequestAsync(info, default, cancellationToken).ConfigureAwait(false);
         return ParseBatch(await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false));
     }
 
@@ -237,7 +238,7 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
     {
         ArgumentException.ThrowIfNullOrEmpty(batchId);
         var info = new AnthropicRequestInfo(AnthropicOperation.CancelBatch, null, false, batchId);
-        using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, default), cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await SendRequestAsync(info, default, cancellationToken).ConfigureAwait(false);
         return ParseBatch(await ReadObjectAsync(response, cancellationToken).ConfigureAwait(false));
     }
 
@@ -246,7 +247,7 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
     {
         ArgumentException.ThrowIfNullOrEmpty(batchId);
         var info = new AnthropicRequestInfo(AnthropicOperation.BatchResults, null, false, batchId);
-        using HttpResponseMessage response = await _http.SendAsync(() => _deployment.CreateRequest(info, default), cancellationToken).ConfigureAwait(false);
+        using HttpResponseMessage response = await SendRequestAsync(info, default, cancellationToken).ConfigureAwait(false);
         Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
         await using (stream.ConfigureAwait(false))
         {
@@ -375,6 +376,13 @@ public sealed class AnthropicProvider : IChatProvider, ITokenCountingProvider, I
         text is not null && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset t) ? t : null;
 
     // ---- shared steps ----
+
+    // The deployment may need an asynchronous step before the first attempt (fetching an OAuth token); attempts then build requests synchronously.
+    private async Task<HttpResponseMessage> SendRequestAsync(AnthropicRequestInfo info, ReadOnlyMemory<byte> body, CancellationToken cancellationToken)
+    {
+        await _deployment.PrepareAsync(info, cancellationToken).ConfigureAwait(false);
+        return await _http.SendAsync(() => _deployment.CreateRequest(info, body), cancellationToken).ConfigureAwait(false);
+    }
 
     // The shared adjuster strips or refuses what the catalog says the model cannot take (once per request); the body writer then applies the
     // Anthropic-specific rules (API version, thinking shapes, cache limits) and adds its own notices.

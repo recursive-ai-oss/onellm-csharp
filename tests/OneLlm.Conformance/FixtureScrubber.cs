@@ -20,7 +20,7 @@ public static partial class FixtureScrubber
     };
 
     // Response headers worth keeping: the content type and the headers clients act on. Request ids and account headers are never kept.
-    private static readonly string[] s_responseHeaderPrefixes = ["content-type", "retry-after", "x-ratelimit-", "anthropic-ratelimit-", "openai-processing-ms"];
+    private static readonly string[] s_responseHeaderPrefixes = ["content-type", "retry-after", "x-amzn-errortype", "x-ratelimit-", "anthropic-ratelimit-", "openai-processing-ms"];
 
     private static readonly string[] s_secretHeaderParts =
     [

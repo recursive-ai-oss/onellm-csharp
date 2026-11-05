@@ -18,9 +18,17 @@ internal static class OpenAIErrors
 
     public static ProviderException FromHttp(in ProviderErrorContext context)
     {
-        ReadError(context.Body, out string? message, out string? code, out string? type);
+        ReadError(context.Body, out string? message, out string? code, out string? type, out IReadOnlyList<ContentFilterCategory> categories, out bool policyViolation);
         string text = message ?? Truncate(context.Body);
-        return Create(context.Provider, (int)context.Status, text, code, type, context.RetryAfter);
+        // Azure OpenAI marks a blocked prompt with error.code content_filter and inner code ResponsibleAIPolicyViolation, and lists the categories
+        // it evaluated under innererror.content_filter_results (Azure content filtering documentation).
+        if (policyViolation && code is not "content_filter")
+        {
+            code = "content_filter";
+        }
+
+        ProviderException error = Create(context.Provider, (int)context.Status, text, code, type, context.RetryAfter);
+        return error is ContentFilterException filter && categories.Count > 0 ? new ContentFilterException(filter.Provider, text, filter.StatusCode) { Categories = categories, Code = code } : error;
     }
 
     /// <summary>Builds the error for an <c>error</c> or <c>response.failed</c> event in the middle of a stream.</summary>
@@ -69,9 +77,11 @@ internal static class OpenAIErrors
             : new ProviderException(provider, message);
     }
 
-    private static void ReadError(string body, out string? message, out string? code, out string? type)
+    private static void ReadError(string body, out string? message, out string? code, out string? type, out IReadOnlyList<ContentFilterCategory> categories, out bool policyViolation)
     {
         message = code = type = null;
+        categories = [];
+        policyViolation = false;
         if (body.Length == 0 || body[0] != '{')
         {
             return;
@@ -86,6 +96,17 @@ internal static class OpenAIErrors
                 message = Str(e["message"]);
                 code = Str(e["code"]);
                 type = Str(e["type"]);
+                JsonObject? inner = e["innererror"] as JsonObject ?? e["inner_error"] as JsonObject;
+                if (inner is not null)
+                {
+                    policyViolation = Str(inner["code"]) == "ResponsibleAIPolicyViolation";
+                    JsonObject? results = inner["content_filter_results"] as JsonObject ?? inner["content_filter_result"] as JsonObject;
+                    if (results is not null)
+                    {
+                        categories = ReadCategories(results);
+                    }
+                }
+
                 if (message is null && root["error"] is JsonValue plain && plain.TryGetValue(out string? s))
                 {
                     message = s;
@@ -96,6 +117,25 @@ internal static class OpenAIErrors
         {
             // Not JSON after all: the caller falls back to the body text.
         }
+    }
+
+    // Each member is one category: {"filtered": bool, "severity": "safe|low|medium|high"} or, for the binary classifiers, {"filtered": bool, "detected": bool}.
+    private static List<ContentFilterCategory> ReadCategories(JsonObject results)
+    {
+        var list = new List<ContentFilterCategory>(results.Count);
+        foreach (KeyValuePair<string, JsonNode?> entry in results)
+        {
+            if (entry.Value is not JsonObject o)
+            {
+                continue;
+            }
+
+            bool filtered = o["filtered"] is JsonValue f && f.TryGetValue(out bool b) && b;
+            bool? detected = o["detected"] is JsonValue d && d.TryGetValue(out bool db) ? db : null;
+            list.Add(new ContentFilterCategory(entry.Key, filtered, Str(o["severity"]), detected));
+        }
+
+        return list;
     }
 
     private static string? Str(JsonNode? node) =>

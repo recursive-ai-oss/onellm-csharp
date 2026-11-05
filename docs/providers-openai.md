@@ -1,6 +1,6 @@
 # OpenAI and OpenAI-compatible providers
 
-`OpenAIProvider` talks to the OpenAI API (or an Azure/Foundry endpoint through `OpenAIEndpoint`) with the **Responses** protocol by default, or **Chat Completions** with `OpenAIApi.ChatCompletions`. `OpenAICompatibleProvider` speaks Chat Completions to any server that implements it. Both implement chat, streaming, embeddings, token counting (OpenAI only) and the Batch API. Streaming and non-streaming calls build equal `Message`s.
+`OpenAIProvider` talks to the OpenAI API (or an Azure OpenAI / Foundry resource through `AzureOpenAIEndpoint`, see [deployments](deployments.md)) with the **Responses** protocol by default, or **Chat Completions** with `OpenAIApi.ChatCompletions`. `OpenAICompatibleProvider` speaks Chat Completions to any server that implements it. Both implement chat, streaming, embeddings, token counting (OpenAI only) and the Batch API. Streaming and non-streaming calls build equal `Message`s.
 
 ## What the Responses codec does
 

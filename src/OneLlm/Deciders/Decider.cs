@@ -44,12 +44,21 @@ public sealed class Decider
     private int _functionsVersion = -1;
     private TemplateFunctions? _functionsSource;
 
-    private Decider(string name, DeciderDefinition definition, IDeciderLogic? logic)
+    private Decider(string name, DeciderDefinition definition, IDeciderLogic? logic, JsonElement? inputSchema = null)
     {
         Name = name;
         Definition = definition;
         Logic = logic;
+        InputSchema = inputSchema;
     }
+
+    /// <summary>
+    /// The JSON Schema of the caller's inputs, read from a <c>decider.schema.json</c> beside the definition when it declares one, else null.
+    /// Inputs are checked against it before anything is rendered or sent; see <see cref="DeciderInputException"/>. Only the keywords
+    /// <c>type</c>, <c>properties</c>, <c>required</c>, <c>additionalProperties</c>, <c>items</c>, <c>enum</c>, <c>const</c>, <c>minimum</c>,
+    /// <c>maximum</c> and <c>anyOf</c> are enforced.
+    /// </summary>
+    public JsonElement? InputSchema { get; }
 
     /// <summary>The decider's name: its directory's name, or what the creator gave. Names the instances its runs create.</summary>
     public string Name { get; }
@@ -77,7 +86,7 @@ public sealed class Decider
 
         string full = Path.GetFullPath(file);
         string name = Path.GetFileName(Path.GetDirectoryName(full)) ?? "decider";
-        return new Decider(name, DeciderDefinition.Parse(File.ReadAllText(full), full), logic);
+        return new Decider(name, DeciderDefinition.Parse(File.ReadAllText(full), full), logic, ReadInputSchema(Path.Combine(Path.GetDirectoryName(full)!, "decider.schema.json")));
     }
 
     /// <summary>Reads a decider from YAML text.</summary>
@@ -96,7 +105,35 @@ public sealed class Decider
     /// <summary>The same decider with logic attached (or replaced).</summary>
     /// <param name="logic">The logic.</param>
     /// <returns>A new decider over the same definition.</returns>
-    public Decider WithLogic(IDeciderLogic? logic) => new(Name, Definition, logic);
+    public Decider WithLogic(IDeciderLogic? logic) => new(Name, Definition, logic, InputSchema);
+
+    /// <summary>The same decider with an input schema attached (or removed).</summary>
+    /// <param name="schema">A JSON Schema for the inputs, or null.</param>
+    /// <returns>A new decider over the same definition.</returns>
+    public Decider WithInputSchema(JsonElement? schema) => new(Name, Definition, Logic, schema);
+
+    private static JsonElement? ReadInputSchema(string file)
+    {
+        if (!File.Exists(file))
+        {
+            return null;
+        }
+
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(file));
+        JsonElement root = doc.RootElement;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("inputs", out JsonElement inputs) || inputs.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        // The build writes inputsDeclared: false when the logic never described its inputs; then there is nothing to enforce.
+        if (root.TryGetProperty("inputsDeclared", out JsonElement declared) && declared.ValueKind == JsonValueKind.False)
+        {
+            return null;
+        }
+
+        return inputs.Clone();
+    }
 
     internal DecisionTemplate GetTemplate(TemplateFunctions functions)
     {

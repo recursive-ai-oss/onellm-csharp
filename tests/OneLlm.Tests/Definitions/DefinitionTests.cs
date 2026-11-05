@@ -190,7 +190,7 @@ public class DefinitionTests
     }
 
     [Theory]
-    [InlineData("questions:\n  q:\n    type: choice\n    instructions: x\n    criteria: {a: b}\nmodel: m\n", "at least 2")]
+    [InlineData("questions:\n  q:\n    type: choice\n    instructions: x\n    criteria: {a: b}\nmodel: m\n", "2 to 255 options")]
     [InlineData("model: m\nquestions:\n  q:\n    type: score\n    instructions: x\n    criteria: [a]\n", "2 to 10")]
     [InlineData("model: m\nquestions:\n  q:\n    type: guess\n    instructions: x\n", "'guess'")]
     [InlineData("questions:\n  q:\n    type: noul\n    instructions: x\n", "'model'")]

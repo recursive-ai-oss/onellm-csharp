@@ -232,6 +232,11 @@ public sealed partial class Runtime
 
         var images = new List<DecisionImage>();
         Dictionary<string, object?> plain = PlainValues.NormalizeInputs(ReplaceAssets(callerInputs, images));
+        if (decider.InputSchema is { } inputSchema && InputSchema.Check(inputSchema, PlainJson.ToElement(plain), "inputs") is { } inputProblem)
+        {
+            throw new DeciderInputException("The inputs do not fit the decider's schema: " + inputProblem, "inputs");
+        }
+
         var agent = new AgentDefinition { Name = decider.Name, Model = requested, SourceName = def.SourceName };
         Instance instance = Instance.FromDefinition(agent, NewId("i"));
         instance.Inputs = plain;

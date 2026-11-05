@@ -197,6 +197,31 @@ public sealed class DeciderTests
         await Assert.ThrowsAsync<CapabilityMissingException>(() => jev.DecideAsync(request));
     }
 
+    [Fact]
+    public async Task Inputs_are_checked_against_the_schema_beside_the_decider()
+    {
+        var h = new DeciderHarness();
+        JsonElement schema = DeciderHarness.Json("""
+            {"type":"object","required":["subject"],"additionalProperties":false,
+             "properties":{"subject":{"type":"string","enum":["open","closed"]},"customer":{"anyOf":[{"type":"null"},{"type":"object"}]},"n":{"type":"integer","minimum":1,"maximum":3},"tags":{"type":"array","items":{"type":"string"}}}}
+            """);
+        Decider d = Decider.FromYaml(Triage, "triage").WithInputSchema(schema);
+        await h.Runtime.DecideAsync(d, DeciderHarness.Json("""{"subject":"open","customer":null,"n":2,"tags":["a"]}"""));
+        foreach ((string json, string needle) in new[]
+        {
+            ("""{"customer":{}}""", "missing the required field 'subject'"),
+            ("""{"subject":"pending","customer":{}}""", "not one of"),
+            ("""{"subject":"open","customer":3}""", "none of the allowed forms"),
+            ("""{"subject":"open","customer":{},"n":4}""", "above the maximum"),
+            ("""{"subject":"open","customer":{},"tags":[1]}""", "inputs.tags[0] should be string"),
+            ("""{"subject":"open","customer":{},"x":1}""", "does not allow"),
+        })
+        {
+            var e = await Assert.ThrowsAsync<DeciderInputException>(() => h.Runtime.DecideAsync(d, DeciderHarness.Json(json)));
+            Assert.Contains(needle, e.Message);
+        }
+    }
+
     // ---- OpenAI Decisions wire (written from the create-decision reference) ----
 
     private static DecisionRequest WireRequest() => new()

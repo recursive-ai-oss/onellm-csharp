@@ -8,7 +8,7 @@ namespace OneLlm.Tools.Builtins;
 
 /// <summary>
 /// apply_patch: applies a unified diff (the output of <c>diff -u</c> or <c>git diff</c>) to files under the granted roots. Every hunk of
-/// every file is checked against the current contents before anything is written.
+/// every file, and every target against the capability checks (counting the files the patch itself creates), is checked before anything is written.
 /// </summary>
 internal sealed partial class ApplyPatchTool : BuiltinTool
 {
@@ -20,6 +20,7 @@ internal sealed partial class ApplyPatchTool : BuiltinTool
         - Hunks: `@@ -oldStart,oldCount +newStart,newCount @@`, then lines starting with a space (unchanged), `-` (removed) or `+` (added). `\ No newline at end of file` is honoured.
         - Line numbers are hints. A hunk applies where its unchanged and removed lines match the file exactly, nearest to the stated line. If they match nowhere, the whole patch is rejected and nothing is written.
         - Line endings of the file (LF or CRLF) are kept.
+        - All-or-nothing for refusals: every hunk and every target path (including paths the tool will not write) is checked before anything is written, so one refused or non-matching file leaves all files untouched. A failure while writing (disk full, a file changed by someone else at the same moment) can still leave earlier files written.
         """;
 
     internal const string Schema = """
@@ -143,6 +144,32 @@ internal sealed partial class ApplyPatchTool : BuiltinTool
             string final = ReplaceStringTool.ConvertLineEndings(applied!, style);
             byte[] output = kind == TextFile.Kind.Utf8 ? TextFile.Utf8(final, bom) : Encoding.UTF8.GetBytes(final);
             plans.Add((fp, final, output, added, removed, create ? "created" : "modified"));
+        }
+
+        // Every refusal is decided before anything is written. Each target was checked above against the files as they are now; this checks
+        // them again together, counting the files the patch itself creates, so a patch cannot complete a protected layout (a git
+        // directory) one file at a time and be refused only at the last file, with the earlier ones already on disk.
+        var created = new HashSet<string>(StringComparer.Ordinal);
+        foreach ((FilePatch fp, string? _, byte[]? output, int _, int _, string _) in plans)
+        {
+            if (output is not null)
+            {
+                created.Add(PathGuard.Resolve(context.Capabilities.WriteRoots, context.Capabilities.WorkingDirectory, fp.Path, write: true));
+            }
+        }
+
+        foreach ((FilePatch fp, string? _, byte[]? output, int _, int _, string _) in plans)
+        {
+            ICapabilities c = context.Capabilities;
+            string real = PathGuard.Resolve(c.WriteRoots, c.WorkingDirectory, output is null ? fp.OldPath! : fp.Path, write: true);
+            try
+            {
+                PathGuard.CheckWriteProtection(c.WriteRoots, real, c.ProtectedPaths, c.AllowRepoControlWrites, fp.Path, created);
+            }
+            catch (CapabilityMissingException e)
+            {
+                return Fail(e.Message + " Nothing was written.");
+            }
         }
 
         if (!dryRun)

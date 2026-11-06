@@ -164,7 +164,7 @@ internal sealed partial class ApplyPatchTool : BuiltinTool
             string real = PathGuard.Resolve(c.WriteRoots, c.WorkingDirectory, output is null ? fp.OldPath! : fp.Path, write: true);
             try
             {
-                PathGuard.CheckWriteProtection(c.WriteRoots, real, c.ProtectedPaths, c.AllowRepoControlWrites, fp.Path, created);
+                PathGuard.CheckWriteProtection(c.WriteRoots, real, c.ProtectedPaths, c.AllowRepoControlWrites, fp.Path, created, PathGuard.GitListed(c.ShellAccess));
             }
             catch (CapabilityMissingException e)
             {

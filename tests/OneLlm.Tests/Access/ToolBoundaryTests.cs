@@ -503,4 +503,82 @@ public class ToolBoundaryTests
         Assert.False((await Kit.Run("apply_patch", new JsonObject { ["patch"] = fine }.ToJsonString(), caps)).IsError);
         Assert.True(File.Exists(s.In("a.txt")) && File.Exists(s.In("b.txt")));
     }
+
+    // ---- git files by role (a program on the allow-list can complete a git directory around a planted config)
+
+    [Theory]
+    [InlineData("gd/config")]
+    [InlineData("gd/config.worktree")]
+    [InlineData("gd/commondir")]
+    [InlineData("gd/worktrees/w/gitdir")]
+    [InlineData("gd/hooks/pre-commit")]
+    [InlineData("gd/info/exclude")]
+    [InlineData("config")]
+    public async Task With_git_on_the_allow_list_its_configuration_and_hook_files_are_refused_in_any_directory(string path)
+    {
+        using var s = new Scratch();
+        Capabilities caps = Capabilities.Files(s.Root) + Capabilities.ShellCommands("git status", "mkdir");
+        ToolResult w = await Kit.Run("write_file", WriteArgs(path, "[core]\n\tfsmonitor = touch x\n"), caps);
+        Assert.True(w.IsError, path);
+        Assert.False(File.Exists(s.In(path)));
+        string patch = $"--- /dev/null\n+++ b/{path}\n@@ -0,0 +1 @@\n+x\n";
+        Assert.True((await Kit.Run("apply_patch", new JsonObject { ["patch"] = patch }.ToJsonString(), caps)).IsError, path);
+        // The opt-in still works.
+        Assert.False((await Kit.Run("write_file", WriteArgs(path), caps.WithRepoControlWrites())).IsError);
+    }
+
+    [Fact]
+    public async Task Files_named_config_stay_writable_when_git_is_not_on_the_allow_list()
+    {
+        using var s = new Scratch();
+        foreach (Capabilities caps in new[] { Capabilities.Files(s.Root), Capabilities.Files(s.Root) + Capabilities.ShellCommands("ls"), Capabilities.Files(s.Root) + Capabilities.Shell })
+        {
+            Assert.False((await Kit.Run("write_file", WriteArgs("app/config"), caps)).IsError);
+            Assert.False((await Kit.Run("write_file", WriteArgs("app/hooks/on-save.js"), caps)).IsError);
+        }
+    }
+
+    [Fact]
+    public async Task The_planted_config_then_git_init_separate_git_dir_route_is_closed()
+    {
+        UnixOnly();
+        Assert.SkipUnless((Environment.GetEnvironmentVariable("PATH") ?? "").Split(':').Any(d => File.Exists(Path.Combine(d, "git"))), "git is not installed.");
+        using var s = new Scratch();
+        string pwn = s.In("PWNED");
+        Capabilities caps = Capabilities.Files(s.Root) + Capabilities.ShellCommands("git status", "git init");
+        Assert.True((await Kit.Run("write_file", WriteArgs("gd/config", $"[core]\n\tfsmonitor = touch {pwn}\n"), caps)).IsError);
+        _ = await Kit.Run("execute_terminal_command", Shell("git", ["init", "-q", "--separate-git-dir=" + s.In("gd"), s.In("wt")]), caps);
+        _ = await Kit.Run("execute_terminal_command", new JsonObject { ["command"] = "git", ["args"] = new JsonArray("status"), ["working_dir"] = "wt" }.ToJsonString(), caps);
+        Assert.False(File.Exists(pwn));
+    }
+
+    // ---- roots below a control directory
+
+    [Theory]
+    [InlineData("repo/.git/hooks", "pre-commit")]
+    [InlineData("bare/hooks", "pre-receive")]
+    [InlineData("bare/refs/heads", "x")]
+    [InlineData("bare", "config")]
+    public async Task A_root_below_a_control_directory_is_protected(string root, string file)
+    {
+        using var s = new Scratch();
+        s.Write("bare/HEAD", "ref: refs/heads/main\n");
+        Directory.CreateDirectory(s.In("bare/objects"));
+        Directory.CreateDirectory(s.In("bare/refs/heads"));
+        Directory.CreateDirectory(s.In("bare/hooks"));
+        Directory.CreateDirectory(s.In("repo/.git/hooks"));
+        Capabilities caps = Capabilities.Files(s.In(root));
+        Assert.True((await Kit.Run("write_file", WriteArgs(file), caps)).IsError, root);
+        Assert.False(File.Exists(s.In(root + "/" + file)));
+        Assert.False((await Kit.Run("write_file", WriteArgs(file), caps.WithRepoControlWrites())).IsError);
+    }
+
+    [Fact]
+    public void Names_that_the_file_system_may_fold_to_a_control_name_count_as_it_on_windows_and_macos()
+    {
+        Assert.True(PathGuard.NameEquals(".svn", ".svn"));
+        Assert.Equal(OperatingSystem.IsLinux() ? false : true, PathGuard.NameEquals(".\u017Fvn", ".svn"));
+        Assert.Equal(OperatingSystem.IsLinux() ? false : true, PathGuard.NameEquals(".fslc\u212Aout", ".fslckout"));
+        Assert.Equal(OperatingSystem.IsLinux() ? false : true, PathGuard.NameEquals(".g\u0131t", ".git"));
+    }
 }

@@ -62,7 +62,7 @@ public interface ICapabilities
     string ResolveWrite(string path)
     {
         string real = PathGuard.Resolve(WriteRoots, WorkingDirectory, path, write: true);
-        PathGuard.CheckWriteProtection(WriteRoots, real, ProtectedPaths, AllowRepoControlWrites, path);
+        PathGuard.CheckWriteProtection(WriteRoots, real, ProtectedPaths, AllowRepoControlWrites, path, gitListed: PathGuard.GitListed(ShellAccess));
         return real;
     }
 

@@ -77,6 +77,11 @@ internal sealed class MonitorAgentTool : ITool
         }
 
         bool onFinish = ToolArgs.Bool(inputs, "onFinish") ?? false;
+        if (!await AgentTools.MayReachAsync(context, targetId, cancellationToken).ConfigureAwait(false))
+        {
+            return AgentTools.NotYours(targetId);
+        }
+
         LiveAgent? target = await host.GetAsync(targetId, cancellationToken).ConfigureAwait(false);
         if (target is null)
         {
@@ -233,7 +238,8 @@ internal sealed class AwaitMonitorTool : ITool
             return AgentTools.Err($"mode must be \"one\" or \"all\", got \"{ToolArgs.String(inputs, "mode")}\"");
         }
 
-        var monitors = ids.Select(id => (Id: id, Monitor: host.FindMonitor(id))).ToList();
+        // A monitor is its watcher's: another agent's monitor ids read as unknown.
+        var monitors = ids.Select(id => (Id: id, Monitor: host.FindMonitor(id) is { } found && (context.Agent is null || found.WatcherId == context.InstanceId || context.Runtime!.AgentsMayReachAnyInstance) ? found : null)).ToList();
         List<AgentMonitor> known = [.. monitors.Where(static m => m.Monitor is not null).Select(static m => m.Monitor!)];
         foreach (AgentMonitor m in known)
         {
@@ -371,6 +377,11 @@ internal sealed class QueryAgentTool : ITool
         if (id.Length == 0)
         {
             return AgentTools.Err("instanceId is required");
+        }
+
+        if (!await AgentTools.MayReachAsync(context, id, cancellationToken).ConfigureAwait(false))
+        {
+            return AgentTools.NotYours(id);
         }
 
         Instance? live = (await rt.AgentHost.GetAsync(id, cancellationToken).ConfigureAwait(false))?.Instance;

@@ -124,8 +124,10 @@ internal sealed class ShellTool : BuiltinTool
 
         if (policy.RequiresApproval)
         {
+            // With no approver the agent loop holds the call in waiting_for_approval and sets ApprovedByLoop when a person agrees.
             bool approved = policy.Approver is { } approver
-                && await approver(new ShellRequest(display, usesShell ? [] : args, cwd, usesShell), cancellationToken).ConfigureAwait(false);
+                ? await approver(new ShellRequest(display, usesShell ? [] : args, cwd, usesShell), cancellationToken).ConfigureAwait(false)
+                : context.ApprovedByLoop;
             if (!approved)
             {
                 return Fail("The command was not approved, so it did not run.");

@@ -163,12 +163,37 @@ public sealed class JsSandbox
                 MaxStringLength = Options.MaxStringLength,
             },
             Configure = engine => env?.Install(engine, input, hasInput),
+            // Off on purpose: explaining a failed run replays it with tracing, and that replay is not yet bounded by the engine's limits, so a
+            // hostile script could turn its own failure into unbounded work. The engine budgets the replay from OneEcma 1.1.0; turn this on then.
+            ExplainErrors = false,
         });
     }
 
+    // How long past the time limit the host waits for the engine to stop by itself (which gives the richer report) before it gives up on it.
+    private static readonly TimeSpan AbandonGrace = TimeSpan.FromMilliseconds(250);
+
+    private static long s_abandoned;
+    private static int s_abandonedRunning;
+
+    /// <summary>
+    /// How many runs, in this process, the host stopped waiting for because the engine did not return when the time limit passed (or the caller
+    /// cancelled). Counts since process start.
+    /// </summary>
+    /// <remarks>
+    /// The engine checks the clock between steps. One very long built-in operation (for example multiplying two huge BigInts) is a single step, so
+    /// the engine cannot stop it. The caller gets its <see cref="JsSandboxFailure.Time"/> failure at once and the engine's result, if it ever
+    /// arrives, is discarded, but the thread keeps using a CPU core until OneEcma interrupts the operation. A rising count means scripts are
+    /// doing that: lower <see cref="JsSandboxOptions.TimeLimit"/> does not help, only refusing the script does.
+    /// </remarks>
+    public static long AbandonedRuns => Interlocked.Read(ref s_abandoned);
+
+    /// <summary>How many of the abandoned runs (<see cref="AbandonedRuns"/>) are still executing on a thread right now.</summary>
+    public static int AbandonedRunsStillRunning => Volatile.Read(ref s_abandonedRunning);
+
     // The engine computes on the thread that calls it, so the run starts on the thread pool: a caller that awaits a script (a tool in a parallel
-    // batch, a caller that cancels) is never blocked by it.
-    private Task<JsRunResult> RunAsync(
+    // batch, a caller that cancels) is never blocked by it. The host also races the run against the time limit and the caller's token, so a
+    // script that never reaches a step boundary cannot hold the caller either.
+    private async Task<JsRunResult> RunAsync(
         HostModule? module,
         string fileName,
         JsonNode? input,
@@ -181,8 +206,50 @@ public sealed class JsSandbox
         bool undefinedAsNull = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.Run(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, cancellationToken), CancellationToken.None);
+        TimeSpan time = EffectiveTime(limit);
+        Task<JsRunResult> core = Task.Run(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, cancellationToken), CancellationToken.None);
+
+        using var raceCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        Task deadline = Task.Delay(time + AbandonGrace, context.TimeProvider, raceCts.Token);
+        if (await Task.WhenAny(core, deadline).ConfigureAwait(false) == core)
+        {
+            await raceCts.CancelAsync().ConfigureAwait(false);
+            return await core.ConfigureAwait(false);
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            // The engine sees the same token at its next step; give it a moment to stop by itself before it is written off.
+            if (await Task.WhenAny(core, Task.Delay(AbandonGrace, context.TimeProvider)).ConfigureAwait(false) == core)
+            {
+                return await core.ConfigureAwait(false);
+            }
+
+            Abandon(core);
+            throw new OperationCanceledException(cancellationToken);
+        }
+
+        Abandon(core);
+        throw new JsSandboxException(JsSandboxFailure.Time, $"{fileName}: The script ran out of time and did not stop when asked; the host stopped waiting for it.", fileName);
     }
+
+    private static void Abandon(Task<JsRunResult> core)
+    {
+        Interlocked.Increment(ref s_abandoned);
+        Interlocked.Increment(ref s_abandonedRunning);
+        // Whatever the engine eventually returns or throws is discarded; reading Exception keeps it from surfacing as unobserved.
+        _ = core.ContinueWith(
+            static t =>
+            {
+                _ = t.Exception;
+                Interlocked.Decrement(ref s_abandonedRunning);
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    private TimeSpan EffectiveTime(TimeSpan? limit) => limit is { } l && l < Options.TimeLimit ? l : Options.TimeLimit;
 
     private async Task<JsRunResult> RunCoreAsync(
         HostModule? module,
@@ -197,7 +264,7 @@ public sealed class JsSandbox
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        TimeSpan time = limit is { } l && l < Options.TimeLimit ? l : Options.TimeLimit;
+        TimeSpan time = EffectiveTime(limit);
 
         // The time limit is the host's: it also stops a script that is waiting on ctx.fetch, which burns no engine steps.
         using var timeout = new CancellationTokenSource(time, context.TimeProvider);

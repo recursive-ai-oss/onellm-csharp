@@ -14,6 +14,8 @@ internal readonly record struct ToolPhase(bool Pending, bool EndsLoop, bool Asks
 
 internal sealed partial class LiveAgent
 {
+    private const string ShellToolName = "execute_terminal_command";
+
     /// <summary>One tool call on its way through hooks, approval and the tool itself.</summary>
     private sealed class CallState
     {
@@ -21,7 +23,14 @@ internal sealed partial class LiveAgent
 
         public ITool? Tool { get; set; }
 
-        public JsonObject Inputs { get; set; } = new();
+        private JsonObject? _inputs;
+
+        /// <summary>The arguments the tool will get. Made only when something asks, since most calls replace it with a copy straight away.</summary>
+        public JsonObject Inputs
+        {
+            get => _inputs ??= new JsonObject();
+            set => _inputs = value;
+        }
 
         public ToolResult? Result { get; set; }
 
@@ -32,6 +41,9 @@ internal sealed partial class LiveAgent
         public bool Ran { get; set; }
 
         public bool Cancelled { get; set; }
+
+        /// <summary>A person approved this call through the saved approval gate.</summary>
+        public bool Approved { get; set; }
 
         /// <summary>The call was answered before this pass (an earlier part of a turn held for approval); it is kept as it is.</summary>
         public bool Prior { get; init; }
@@ -47,12 +59,14 @@ internal sealed partial class LiveAgent
     /// put back in call order. A call that needs approval is held: the turn is saved with that call unanswered and the agent rests in
     /// <c>waiting_for_approval</c>; the other calls of the turn still run.
     /// </summary>
-    private async Task<ToolPhase> ExecuteToolsAsync(Message message, bool injected, CancellationToken token)
+    private async ValueTask<ToolPhase> ExecuteToolsAsync(Message message, CancellationToken token)
     {
-        var states = new List<CallState>(message.ToolCalls.Count);
-        foreach (ToolCall call in message.ToolCalls)
+        // Indexed loops over the interface lists on this path: enumerating them would allocate on every turn.
+        IReadOnlyList<ToolCall> toolCalls = message.ToolCalls;
+        var states = new List<CallState>(toolCalls.Count);
+        for (int i = 0; i < toolCalls.Count; i++)
         {
-            CallState st = await PrepareAsync(call, injected, token).ConfigureAwait(false);
+            CallState st = await PrepareAsync(toolCalls[i], token).ConfigureAwait(false);
             states.Add(st);
         }
 
@@ -60,7 +74,7 @@ internal sealed partial class LiveAgent
         return await CommitAsync(message, states, replaceExisting: false, token).ConfigureAwait(false);
     }
 
-    private async Task<CallState> PrepareAsync(ToolCall call, bool injected, CancellationToken token)
+    private async ValueTask<CallState> PrepareAsync(ToolCall call, CancellationToken token)
     {
         var st = new CallState { Call = call };
         if (!Setup.Tools.TryGetValue(call.Tool, out ITool? tool))
@@ -97,11 +111,17 @@ internal sealed partial class LiveAgent
             }
         }
 
-        // Calls the definition itself injects were written by the agent's author, so they do not stop for approval.
-        if (tool.Definition.RequiresApproval && !injected)
+        // Injected calls stop for approval like any other: a definition can be written by a model, so its author is not a trusted approver.
+        if (tool.Definition.RequiresApproval)
         {
             st.Pending = true;
             st.PendingReason = $"The tool '{call.Tool}' requires approval.";
+        }
+        else if (tool.Definition.Name == ShellToolName && Setup.Capabilities.ShellAccess is { RequiresApproval: true, Approver: null })
+        {
+            // Shell grants that name no approver use this gate, which is saved with the instance and survives a restart.
+            st.Pending = true;
+            st.PendingReason = "Running a shell command requires approval.";
         }
 
         return st;
@@ -109,10 +129,18 @@ internal sealed partial class LiveAgent
 
     private async Task RunAllAsync(Message message, List<CallState> states, CancellationToken token)
     {
-        List<CallState> runnable = [.. states.Where(static s => s.Result is null && !s.Pending)];
+        List<CallState> runnable = new(states.Count);
+        foreach (CallState candidate in states)
+        {
+            if (candidate.Result is null && !candidate.Pending)
+            {
+                runnable.Add(candidate);
+            }
+        }
+
         if (runnable.Count > 0)
         {
-            bool parallel = runnable.Count > 1 && runnable.All(static s => s.Tool!.Definition.ParallelSafe);
+            bool parallel = runnable.Count > 1 && runnable.TrueForAll(static s => s.Tool!.Definition.ParallelSafe);
             if (parallel)
             {
                 await Task.WhenAll(runnable.Select(s => RunOneAsync(s, token))).ConfigureAwait(false);
@@ -159,6 +187,7 @@ internal sealed partial class LiveAgent
             Agent = this,
             LogSink = Runtime.ToolLog,
             Services = Runtime.Services,
+            ApprovedByLoop = st.Approved,
         };
         Emit(AgentEventKind.ToolCallStarted, call: st.Call);
         long started = Runtime.TimeProvider.GetTimestamp();
@@ -183,8 +212,9 @@ internal sealed partial class LiveAgent
     private static Message BuildMessage(Message message, List<CallState> states, bool cancelled)
     {
         var calls = new List<ToolCall>(states.Count);
-        foreach (CallState s in states)
+        for (int index = 0; index < states.Count; index++)
         {
+            CallState s = states[index];
             if (s.Prior)
             {
                 calls.Add(s.Call);
@@ -198,7 +228,13 @@ internal sealed partial class LiveAgent
             }
 
             ToolResult r = s.Result ?? ToolResult.Error(s.Pending ? "The call was not run: the run was cancelled while it waited for approval." : "The call was cancelled before it finished.");
-            decimal cost = r.CostLines.Sum(static l => l.Amount);
+            decimal cost = 0m;
+            IReadOnlyList<CostLine> resultLines = r.CostLines;
+            for (int l = 0; l < resultLines.Count; l++)
+            {
+                cost += resultLines[l].Amount;
+            }
+
             calls.Add(MessageCopy.WithResult(s.Call, r.Parts, r.IsError, cost, r.CostLines));
         }
 
@@ -206,7 +242,7 @@ internal sealed partial class LiveAgent
     }
 
     /// <summary>Saves the turn with its results, records each call, and decides whether the agent rests or goes on.</summary>
-    private async Task<ToolPhase> CommitAsync(Message message, List<CallState> states, bool replaceExisting, CancellationToken token)
+    private async ValueTask<ToolPhase> CommitAsync(Message message, List<CallState> states, bool replaceExisting, CancellationToken token)
     {
         Message committed = BuildMessage(message, states, cancelled: false);
         bool anyPending = false;
@@ -268,9 +304,12 @@ internal sealed partial class LiveAgent
             }
 
             Emit(AgentEventKind.ToolCallFinished, call: final);
-            await Runtime.WriteRecordAsync(
-                new ToolCallRecord { InstanceId = Instance.InstanceId, Time = Runtime.TimeProvider.GetUtcNow(), MessageId = committed.Id, Call = final, Duration = s.Duration },
-                token).ConfigureAwait(false);
+            if (!Runtime.Sinks.IsEmpty)
+            {
+                await Runtime.WriteRecordAsync(
+                    new ToolCallRecord { InstanceId = Instance.InstanceId, Time = Runtime.TimeProvider.GetUtcNow(), MessageId = committed.Id, Call = final, Duration = s.Duration },
+                    token).ConfigureAwait(false);
+            }
             if (final.CostLines is { Count: > 0 })
             {
                 var cost = new Cost(final.CostLines);
@@ -352,6 +391,7 @@ internal sealed partial class LiveAgent
                 else
                 {
                     st.Tool = tool;
+                    st.Approved = true;
                     st.Inputs = call.Inputs is null ? new JsonObject() : (JsonObject)call.Inputs.DeepClone();
                 }
 

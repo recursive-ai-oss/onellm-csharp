@@ -71,7 +71,8 @@ Written as unknown keys, so other readers keep them:
 |---|---|
 | `error` | `{type, message}` of the failure that put the instance in `error`. A run that reaches `maxIterations` ends in `error` with type `MaxIterations` and the message `max iterations (N) reached` (`maxIterations` defaults to 200). |
 | `cancelled` | `true` when the latest run was cancelled. The instance is `stopped` and keeps the partial turn: finished tool calls have their results, interrupted ones an error result saying they were cancelled. |
-| `askUser` | `{toolCallId, messageId}` of an `ask_user` call that has no answer yet. The instance is `waiting`; the next message sent to it becomes that call's result instead of a separate user message. |
+| `capabilities` | The grants the run started with, so a resumed instance is bounded by them: `readRoots`, `writeRoots`, `workingDirectory`, `shell` `{enabled, approval, commands?}` and `network` `{anyPublic, hosts}`; and `tools`, the tool names a sub-agent started from a file was limited to. A reader that ignores it loses nothing but the narrowing. The runtime intersects it with its own grants and never widens from it. |
+| `askUser` | `{toolCallId, messageId}` of an `ask_user` call that has no answer yet. The instance is `waiting`; the next message from the person or host (source `api` or `user`) becomes that call's result instead of a separate user message; other messages are added behind it. |
 
 ## Fork and duplicate
 

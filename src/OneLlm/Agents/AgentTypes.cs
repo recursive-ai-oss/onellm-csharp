@@ -203,4 +203,10 @@ public sealed class AgentStartOptions
 
     /// <summary>Value for <c>.swarm.uri</c> in templates.</summary>
     public string? SwarmUri { get; init; }
+
+    /// <summary>
+    /// When set, the definition's references may only resolve to tools with these names (plus <c>task_complete</c>); anything else fails the
+    /// load, or is left out in lenient mode. Used for sub-agents started from files an agent could have written. Saved with the instance.
+    /// </summary>
+    internal IReadOnlySet<string>? ToolCeiling { get; init; }
 }

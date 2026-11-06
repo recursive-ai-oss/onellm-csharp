@@ -45,14 +45,19 @@ internal sealed partial class LiveAgent
             try
             {
                 await StateChangedAsync(previous, InstanceStates.Running, token).ConfigureAwait(false);
+                AgentStopReason? heldAtStart = null;
                 if (initial)
                 {
-                    await ProcessInitialAsync(token).ConfigureAwait(false);
+                    heldAtStart = await ProcessInitialAsync(token).ConfigureAwait(false);
                 }
 
-                bool ended = await ResolveApprovalsAsync(token).ConfigureAwait(false);
+                bool ended = heldAtStart is null && await ResolveApprovalsAsync(token).ConfigureAwait(false);
                 AgentStopReason reason = AgentStopReason.Waiting;
-                if (ended)
+                if (heldAtStart is { } held)
+                {
+                    reason = held;
+                }
+                else if (ended)
                 {
                     reason = AgentStopReason.Completed;
                 }
@@ -94,7 +99,7 @@ internal sealed partial class LiveAgent
                             continue;
                         }
 
-                        ToolPhase phase = await ExecuteToolsAsync(answer, injected: false, token).ConfigureAwait(false);
+                        ToolPhase phase = await ExecuteToolsAsync(answer, token).ConfigureAwait(false);
                         if (phase.Pending)
                         {
                             reason = AgentStopReason.WaitingForApproval;
@@ -249,7 +254,9 @@ internal sealed partial class LiveAgent
     {
         while (_inbox.TryDequeue(out Message? message))
         {
-            if (AwaitingAnswer)
+            // Only a person's reply (the host or API channel) answers a question from ask_user. Anything else, such as another agent's
+            // message or a monitor alert, joins the history and waits behind the question.
+            if (AwaitingAnswer && message.Source is null or { Kind: "api" or "user" })
             {
                 await AnswerAskAsync(message, token).ConfigureAwait(false);
                 continue;
@@ -276,7 +283,8 @@ internal sealed partial class LiveAgent
 
     // ---- start of a fresh agent ---------------------------------------------------------------------------------------------
 
-    private async Task ProcessInitialAsync(CancellationToken token)
+    /// <summary>Sets up a fresh agent. Returns the stop reason when an injected call holds the run (approval or ask_user), otherwise null.</summary>
+    private async Task<AgentStopReason?> ProcessInitialAsync(CancellationToken token)
     {
         Dictionary<string, object?> inputs = Instance.Inputs ?? [];
         var turns = new List<object?>();
@@ -335,15 +343,24 @@ internal sealed partial class LiveAgent
                 if (calls.Count > 0)
                 {
                     var injected = new Message { Id = Runtime.NewId("m"), ToolCalls = calls, DateTime = Runtime.TimeProvider.GetUtcNow() };
-                    ToolPhase phase = await ExecuteToolsAsync(injected, injected: true, token).ConfigureAwait(false);
-                    if (phase.Pending)
+                    ToolPhase phase = await ExecuteToolsAsync(injected, token).ConfigureAwait(false);
+                    if (phase.Pending || phase.Asks)
                     {
-                        return;
+                        // The run now waits for a person (an approval, or the answer to ask_user) exactly as it would after a model's call.
+                        // The task prompt joins the history behind the held turn so it is not lost; the rest of the initial prompts are not run.
+                        await AppendPromptAsync(token).ConfigureAwait(false);
+                        return phase.Pending ? AgentStopReason.WaitingForApproval : AgentStopReason.Waiting;
                     }
                 }
             }
         }
 
+        await AppendPromptAsync(token).ConfigureAwait(false);
+        return null;
+    }
+
+    private async Task AppendPromptAsync(CancellationToken token)
+    {
         if (!string.IsNullOrEmpty(Options.Prompt))
         {
             MessageSource source = Options.Source ?? (Instance.SpawnerInstanceId is { } spawner
@@ -376,7 +393,7 @@ internal sealed partial class LiveAgent
 
     // ---- one model call -----------------------------------------------------------------------------------------------------
 
-    private async Task<Message> InferAsync(CancellationToken token)
+    private async ValueTask<Message> InferAsync(CancellationToken token)
     {
         ChatRequest request = Runtime.BuildChat(Instance, Setup.Model, Setup.Settings, null, Setup.ToolDefinitions);
         HookSet hooks = Setup.Hooks;

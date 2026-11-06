@@ -4,7 +4,7 @@ An agent is a definition run as an instance with tools. `Llm.RunAgentAsync(path,
 
 ## The loop
 
-1. The system prompt and initial prompts are rendered like a scripted run's. Initial tool calls (`initialPrompts` entries with `toolCalls`) run first, through the same path as any call, marked `injected`; they never wait for approval, because the definition's author wrote them.
+1. The system prompt and initial prompts are rendered like a scripted run's. Initial tool calls (`initialPrompts` entries with `toolCalls`) run first, through the same path as any call, marked `injected`. They stop for approval like any other call (a definition can be written by a model, so its author is not an approver), and an injected `ask_user` leaves the instance `waiting` for the answer; in both cases the task prompt is added behind the held turn and the remaining initial prompts do not run.
 2. Each turn: the model is called with the definition's tools; the tool calls it makes run; the turn is saved with its results.
 3. Calls run together when there is more than one and every one is `parallelSafe` (the default); a single `parallelSafe: false` call makes the whole turn run one after another in call order. Results are returned to the model **in call order**, not in finishing order.
 4. The run ends in one of these ways:
@@ -27,13 +27,19 @@ Every step is saved to the instance store and written to the record sinks; usage
 
 A tool with `RequiresApproval`, or a hook that returns `RequireApproval`, holds its call. The turn is saved with that call unanswered and an entry in `pendingApprovals`; the other calls of the turn run now. `AgentRun.ApproveAsync(toolCallId?)` and `DenyAsync(toolCallId?, reason?)` record a decision in the instance file; when all are decided the run continues. The decision survives a restart: load the instance with a new `Runtime` over the same store, call `runtime.ApproveAsync(instanceId)` and await the run. A denied call reaches the model as an error result with the reason.
 
+Shell commands use the same gate when the grant is `Capabilities.ShellWithLoopApproval`: every `execute_terminal_command` call is held with a pending approval showing the command, and runs only after `ApproveAsync`, also in another process after a restart. `Capabilities.ShellWithApproval(approver)` keeps asking its delegate inside the tool instead (the host's own prompt, as the CLI's terminal approver does). A saved instance whose grants said "approval" and that resumes in a runtime with no approver of its own uses the loop gate.
+
 ## Messages and steering
 
-`AgentRun.MessageAsync` (or `message_agent` from another agent) delivers a message. To a running agent it is read at the next turn boundary, after the results of the turn in progress. To a `waiting` or `stopped` agent it starts a new run segment. While approvals are pending it waits until they are decided. A message sent to an agent that is waiting on `ask_user` is the answer: it becomes the result of that call.
+`AgentRun.MessageAsync` (or `message_agent` from another agent) delivers a message. To a running agent it is read at the next turn boundary, after the results of the turn in progress. To a `waiting` or `stopped` agent it starts a new run segment. While approvals are pending it waits until they are decided. A message from the person or host (`MessageAsync`, source `api` or `user`) sent to an agent that is waiting on `ask_user` is the answer: it becomes the result of that call. Messages from other agents or the runtime (a monitor alert) join the history behind the question and do not answer it. A message to an instance in `error` starts a new run segment, as it does for any resting instance.
 
 ## Sub-agents
 
 `run_agent_async` starts another instance in the same `Runtime`, linked by `spawnerInstanceId`, `callerInstanceId`, `callerToolCallId` and `delegationPrompt`. The child's grants are the parent's grants intersected with what the caller asks for, so a child never holds more than its parent (`Capabilities.Intersect`). A definition file is read only from under the caller's file roots, after symlinks are followed; definitions registered on `Runtime.AgentDefinitions` need no file access. The cost of children rolls up into the parent's subtree.
+
+- **Tools.** A child started from a definition *file* holds at most the tools its parent holds (plus `task_complete`): a reference to any other tool fails the start with a message naming the tool. A model can write such a file, so the file cannot widen the set. A definition the host registered on `Runtime.AgentDefinitions` chooses its own tools; its grants are still the parent's at most.
+- **Reach.** The agent tools (`query_agent`, `message_agent`, `run_agent_async` with `agentId`, `await_agent`, `monitor_agent`, `list_agent_instances`) work on the calling agent and the agents it started, found by following `spawnerInstanceId` (live or saved), because another instance may hold wider grants than the caller. A monitor belongs to the agent that armed it. Set `Runtime.AgentsMayReachAnyInstance` to let agents reach every instance in the store; calls on the `Runtime` itself are never restricted.
+- **Grants survive a restart.** The grants an instance runs with are saved in its file (the `capabilities` key, see the instance format). When any runtime resumes it (a message, an approval, a lazy load), it gets those grants intersected with that runtime's, so a read-only start stays read-only and a runtime never widens a saved instance. An instance file without the key (older files) gets the resuming runtime's grants.
 
 ## Agent tools
 

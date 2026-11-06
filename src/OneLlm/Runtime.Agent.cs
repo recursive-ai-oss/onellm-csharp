@@ -80,6 +80,13 @@ public sealed partial class Runtime
     }
 
     /// <summary>
+    /// False by default: an agent's tools (<c>query_agent</c>, <c>message_agent</c>, <c>await_agent</c>, <c>monitor_agent</c>, <c>list_agent_instances</c>)
+    /// reach only the agent itself and the agents it started. Another instance may hold wider grants, so letting a narrower agent read or message it
+    /// would void the narrowing. Set true to let agents reach every instance in the store. Host calls on the runtime are never restricted.
+    /// </summary>
+    public bool AgentsMayReachAnyInstance { get; set; }
+
+    /// <summary>
     /// Retries of a model call inside the agent loop, for failures the provider marks transient, after the provider client's own retries.
     /// Delays honour <c>Retry-After</c>. Defaults to none, because provider clients already retry.
     /// </summary>

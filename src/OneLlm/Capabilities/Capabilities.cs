@@ -77,6 +77,9 @@ public sealed class Capabilities : ICapabilities
     public static Capabilities ShellWithApproval(ShellApprover approver) =>
         new([], [], null, ShellPolicy.WithApproval(approver), [], false);
 
+    /// <summary>Any command, but each one waits for a person at the agent loop's saved approval gate (see <see cref="ShellPolicy.WithLoopApproval"/>).</summary>
+    public static Capabilities ShellWithLoopApproval { get; } = new([], [], null, ShellPolicy.WithLoopApproval(), [], false);
+
     /// <summary>Network access to the listed hosts. See <see cref="HostPattern"/> for the entry format.</summary>
     /// <param name="hosts">Host names, <c>*.</c> subdomain wildcards, addresses or ranges, each with an optional port.</param>
     /// <returns>The grants.</returns>
@@ -125,6 +128,9 @@ public sealed class Capabilities : ICapabilities
         string real = ResolveRead(Path.IsPathFullyQualified(directory) ? directory : Path.Join(WorkingDirectory, directory));
         return new(_readRoots, _writeRoots, real, ShellAccess, _hosts, AnyPublicNetwork, _protected, AllowRepoControlWrites);
     }
+
+    /// <summary>The same grants with another shell policy. Used to rebuild saved grants.</summary>
+    internal Capabilities WithShell(ShellPolicy shell) => new(_readRoots, _writeRoots, WorkingDirectory, shell, _hosts, AnyPublicNetwork);
 
     /// <summary>Adds one set of grants to another: roots and hosts are unioned and the more permissive shell policy that one policy can express wins.</summary>
     /// <param name="left">The first grants.</param>

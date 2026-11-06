@@ -60,9 +60,12 @@ internal sealed class RunScope : IAsyncDisposable
     {
         Instance.Messages.Add(message);
         await Runtime.Store.SaveAsync(Instance, cancellationToken).ConfigureAwait(false);
-        await Runtime.WriteRecordAsync(
-            new MessageRecord { InstanceId = Instance.InstanceId, Time = message.DateTime ?? Runtime.TimeProvider.GetUtcNow(), MessageId = message.Id, Message = message },
-            cancellationToken).ConfigureAwait(false);
+        if (!Runtime.Sinks.IsEmpty)
+        {
+            await Runtime.WriteRecordAsync(
+                new MessageRecord { InstanceId = Instance.InstanceId, Time = message.DateTime ?? Runtime.TimeProvider.GetUtcNow(), MessageId = message.Id, Message = message },
+                cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Ends the run in a state (<c>stopped</c> or <c>waiting</c>) and saves.</summary>

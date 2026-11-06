@@ -14,10 +14,12 @@ var caps = Capabilities.Files("work")                          // read and write
 | Grant | Default | Notes |
 |---|---|---|
 | Files | the working directory, read and write | read roots and write roots are separate |
-| Shell | off | `Capabilities.Shell` (open), `ShellCommands(...)` (allow-list), `ShellWithApproval(...)` (every command asks the approver; the agent loop supplies the approver) |
+| Shell | off | `Capabilities.Shell` (open), `ShellCommands(...)` (allow-list), `ShellWithApproval(approver)` (every command asks that delegate inside the tool), `ShellWithLoopApproval` (every command is held in the agent loop's saved `waiting_for_approval` gate until a person approves it, also after a restart) |
 | Network | off | `Network(entries)`; `AnyPublicHosts` allows every public host |
 
-`a + b` unions the grants. `a.Intersect(b)` is what a sub-agent gets: never wider than either side (roots are intersected by containment, the shell is the stricter policy, hosts must be allowed by both, and with two approvers both are asked). An intersection never reaches a kind of address one side lacks: `AnyPublicHosts` intersected with `Network("localhost")` allows nothing, because public-only access never covers loopback, private or link-local addresses, and entries that can (addresses, ranges, `localhost` names) are dropped. Write protections (below) are the union of both sides'.
+`a + b` unions the grants. The grants an agent started with are saved with its instance and re-applied (intersected with the resuming runtime's) on resume; network entries are saved only for the built-in `Capabilities`, so a custom `ICapabilities` that allows network resumes with it off. Agents reach only their own sub-agents through the agent tools (see the agents notes).
+
+`a.Intersect(b)` is what a sub-agent gets: never wider than either side (roots are intersected by containment, the shell is the stricter policy, hosts must be allowed by both, and with two approvers both are asked). An intersection never reaches a kind of address one side lacks: `AnyPublicHosts` intersected with `Network("localhost")` allows nothing, because public-only access never covers loopback, private or link-local addresses, and entries that can (addresses, ranges, `localhost` names) are dropped. Write protections (below) are the union of both sides'.
 
 ## Files
 

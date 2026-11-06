@@ -221,6 +221,34 @@ internal sealed class AgentHost
 
     private static readonly HashSet<string> s_observerPoints = new(StringComparer.OrdinalIgnoreCase) { "onMessage", "onStateChange", "onCost" };
 
+    /// <summary>
+    /// Loads the hook files a definition lists. Without a hook source an interceptor fails the load (it must never be silently left
+    /// out); a definition whose hooks are all observers runs without them and says so in <paramref name="warnings"/> (lenient only).
+    /// </summary>
+    internal static IReadOnlyList<IHook> LoadDefinitionHooks(Runtime runtime, Instance instance, ICapabilities caps, bool lenient, List<string> warnings)
+    {
+        IReadOnlyList<IHook> definitionHooks = [];
+        if (instance.Hooks.Count > 0)
+        {
+            if (runtime.DefinitionHooks is { } source)
+            {
+                definitionHooks = source.Load(instance, caps);
+            }
+            else if (!lenient || instance.Hooks.Any(static h => h.Points is null || h.Points.Any(static p => !s_observerPoints.Contains(p))))
+            {
+                // Interceptors fail closed: a hook that can block or change a call must never be silently left out, on resume either.
+                // Only a definition whose hooks all name observer points may run without a hook source.
+                throw new CapabilityMissingException("Definition hooks", "RecursiveAI.OneLlm.JavaScript, or set Runtime.DefinitionHooks", isPackage: true);
+            }
+            else
+            {
+                warnings.Add("The definition lists observer hooks, but this runtime has no hook source, so they were left out.");
+            }
+        }
+
+        return definitionHooks;
+    }
+
     private AgentSetup BuildSetup(Instance instance, AgentStartOptions options, ICapabilities caps, bool lenient, IReadOnlySet<string>? toolCeiling)
     {
         ResolvedModelPair pair = ResolvedModelPair.Of(_runtime, instance.Model!);
@@ -271,24 +299,7 @@ internal sealed class AgentHost
             tools[tool.Definition.Name] = tool;
         }
 
-        IReadOnlyList<IHook> definitionHooks = [];
-        if (instance.Hooks.Count > 0)
-        {
-            if (_runtime.DefinitionHooks is { } source)
-            {
-                definitionHooks = source.Load(instance, caps);
-            }
-            else if (!lenient || instance.Hooks.Any(static h => h.Points is null || h.Points.Any(static p => !s_observerPoints.Contains(p))))
-            {
-                // Interceptors fail closed: a hook that can block or change a call must never be silently left out, on resume either.
-                // Only a definition whose hooks all name observer points may run without a hook source.
-                throw new CapabilityMissingException("Definition hooks", "RecursiveAI.OneLlm.JavaScript, or set Runtime.DefinitionHooks", isPackage: true);
-            }
-            else
-            {
-                warnings.Add("The definition lists observer hooks, but this runtime has no hook source, so they were left out.");
-            }
-        }
+        IReadOnlyList<IHook> definitionHooks = LoadDefinitionHooks(_runtime, instance, caps, lenient, warnings);
 
         IHook[] host = _runtime.Hooks.Snapshot;
         var setup = new AgentSetup

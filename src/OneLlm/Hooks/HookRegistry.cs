@@ -176,6 +176,13 @@ internal sealed class HookSet
 {
     public static readonly HookSet Empty = new(null, [], []);
 
+    /// <summary>The runtime's host hooks (and any definition hooks) as one set; <see cref="Empty"/> when there are none, so a run without hooks builds nothing.</summary>
+    public static HookSet ForRuntime(Runtime runtime, IReadOnlyList<IHook>? definition = null)
+    {
+        IHook[] host = runtime.Hooks.Snapshot;
+        return host.Length == 0 && (definition is null || definition.Count == 0) ? Empty : new HookSet(runtime, host, definition ?? []);
+    }
+
     private readonly Runtime? _runtime;
     private readonly IHook[] _beforeInference;
     private readonly IHook[] _afterInference;

@@ -2,6 +2,7 @@ using System.Runtime.ExceptionServices;
 using System.Text.Json.Serialization.Metadata;
 using OneLlm.Catalog;
 using OneLlm.Definitions;
+using OneLlm.Hooks;
 using OneLlm.Instances;
 using OneLlm.Messages;
 using OneLlm.Pricing;
@@ -176,7 +177,7 @@ public sealed partial class Runtime
     /// <summary>Takes the instance's lease, adds the user's message and builds the request for the next answer.</summary>
     internal async Task<Turn> BeginTurnAsync(Instance instance, AskRequest settings, ResolvedModel model, IChatProvider provider, Message user, ResponseFormat? format, CancellationToken cancellationToken)
     {
-        RunScope scope = await RunScope.StartAsync(this, instance, cancellationToken).ConfigureAwait(false);
+        RunScope scope = await RunScope.StartAsync(this, instance, cancellationToken, HookSet.ForRuntime(this)).ConfigureAwait(false);
         try
         {
             await scope.AppendAsync(user, cancellationToken).ConfigureAwait(false);
@@ -262,11 +263,20 @@ public sealed partial class Runtime
     /// <summary>Sends a prepared turn and appends the answer to the instance. Does not settle the run: the caller does.</summary>
     internal async Task<AskResult> SendTurnAsync(Turn turn, CancellationToken cancellationToken)
     {
-        InferenceCall call = InferenceCall.Begin(this, turn.Scope, turn.Model, turn.Provider, turn.Request);
+        RunScope scope = turn.Scope;
+        (ChatRequest request, Message? given) = await scope.BeforeInferenceAsync(turn.Request, cancellationToken).ConfigureAwait(false);
+        if (given is not null)
+        {
+            // A hook answered for the model: nothing was sent, so nothing was spent.
+            await scope.AppendAsync(given, cancellationToken).ConfigureAwait(false);
+            return new AskResult(given.GetAssistantText(), given, scope.Instance, turn.Model.Id, Cost.Zero, FinishReason.Stop, []);
+        }
+
+        InferenceCall call = InferenceCall.Begin(this, scope, turn.Model, turn.Provider, request);
         ChatResponse response;
         try
         {
-            response = await turn.Provider.SendAsync(call.Request, cancellationToken).ConfigureAwait(false);
+            response = await scope.SendAsync(turn.Provider, call.Request, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -276,8 +286,9 @@ public sealed partial class Runtime
 
         (Message stamped, Cost cost, FinishReason finish, IReadOnlyList<ResponseWarning> warnings) = await call
             .CompleteAsync(response.Message, response.Finish, response.FinishReasonRaw, response.Id, cancellationToken, response.Warnings).ConfigureAwait(false);
-        await turn.Scope.AppendAsync(stamped, cancellationToken).ConfigureAwait(false);
-        return new AskResult(stamped.GetAssistantText(), stamped, turn.Scope.Instance, turn.Model.Id, cost, finish, warnings);
+        stamped = await scope.AfterInferenceAsync(call.Request, stamped, cost, cancellationToken).ConfigureAwait(false);
+        await scope.AppendAsync(stamped, cancellationToken).ConfigureAwait(false);
+        return new AskResult(stamped.GetAssistantText(), stamped, scope.Instance, turn.Model.Id, cost, finish, warnings);
     }
 
     private async Task<(AskResult, T?)> AskCoreAsync<T>(AskRequest request, ResponseFormat? format, Func<Message, T>? parse, CancellationToken cancellationToken)

@@ -171,6 +171,11 @@ internal sealed class DecisionMeter
         runtimeGuard.Settle(runtimeReserved, actual);
         instanceGuard.Settle(instanceReserved, actual);
         TimeSpan elapsed = _runtime.TimeProvider.GetElapsedTime(started);
+        if (usage?.ToCost() is { } decided)
+        {
+            await _scope.CostAsync(decided, cancellationToken).ConfigureAwait(false);
+        }
+
         GenAiTelemetry.Complete(activity, "decide", _provider.Name, _model.Name, usage, elapsed);
         await _runtime.WriteRecordAsync(
             new InferenceRecord { InstanceId = _scope.Instance.InstanceId, Time = now, Provider = _provider.Name, Operation = "decide", Usage = usage, Duration = elapsed },

@@ -1,6 +1,8 @@
 using System.Text.Json;
+using OneLlm.Agents;
 using OneLlm.Catalog;
 using OneLlm.Definitions;
+using OneLlm.Hooks;
 using OneLlm.Instances;
 using OneLlm.Messages;
 using OneLlm.Providers;
@@ -72,7 +74,9 @@ public sealed partial class Runtime
         string Render(string text, string where) =>
             Template.Render(text, scope, new TemplateParseOptions { Name = sourceName + ":" + where, Functions = Functions }, render);
 
-        RunScope run = await RunScope.StartAsync(this, instance, cancellationToken).ConfigureAwait(false);
+        // Definition hooks on a flow follow the agent rules; a flow runs no tools, so its grants are the runtime's.
+        IReadOnlyList<IHook> definitionHooks = AgentHost.LoadDefinitionHooks(this, instance, Capabilities, lenient: true, warnings);
+        RunScope run = await RunScope.StartAsync(this, instance, cancellationToken, HookSet.ForRuntime(this, definitionHooks)).ConfigureAwait(false);
         await using (run.ConfigureAwait(false))
         {
             var answers = new List<Message>();

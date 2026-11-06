@@ -20,6 +20,7 @@ public sealed class JsRunLimiter : IDisposable
     private readonly List<TaskCompletionSource> _waiters = [];
     private readonly object _gate = new();
     private readonly List<Lease> _leases = [];
+    private readonly Dictionary<string, string> _parents = new(StringComparer.Ordinal);
 
     /// <summary>Creates a limiter.</summary>
     /// <param name="maxConcurrentRuns">The most runs that may execute at once. Default 8. Must be at least 1.</param>
@@ -27,8 +28,9 @@ public sealed class JsRunLimiter : IDisposable
     /// <param name="maxWait">How long a run waits for a free slot before it fails as busy. Default 10 seconds; zero fails at once.</param>
     /// <param name="reservedForInterceptors">Slots that only hooks and decider logic may use, so a flood of tool and <c>run_javascript</c> calls cannot make interceptors fail closed. Default 2, or one less than the run limit when that is smaller; must be less than the run limit.</param>
     /// <param name="maxRunsPerCaller">The most slots one caller (an instance id) may hold at once with tool and <c>run_javascript</c> runs. Abandoned runs count until their thread ends, so a caller whose scripts keep hanging is refused until they have. Default 3.</param>
+    /// <param name="maxInterceptorsPerOwner">The most slots one owner may hold with hook calls, or with calls of one decider's logic. Default 2. Decider logic as a whole may use at most half the slots.</param>
     /// <exception cref="ArgumentOutOfRangeException">A limit is out of range.</exception>
-    public JsRunLimiter(int maxConcurrentRuns = 0, long maxTotalBytes = 2L * 1024 * 1024 * 1024, TimeSpan? maxWait = null, int reservedForInterceptors = -1, int maxRunsPerCaller = 3)
+    public JsRunLimiter(int maxConcurrentRuns = 0, long maxTotalBytes = 2L * 1024 * 1024 * 1024, TimeSpan? maxWait = null, int reservedForInterceptors = -1, int maxRunsPerCaller = 3, int maxInterceptorsPerOwner = 2)
     {
         int slots = maxConcurrentRuns == 0 ? 8 : maxConcurrentRuns;
         ArgumentOutOfRangeException.ThrowIfLessThan(slots, 1);
@@ -46,6 +48,8 @@ public sealed class JsRunLimiter : IDisposable
         ArgumentOutOfRangeException.ThrowIfLessThan(maxRunsPerCaller, 1);
         ReservedForInterceptors = reservedForInterceptors;
         MaxRunsPerCaller = maxRunsPerCaller;
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxInterceptorsPerOwner, 1);
+        MaxInterceptorsPerOwner = maxInterceptorsPerOwner;
     }
 
     /// <summary>Kept for compatibility; a limiter holds no handle that needs releasing.</summary>
@@ -62,6 +66,9 @@ public sealed class JsRunLimiter : IDisposable
 
     /// <summary>Slots only hooks and decider logic may use.</summary>
     public int ReservedForInterceptors { get; }
+
+    /// <summary>The most slots one owner may hold with hook calls or one decider's logic.</summary>
+    public int MaxInterceptorsPerOwner { get; }
 
     /// <summary>The most slots one caller may hold with tool and snippet runs.</summary>
     public int MaxRunsPerCaller { get; }
@@ -112,8 +119,36 @@ public sealed class JsRunLimiter : IDisposable
         return Math.Max(host, growth);
     }
 
-    // Caller holds _gate. Interceptors (hooks, decider logic) may use every slot; everything else leaves the reserved ones free and is capped per caller.
-    private bool TryAdd(string owner, bool interceptor, out Lease? lease)
+    // Caller holds _gate. Follows the spawner chain the limiter has seen to the top instance, so sub-agents count against the tree that started them.
+    private string Root(string instanceId, string? callerId)
+    {
+        if (callerId is not null && callerId != instanceId)
+        {
+            _parents[instanceId] = callerId;
+        }
+
+        string at = instanceId;
+        for (int hops = 0; hops < 64 && _parents.TryGetValue(at, out string? up); hops++)
+        {
+            at = up;
+        }
+
+        if (_parents.Count > 10_000)
+        {
+            _parents.Clear();
+        }
+
+        return at;
+    }
+
+    // Caller holds _gate.
+    //  - General runs (tools, run_javascript, file loads): at most MaxRunsPerCaller per root, never into the interceptor reserve, and never into the last slot.
+    //  - Hook calls: at most MaxInterceptorsPerOwner per root; they may use any free slot.
+    //  - Decider logic: at most MaxInterceptorsPerOwner per decider and half the slots in all.
+    //  - Loads (running a tool, hook or decider file's top level): at most MaxInterceptorsPerOwner per owner, outside the general cap so a flood of tool
+    //    runs does not stop a definition from loading.
+    //  General runs, loads and decider logic together always leave one slot for hooks of other owners.
+    private bool TryAdd(string owner, RunClass cls, out Lease? lease)
     {
         lease = null;
         if (_leases.Count >= MaxConcurrentRuns)
@@ -121,34 +156,71 @@ public sealed class JsRunLimiter : IDisposable
             return false;
         }
 
-        if (!interceptor)
+        int general = 0;
+        int nonHook = 0;
+        int deciders = 0;
+        int mine = 0;
+        foreach (Lease l in _leases)
         {
-            int general = 0;
-            int mine = 0;
-            foreach (Lease l in _leases)
+            if (l.Class == RunClass.General)
             {
-                if (!l.Interceptor)
-                {
-                    general++;
-                    if (l.Owner == owner)
-                    {
-                        mine++;
-                    }
-                }
+                general++;
             }
 
-            if (general >= MaxConcurrentRuns - ReservedForInterceptors || mine >= MaxRunsPerCaller)
+            if (l.Class == RunClass.Decider)
             {
-                return false;
+                deciders++;
+            }
+
+            if (l.Class != RunClass.Hook)
+            {
+                nonHook++;
+            }
+
+            if (l.Class == cls && l.Owner == owner)
+            {
+                mine++;
             }
         }
 
-        lease = new Lease(this, owner, interceptor);
+        switch (cls)
+        {
+            case RunClass.General:
+                if (general >= MaxConcurrentRuns - ReservedForInterceptors || mine >= MaxRunsPerCaller || nonHook >= MaxConcurrentRuns - Math.Min(1, ReservedForInterceptors))
+                {
+                    return false;
+                }
+
+                break;
+            case RunClass.Hook:
+                if (mine >= MaxInterceptorsPerOwner)
+                {
+                    return false;
+                }
+
+                break;
+            case RunClass.Load:
+                if (mine >= MaxInterceptorsPerOwner || nonHook >= MaxConcurrentRuns - Math.Min(1, ReservedForInterceptors))
+                {
+                    return false;
+                }
+
+                break;
+            default:
+                if (mine >= MaxInterceptorsPerOwner || deciders >= Math.Max(1, MaxConcurrentRuns / 2) || nonHook >= MaxConcurrentRuns - Math.Min(1, ReservedForInterceptors))
+                {
+                    return false;
+                }
+
+                break;
+        }
+
+        lease = new Lease(this, owner, cls);
         _leases.Add(lease);
         return true;
     }
 
-    internal async Task<Lease> EnterAsync(TimeProvider time, string owner, bool interceptor, CancellationToken cancellationToken)
+    internal async Task<Lease> EnterAsync(TimeProvider time, string instanceId, string? callerId, RunClass cls, CancellationToken cancellationToken)
     {
         using var wait = new CancellationTokenSource(MaxWait, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, wait.Token);
@@ -157,7 +229,7 @@ public sealed class JsRunLimiter : IDisposable
             TaskCompletionSource? signal = null;
             lock (_gate)
             {
-                if (TryAdd(owner, interceptor, out Lease? got))
+                if (TryAdd(cls == RunClass.Decider ? instanceId : Root(instanceId, callerId), cls, out Lease? got))
                 {
                     return got!;
                 }
@@ -185,7 +257,7 @@ public sealed class JsRunLimiter : IDisposable
                     _waiters.Remove(signal!);
                 }
 
-                throw new JsSandboxException(JsSandboxFailure.Busy, $"Too many scripts are running ({MaxConcurrentRuns} at once, at most {MaxRunsPerCaller} per caller{(interceptor ? "" : ", " + ReservedForInterceptors + " kept for hooks and deciders")}); this one waited {MaxWait.TotalSeconds:0.###} s for a free slot. Try again later.");
+                throw new JsSandboxException(JsSandboxFailure.Busy, $"Too many scripts are running ({MaxConcurrentRuns} at once, at most {MaxRunsPerCaller} per caller{(cls == RunClass.Hook ? "" : ", " + ReservedForInterceptors + " kept for hooks")}); this one waited {MaxWait.TotalSeconds:0.###} s for a free slot. Try again later.");
             }
             catch
             {
@@ -205,16 +277,16 @@ public sealed class JsRunLimiter : IDisposable
         private readonly JsRunLimiter _owner;
         private bool _released;
 
-        internal Lease(JsRunLimiter owner, string callerId, bool interceptor)
+        internal Lease(JsRunLimiter owner, string callerId, RunClass cls)
         {
             _owner = owner;
             Owner = callerId;
-            Interceptor = interceptor;
+            Class = cls;
         }
 
         internal string Owner { get; }
 
-        internal bool Interceptor { get; }
+        internal RunClass Class { get; }
 
         internal long HostBytes { get; private set; }
 
@@ -266,4 +338,20 @@ public sealed class JsRunLimiter : IDisposable
             }
         }
     }
+}
+
+/// <summary>Which of the limiter's rules a run falls under.</summary>
+internal enum RunClass
+{
+    /// <summary>Tools, <c>run_javascript</c> and file loads.</summary>
+    General = 0,
+
+    /// <summary>A definition's JavaScript hook.</summary>
+    Hook = 1,
+
+    /// <summary>Decider logic (<c>prepare</c> / <c>decide</c>).</summary>
+    Decider = 2,
+
+    /// <summary>Running a tool, hook or decider file's top level when it loads.</summary>
+    Load = 3,
 }

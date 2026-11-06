@@ -25,6 +25,9 @@ public sealed class JsDeciderLogic : IDeciderLogic
     private readonly string _source;
     private readonly string _file;
 
+    // Names this decider for the limiter: calls of the same logic share a cap, other deciders do not.
+    private readonly string _owner = "decider:" + Guid.NewGuid().ToString("N");
+
     private JsDeciderLogic(JsSandbox sandbox, TimeProvider time, string source, string file, bool hasPrepare, bool hasDecide)
     {
         _sandbox = sandbox;
@@ -121,8 +124,8 @@ public sealed class JsDeciderLogic : IDeciderLogic
     private async Task<JsonElement> RunAsync(string function, JsonNode?[] args, CancellationToken cancellationToken)
     {
         // Logic is pure: no instance, no grants.
-        var context = new ToolContext("decider", "decider:" + function, _time);
-        JsRunResult run = await _sandbox.CallAsync(_source, _file, function, args, passCtx: false, context, ToolCapability.None, null, cancellationToken, undefinedAsNull: true, interceptor: true);
+        var context = new ToolContext(_owner, "decider:" + function, _time);
+        JsRunResult run = await _sandbox.CallAsync(_source, _file, function, args, passCtx: false, context, ToolCapability.None, null, cancellationToken, undefinedAsNull: true, runClass: RunClass.Decider);
         string json = run.HasValue ? run.Value?.ToJsonString() ?? "null" : "null";
         using JsonDocument doc = JsonDocument.Parse(json);
         return doc.RootElement.Clone();

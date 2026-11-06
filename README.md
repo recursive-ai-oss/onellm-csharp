@@ -6,8 +6,6 @@ NuGet: `RecursiveAI.OneLlm` (namespace `OneLlm`). Requires .NET 10.
 
 > OneLLM is unaffiliated with the `onellm` package on PyPI and with the OneLLM research model.
 
-This repository is under construction: the API can still change before the first release.
-
 ## What it is
 
 - **Provider clients** for each provider's inference surface: chat, streaming, client and hosted tools, structured output, reasoning replay, caching, token counting, batch, embeddings, plus image generation, speech and moderation where the provider has them.
@@ -46,6 +44,9 @@ Console.WriteLine($"{r.Text} [{r.Usage?.InputTokens} in, {r.Usage?.OutputTokens}
 `Invoice` is your record and `AppJson` a `JsonSerializerContext` that lists it, which keeps structured output trim and NativeAOT safe. Models are catalog names or aliases; `provider:model` says which provider. Agents, scripts and deciders:
 
 ```csharp
+using OneLlm.Agents;      // AgentResult
+using OneLlm.Deciders;    // DecisionResult
+
 ScriptResult script = await Llm.RunScriptAsync("prompts/commit-message.flow", new Dictionary<string, object?> { ["diff"] = diff });
 AgentResult  agent  = await Llm.RunAgentAsync("agents/clerk.yaml", new Dictionary<string, object?> { ["caseNo"] = "24-1234" });
 DecisionResult d    = await Llm.DecideAsync("deciders/triage-ticket", new Dictionary<string, object?> { ["title"] = "Refund please" });
@@ -55,7 +56,7 @@ Under the statics is `Runtime`, which owns the catalog, providers, stores, sinks
 
 ## Providers and deployments
 
-Status is what the repository tests today: **recorded fixtures** replay request bytes and parsed results for every row; no row is verified against a live account yet.
+Every row is tested on **recorded fixtures** that replay request bytes and parsed results. Live runs at 1.0: OpenAI 8/8 and Gemini 7/7 passed; Anthropic, Azure OpenAI, Bedrock and Vertex were not run live.
 
 | Provider | Deployments | Covered |
 |---|---|---|

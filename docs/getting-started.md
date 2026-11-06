@@ -25,6 +25,17 @@ A model is a catalog name or alias, such as `claude-sonnet`, `gpt-6-luna` or `ge
 
 ## A first call
 
+The snippets below use these namespaces:
+
+```csharp
+using OneLlm;             // Llm, Asset, AskResult, Runtime, Capabilities
+using OneLlm.Agents;      // AgentResult, AgentRun
+using OneLlm.Deciders;    // DecisionResult
+using OneLlm.Instances;   // FileInstanceStore
+using OneLlm.Tools;       // [Tool]
+using System.Text.Json.Serialization;   // the JsonSerializerContext for structured output
+```
+
 ```csharp
 string answer = await Llm.AskAsync("claude-sonnet", "In one sentence, what is a monad?");
 ```
@@ -168,7 +179,7 @@ var runtime = new Runtime
     InstanceSpendCap = 1m,
 };
 runtime.Tools.Add<DocketTools>();
-runtime.Tools.Add(new FetchWebpageMarkdownTool());     // from RecursiveAI.OneLlm.Web; needs the Network grant
+runtime.Tools.Add(new OneLlm.Web.FetchWebpageMarkdownTool());     // from RecursiveAI.OneLlm.Web; needs the Network grant
 Llm.Default = runtime;
 ```
 

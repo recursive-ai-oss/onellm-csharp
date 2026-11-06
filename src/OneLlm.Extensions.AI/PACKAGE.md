@@ -15,7 +15,7 @@ IChatClient client = new Runtime().AsChatClient("claude-sonnet");
 ChatResponse response = await client.GetResponseAsync("Summarize this");
 ```
 
-The speech, text-to-speech and image abstractions are experimental in Microsoft.Extensions.AI. What is carried and what is lost at the edges is in [the bridge notes](https://github.com/recursive-ai-oss/onellm-csharp/blob/main/docs/extensions-ai.md).
+The speech, text-to-speech and image abstractions are experimental in Microsoft.Extensions.AI. What is carried and what is lost at the edges is in [the bridge notes](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.0/docs/extensions-ai.md).
 
 Requires `RecursiveAI.OneLlm` and `Microsoft.Extensions.AI.Abstractions`. Source and issues: https://github.com/recursive-ai-oss/onellm-csharp
 

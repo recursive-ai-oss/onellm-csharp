@@ -7,8 +7,8 @@ caps or register a provider.
 ```csharp
 string s      = await Llm.AskAsync("claude-sonnet", "Summarize this", Asset.File("brief.pdf"));
 Invoice inv   = await Llm.AskAsync("gpt-5.5", "Extract the invoice", Asset.File("scan.png"), AppJson.Default.Invoice);
-await foreach (string piece in Llm.StreamTextAsync("gemini-3-pro", "Write a haiku")) Console.Write(piece);
-float[] v     = await Llm.EmbedAsync("text-embedding-4", "reset my password");
+await foreach (string piece in Llm.StreamTextAsync("gemini-pro", "Write a haiku")) Console.Write(piece);
+float[] v     = await Llm.EmbedAsync("embedding-small", "reset my password");
 using var chat = Llm.Chat("claude-sonnet");  await chat.AskAsync("…");  await chat.AskAsync("and then?");
 ScriptResult r = await Llm.RunScriptAsync("prompts/commit-message.flow", new Dictionary<string, object?> { ["diff"] = diff });
 ```

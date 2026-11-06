@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Docs: the happy-path page uses catalog model names (`gemini-pro`, `embedding-small`); README and getting-started snippets name the namespaces they need; the README states which providers ran live at 1.0; package readmes link to the tagged docs.
+
 ## [1.0.0] - 2026-11-06
 
 The first public release.

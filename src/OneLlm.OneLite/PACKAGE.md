@@ -11,7 +11,7 @@ var store = await OneLiteInstanceStore.CreateAsync(db);
 var sink  = await OneLiteRecordSink.CreateAsync(db);
 ```
 
-One file holds many instances and their audit trail, and several processes can share it. See [stores](https://github.com/recursive-ai-oss/onellm-csharp/blob/main/docs/stores.md).
+One file holds many instances and their audit trail, and several processes can share it. See [stores](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.0/docs/stores.md).
 
 Requires `RecursiveAI.OneLlm` and `RecursiveAI.OneLite`. Source and issues: https://github.com/recursive-ai-oss/onellm-csharp
 

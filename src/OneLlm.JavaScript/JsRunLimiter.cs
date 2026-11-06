@@ -17,7 +17,7 @@ namespace OneLlm.JavaScript;
 /// </remarks>
 public sealed class JsRunLimiter : IDisposable
 {
-    private readonly SemaphoreSlim _slots;
+    private readonly List<TaskCompletionSource> _waiters = [];
     private readonly object _gate = new();
     private readonly List<Lease> _leases = [];
 
@@ -25,8 +25,10 @@ public sealed class JsRunLimiter : IDisposable
     /// <param name="maxConcurrentRuns">The most runs that may execute at once. Default 8. Must be at least 1.</param>
     /// <param name="maxTotalBytes">The most bytes all active runs together may hold. Default 2 GiB. Must be positive.</param>
     /// <param name="maxWait">How long a run waits for a free slot before it fails as busy. Default 10 seconds; zero fails at once.</param>
+    /// <param name="reservedForInterceptors">Slots that only hooks and decider logic may use, so a flood of tool and <c>run_javascript</c> calls cannot make interceptors fail closed. Default 2, or one less than the run limit when that is smaller; must be less than the run limit.</param>
+    /// <param name="maxRunsPerCaller">The most slots one caller (an instance id) may hold at once with tool and <c>run_javascript</c> runs. Abandoned runs count until their thread ends, so a caller whose scripts keep hanging is refused until they have. Default 3.</param>
     /// <exception cref="ArgumentOutOfRangeException">A limit is out of range.</exception>
-    public JsRunLimiter(int maxConcurrentRuns = 0, long maxTotalBytes = 2L * 1024 * 1024 * 1024, TimeSpan? maxWait = null)
+    public JsRunLimiter(int maxConcurrentRuns = 0, long maxTotalBytes = 2L * 1024 * 1024 * 1024, TimeSpan? maxWait = null, int reservedForInterceptors = -1, int maxRunsPerCaller = 3)
     {
         int slots = maxConcurrentRuns == 0 ? 8 : maxConcurrentRuns;
         ArgumentOutOfRangeException.ThrowIfLessThan(slots, 1);
@@ -35,17 +37,34 @@ public sealed class JsRunLimiter : IDisposable
         MaxTotalBytes = maxTotalBytes;
         MaxWait = maxWait ?? TimeSpan.FromSeconds(10);
         ArgumentOutOfRangeException.ThrowIfLessThan(MaxWait, TimeSpan.Zero);
-        _slots = new SemaphoreSlim(slots, slots);
+        if (reservedForInterceptors < 0)
+        {
+            reservedForInterceptors = Math.Min(2, slots - 1);
+        }
+
+        ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(reservedForInterceptors, slots);
+        ArgumentOutOfRangeException.ThrowIfLessThan(maxRunsPerCaller, 1);
+        ReservedForInterceptors = reservedForInterceptors;
+        MaxRunsPerCaller = maxRunsPerCaller;
     }
 
-    /// <summary>Releases the limiter's wait handle. Do not dispose a limiter while runs still use it; <see cref="Shared"/> is never disposed.</summary>
-    public void Dispose() => _slots.Dispose();
+    /// <summary>Kept for compatibility; a limiter holds no handle that needs releasing.</summary>
+    public void Dispose()
+    {
+        // Nothing to release: slots are counted, not held in a handle.
+    }
 
     /// <summary>The limiter sandboxes use when their options name none: one for the whole process, with the defaults.</summary>
     public static JsRunLimiter Shared { get; } = new();
 
     /// <summary>The most runs that may execute at once.</summary>
     public int MaxConcurrentRuns { get; }
+
+    /// <summary>Slots only hooks and decider logic may use.</summary>
+    public int ReservedForInterceptors { get; }
+
+    /// <summary>The most slots one caller may hold with tool and snippet runs.</summary>
+    public int MaxRunsPerCaller { get; }
 
     /// <summary>The most bytes all active runs together may hold.</summary>
     public long MaxTotalBytes { get; }
@@ -88,32 +107,96 @@ public sealed class JsRunLimiter : IDisposable
             growth = Math.Max(growth, l.Growth);
         }
 
-        return host + growth;
+        // Host results live in the heap, so the heap growth the runs measured already contains them; counting both would charge the same strings twice.
+        // Growth is sampled, so the sum of the host results is the floor between samples.
+        return Math.Max(host, growth);
     }
 
-    internal async Task<Lease> EnterAsync(TimeProvider time, CancellationToken cancellationToken)
+    // Caller holds _gate. Interceptors (hooks, decider logic) may use every slot; everything else leaves the reserved ones free and is capped per caller.
+    private bool TryAdd(string owner, bool interceptor, out Lease? lease)
     {
-        if (!_slots.Wait(0, CancellationToken.None))
+        lease = null;
+        if (_leases.Count >= MaxConcurrentRuns)
         {
-            using var wait = new CancellationTokenSource(MaxWait, time);
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, wait.Token);
+            return false;
+        }
+
+        if (!interceptor)
+        {
+            int general = 0;
+            int mine = 0;
+            foreach (Lease l in _leases)
+            {
+                if (!l.Interceptor)
+                {
+                    general++;
+                    if (l.Owner == owner)
+                    {
+                        mine++;
+                    }
+                }
+            }
+
+            if (general >= MaxConcurrentRuns - ReservedForInterceptors || mine >= MaxRunsPerCaller)
+            {
+                return false;
+            }
+        }
+
+        lease = new Lease(this, owner, interceptor);
+        _leases.Add(lease);
+        return true;
+    }
+
+    internal async Task<Lease> EnterAsync(TimeProvider time, string owner, bool interceptor, CancellationToken cancellationToken)
+    {
+        using var wait = new CancellationTokenSource(MaxWait, time);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, wait.Token);
+        while (true)
+        {
+            TaskCompletionSource? signal = null;
+            lock (_gate)
+            {
+                if (TryAdd(owner, interceptor, out Lease? got))
+                {
+                    return got!;
+                }
+
+                if (MaxWait > TimeSpan.Zero)
+                {
+                    signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    _waiters.Add(signal);
+                }
+            }
+
             try
             {
-                await _slots.WaitAsync(linked.Token).ConfigureAwait(false);
+                if (signal is null)
+                {
+                    throw new OperationCanceledException();
+                }
+
+                await signal.Task.WaitAsync(linked.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                throw new JsSandboxException(JsSandboxFailure.Busy, $"Too many scripts are running ({MaxConcurrentRuns} at once); this one waited {MaxWait.TotalSeconds:0.###} s for a free slot. Try again later.");
+                lock (_gate)
+                {
+                    _waiters.Remove(signal!);
+                }
+
+                throw new JsSandboxException(JsSandboxFailure.Busy, $"Too many scripts are running ({MaxConcurrentRuns} at once, at most {MaxRunsPerCaller} per caller{(interceptor ? "" : ", " + ReservedForInterceptors + " kept for hooks and deciders")}); this one waited {MaxWait.TotalSeconds:0.###} s for a free slot. Try again later.");
+            }
+            catch
+            {
+                lock (_gate)
+                {
+                    _waiters.Remove(signal!);
+                }
+
+                throw;
             }
         }
-
-        var lease = new Lease(this);
-        lock (_gate)
-        {
-            _leases.Add(lease);
-        }
-
-        return lease;
     }
 
     /// <summary>One run's hold on the limiter. Disposed when the run's thread has really ended.</summary>
@@ -122,7 +205,16 @@ public sealed class JsRunLimiter : IDisposable
         private readonly JsRunLimiter _owner;
         private bool _released;
 
-        internal Lease(JsRunLimiter owner) => _owner = owner;
+        internal Lease(JsRunLimiter owner, string callerId, bool interceptor)
+        {
+            _owner = owner;
+            Owner = callerId;
+            Interceptor = interceptor;
+        }
+
+        internal string Owner { get; }
+
+        internal bool Interceptor { get; }
 
         internal long HostBytes { get; private set; }
 
@@ -161,7 +253,17 @@ public sealed class JsRunLimiter : IDisposable
                 _owner._leases.Remove(this);
             }
 
-            _owner._slots.Release();
+            List<TaskCompletionSource> wake;
+            lock (_owner._gate)
+            {
+                wake = [.. _owner._waiters];
+                _owner._waiters.Clear();
+            }
+
+            foreach (TaskCompletionSource w in wake)
+            {
+                w.TrySetResult();
+            }
         }
     }
 }

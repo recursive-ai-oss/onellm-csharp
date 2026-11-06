@@ -81,7 +81,9 @@ public sealed class JsSandbox
         // giving up on it when it does not stop), so a file with an infinite loop cannot hang the loader.
         TimeSpan time = Options.TimeLimit;
         var scope = new RunScope(Options, null);
-        Task<(JsonNode?, HashSet<string>)> work = Task.Run(() => InspectCore(source, fileName, dataExport, functions, time, scope));
+        // A script spins on the thread that runs it, so it gets a thread of its own: on the thread pool, a handful of busy scripts would hold every pool
+        // thread (the pool adds one every half second or so) and starve the host's other work, including the hooks and deciders the limiter keeps slots for.
+        Task<(JsonNode?, HashSet<string>)> work = Task.Factory.StartNew(() => InspectCore(source, fileName, dataExport, functions, time, scope), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         bool done;
         try
         {
@@ -158,7 +160,7 @@ public sealed class JsSandbox
     }
 
     /// <summary>Calls an exported function of a module with JSON arguments (and, when asked, <c>ctx</c> as the last one) and returns what it returned.</summary>
-    internal Task<JsRunResult> CallAsync(string source, string fileName, string function, IReadOnlyList<JsonNode?> args, bool passCtx, ToolContext context, ToolCapability declared, TimeSpan? limit, CancellationToken cancellationToken, bool undefinedAsNull = false) =>
+    internal Task<JsRunResult> CallAsync(string source, string fileName, string function, IReadOnlyList<JsonNode?> args, bool passCtx, ToolContext context, ToolCapability declared, TimeSpan? limit, CancellationToken cancellationToken, bool undefinedAsNull = false, bool interceptor = false) =>
         RunAsync(
             new HostModule(fileName, source),
             fileName,
@@ -192,7 +194,8 @@ public sealed class JsSandbox
                 return await engine.AwaitAsync(result, token);
             },
             cancellationToken,
-            undefinedAsNull);
+            undefinedAsNull,
+            interceptor);
 
     private ScriptEngine CreateEngine(SandboxHost host, HostEnv? env, JsonNode? input, TimeSpan limit, bool hasInput = false)
     {
@@ -248,18 +251,20 @@ public sealed class JsSandbox
         TimeSpan? limit,
         Func<ScriptEngine, CancellationToken, Task<JsValue>> body,
         CancellationToken cancellationToken,
-        bool undefinedAsNull = false)
+        bool undefinedAsNull = false,
+        bool interceptor = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
         TimeSpan time = EffectiveTime(limit);
 
         // Bound the runs together: a free slot within the limiter's wait, or a Busy failure.
-        JsRunLimiter.Lease lease = await (Options.Limiter ?? JsRunLimiter.Shared).EnterAsync(context.TimeProvider, cancellationToken).ConfigureAwait(false);
+        JsRunLimiter.Lease lease = await (Options.Limiter ?? JsRunLimiter.Shared).EnterAsync(context.TimeProvider, context.InstanceId, interceptor, cancellationToken).ConfigureAwait(false);
         var scope = new RunScope(Options, lease);
         Task<JsRunResult> core;
         try
         {
-            core = Task.Run(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, scope, cancellationToken), CancellationToken.None);
+            // Dedicated thread for the synchronous part (everything until the script first waits), for the reason given at Inspect.
+            core = Task.Factory.StartNew(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, scope, cancellationToken), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
         }
         catch
         {

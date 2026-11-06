@@ -96,7 +96,7 @@ public sealed class JsHookSource : IDefinitionHookSource
         }
         catch (JsSandboxException e)
         {
-            throw new BadDefinitionException(e.Message, file, e.Line, e.Column, e);
+            throw new BadDefinitionException(JsSandboxException.WithoutFilePrefix(e.Message, file), file, e.Line, e.Column, e);
         }
 
         HookPoints handled = HookPoints.None;
@@ -311,7 +311,7 @@ internal sealed class JsHook : IHook
     {
         var context = new ToolContext(instanceId, "hook:" + _file, _time) { Capabilities = _capabilities };
         // A JsSandboxException here is the interceptor's failure: the hook set blocks the step (interceptors) or records it (observers).
-        JsRunResult run = await _sandbox.CallAsync(_source, _file, function, [snapshot], passCtx: true, context, _declared, null, ct);
+        JsRunResult run = await _sandbox.CallAsync(_source, _file, function, [snapshot], passCtx: true, context, _declared, null, ct, interceptor: true);
         return run.Value as JsonObject ?? (run.HasValue && run.Value is not null ? throw new InvalidOperationException($"{function} must return nothing or a decision object.") : null);
     }
 

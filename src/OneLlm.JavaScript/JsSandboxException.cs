@@ -41,13 +41,32 @@ public sealed class JsSandboxException : OneLlmException
     /// <param name="column">The 1-based column, or 0 when unknown.</param>
     /// <param name="innerException">The engine exception behind it.</param>
     public JsSandboxException(JsSandboxFailure kind, string message, string? file = null, int line = 0, int column = 0, Exception? innerException = null)
-        : base(message, innerException)
+        : base(Bound(message), innerException)
     {
         Kind = kind;
         File = file;
         Line = line;
         Column = column;
     }
+
+    /// <summary>The most characters a failure message keeps. Longer text (a script that throws a huge string) is cut in the middle and marked.</summary>
+    public const int MaxMessageChars = 10 * 1024;
+
+    /// <summary>Cuts text to <see cref="MaxMessageChars"/>, keeping the head and the tail around a marker that says how much was left out.</summary>
+    internal static string Bound(string text)
+    {
+        if (text.Length <= MaxMessageChars)
+        {
+            return text;
+        }
+
+        int half = MaxMessageChars / 2;
+        return string.Concat(text.AsSpan(0, half), $"\n[... {text.Length - 2 * half} characters of the error left out ...]\n", text.AsSpan(text.Length - half));
+    }
+
+    /// <summary>The message without a leading <c>file: </c>, for callers that add the file name themselves.</summary>
+    internal static string WithoutFilePrefix(string message, string? file) =>
+        file is not null && message.StartsWith(file + ": ", StringComparison.Ordinal) ? message[(file.Length + 2)..] : message;
 
     /// <summary>What kind of failure it was.</summary>
     public JsSandboxFailure Kind { get; }

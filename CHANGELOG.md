@@ -25,6 +25,7 @@ The first public release. The date is set when it is published.
 
 ### Added
 
+- JavaScript sandbox fairness: `JsRunLimiter` keeps slots for hooks and decider logic (`reservedForInterceptors`) and caps the slots one caller can hold (`maxRunsPerCaller`); failure messages from scripts are cut at 10,240 characters with a marker; the load-time timeout names the file once. Builds on OneEcma 1.1.1 (collation, host values and long-string comparisons are charged, TypeScript erasure keeps statement boundaries).
 - JavaScript sandbox run lifetime and aggregate limits: a run that has ended (returned, cancelled, timed out or abandoned) can no longer write files, add cost, log or send requests, and its pending requests are cancelled; `JsRunLimiter` bounds concurrent runs and total bytes across runs and fails the excess with `JsSandboxFailure.Busy`; per-run quotas for file and response text, written bytes and files, log volume and requests; pipes and other special files are refused instead of hanging a thread; loading a tool, hook or decider file runs under the same time and memory guard as a run; the host memory backstop now measures live heap growth, not allocation churn.
 - Vertex AI Gemini `countTokens` and `embedContent` (Vertex's request bodies; one embedding per call); decider outputs are checked against a declared output schema (`DeciderOutputException`); `SpendLimitReachedException` for an Anthropic account spend limit; strip and adjust notices on `EmbeddingResponse.Warnings`.
 

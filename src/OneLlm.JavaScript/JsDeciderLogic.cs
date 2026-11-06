@@ -75,7 +75,7 @@ public sealed class JsDeciderLogic : IDeciderLogic
         }
         catch (JsSandboxException e)
         {
-            throw new BadDefinitionException(e.Message, file, e.Line, e.Column, e);
+            throw new BadDefinitionException(JsSandboxException.WithoutFilePrefix(e.Message, file), file, e.Line, e.Column, e);
         }
 
         return fns.Count == 0
@@ -122,7 +122,7 @@ public sealed class JsDeciderLogic : IDeciderLogic
     {
         // Logic is pure: no instance, no grants.
         var context = new ToolContext("decider", "decider:" + function, _time);
-        JsRunResult run = await _sandbox.CallAsync(_source, _file, function, args, passCtx: false, context, ToolCapability.None, null, cancellationToken, undefinedAsNull: true);
+        JsRunResult run = await _sandbox.CallAsync(_source, _file, function, args, passCtx: false, context, ToolCapability.None, null, cancellationToken, undefinedAsNull: true, interceptor: true);
         string json = run.HasValue ? run.Value?.ToJsonString() ?? "null" : "null";
         using JsonDocument doc = JsonDocument.Parse(json);
         return doc.RootElement.Clone();

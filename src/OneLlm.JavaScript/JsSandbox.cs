@@ -4,6 +4,7 @@ using OneLlm.Tools;
 using OneLlm.Tools.Builtins;
 using RecursiveAI.OneEcma;
 using RecursiveAI.OneEcma.Diagnostics;
+using RecursiveAI.OneEcma.Syntax;
 using RecursiveAI.OneEcma.Text;
 
 namespace OneLlm.JavaScript;
@@ -163,9 +164,9 @@ public sealed class JsSandbox
                 MaxStringLength = Options.MaxStringLength,
             },
             Configure = engine => env?.Install(engine, input, hasInput),
-            // Off on purpose: explaining a failed run replays it with tracing, and that replay is not yet bounded by the engine's limits, so a
-            // hostile script could turn its own failure into unbounded work. The engine budgets the replay from OneEcma 1.1.0; turn this on then.
-            ExplainErrors = false,
+            // Failed runs are explained by replaying them with tracing (value origins, "did you mean"). OneEcma 1.1.0 gives that replay a
+            // deterministic work budget, so a hostile script cannot turn its own failure into unbounded work; before 1.1.0 this had to be off.
+            ExplainErrors = true,
         });
     }
 
@@ -247,6 +248,25 @@ public sealed class JsSandbox
             CancellationToken.None,
             TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
+    }
+
+    /// <summary>
+    /// Turns TypeScript into the JavaScript the engine runs by erasing types in place (spaces, same lines and columns), so reports and errors point
+    /// into the <c>.ts</c> file. Only erasable syntax is accepted.
+    /// </summary>
+    /// <exception cref="BadDefinitionException">The source uses syntax that cannot be erased (an enum, a namespace with values, a constructor parameter property,
+    /// <c>import x = require</c>, an angle-bracket cast) or has a syntax error; the message names the construct and carries file, line and column.</exception>
+    internal static string StripTypes(string source, string fileName)
+    {
+        TypeStripResult r = ScriptEngine.StripTypes(source, new TypeStripOptions { FileName = fileName, Module = true });
+        if (r.Success)
+        {
+            return r.Code!;
+        }
+
+        Diagnostic d = r.Diagnostics.First(x => x.Severity == Severity.Error);
+        LinePosition pos = d.Source.GetPosition(d.PrimarySpan.Start);
+        throw new BadDefinitionException(d.Headline + (d.Help.Count > 0 ? " (" + d.Help[0] + ")" : ""), fileName, pos.Line, pos.Column);
     }
 
     private TimeSpan EffectiveTime(TimeSpan? limit) => limit is { } l && l < Options.TimeLimit ? l : Options.TimeLimit;

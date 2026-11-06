@@ -7,7 +7,7 @@
     <PackageVersion Include="OneYaml" Version="1.2.1" />
     <PackageVersion Include="RecursiveAI.OneImage" Version="1.10.4" />
     <PackageVersion Include="RecursiveAI.OneHtml" Version="1.5.1" />
-    <PackageVersion Include="RecursiveAI.OneEcma" Version="1.0.1" />
+    <PackageVersion Include="RecursiveAI.OneEcma" Version="1.1.0" />
   </ItemGroup>
   <!-- Adapter dependencies: each adapter package references core and exactly one of these. -->
   <ItemGroup>

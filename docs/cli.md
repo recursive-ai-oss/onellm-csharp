@@ -90,5 +90,5 @@ Under `<root>/.onellm/` unless `--state` says otherwise:
 
 - The tool is a managed .NET tool, not published as NativeAOT; the library it hosts is trim- and AOT-safe.
 - `onellm catalog` shows the effective catalog: set `ONELLM_CATALOG` to a file or directory of `llm-provider.yaml` files to add a user layer.
-- `decider.ts` is not supported yet (see the JavaScript page).
+- `decider.ts` runs when it uses only erasable TypeScript (see the JavaScript page).
 - Web search (`search_web`) is available to agents when `BRAVE_API_KEY` is set; fetching pages (`fetch_webpage_markdown`) needs `--allow-net`.

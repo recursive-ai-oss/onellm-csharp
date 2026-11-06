@@ -111,7 +111,14 @@ public class MemoryTests
         }
 
         bool off = Environment.GetEnvironmentVariable("ONELLM_JS_BACKSTOP") == "off";
-        JsSandboxOptions options = Options(!off);
+        // ONELLM_MEMLIMITS=wide: the engine's own budget with a long clock and a large fuel (so slow patterns show how they end); otherwise the product defaults.
+        bool wide = Environment.GetEnvironmentVariable("ONELLM_MEMLIMITS") == "wide";
+        var options = new JsSandboxOptions
+        {
+            TimeLimit = wide ? TimeSpan.FromSeconds(30) : TimeSpan.FromSeconds(10),
+            Fuel = wide ? 5_000_000_000 : 200_000_000,
+            MaxHostAllocatedBytes = off ? 0 : 1024L * 1024 * 1024,
+        };
         using var self = Process.GetCurrentProcess();
         self.Refresh();
         long before = self.PeakWorkingSet64;
@@ -137,21 +144,38 @@ public class MemoryTests
 [Collection("MemoryBombs")]
 public class UnstoppableScriptTests
 {
-    // Squaring a BigInt in a loop reaches single operations that take minutes, so the engine never gets to check its clock. The host stops
-    // waiting at the time limit and counts the engine it left behind. Run on a machine you can spare a core on: the thread keeps working.
+    // Explaining an uncaught error replays the run. The replay has its own work budget, so a script that does a lot and then fails ends within
+    // its limits instead of costing a second unbounded run.
+    [Theory]
+    [InlineData("let s = 0; for (let i = 0; i < 4e6; i++) { s += i; } null.x;")]
+    [InlineData("const keep = []; for (let i = 0; i < 2e6; i++) keep.push({ i, s: String(i) }); throw new Error('late ' + keep.length);")]
+    [InlineData("function f(n) { return n === 0 ? undefined.x : f(n - 1) + 1; } f(900);")]
+    [InlineData("const a = new Array(3e6).fill(1); const o = {}; for (let i = 0; i < 1e5; i++) o['k' + i] = a.length; o.missing.deep;")]
+    public async Task A_failing_script_that_did_a_lot_of_work_ends_within_its_limits(string code)
+    {
+        var options = new JsSandboxOptions { TimeLimit = TimeSpan.FromSeconds(20), Fuel = 200_000_000, MaxAllocatedBytes = 128L * 1024 * 1024 };
+        long start = Stopwatch.GetTimestamp();
+        JsSandboxException e = await Assert.ThrowsAsync<JsSandboxException>(async () => await Js.Run(code, options: options));
+        Assert.True(e.Kind is JsSandboxFailure.Script or JsSandboxFailure.Memory or JsSandboxFailure.Fuel, e.Kind.ToString());
+        Assert.True(Stopwatch.GetElapsedTime(start) < TimeSpan.FromSeconds(20));
+    }
+
+    // Squaring a BigInt in a loop reaches single operations that take minutes. The engine polls the clock inside them; if it ever could not,
+    // the host would stop waiting at the time limit and count the engine it left behind (JsSandbox.AbandonedRuns).
     [Fact]
-    public async Task A_script_the_engine_cannot_interrupt_still_ends_at_the_time_limit()
+    public async Task A_bigint_multiplication_loop_ends_at_the_time_limit()
     {
         var options = new JsSandboxOptions { TimeLimit = TimeSpan.FromSeconds(1), Fuel = 5_000_000_000, MaxAllocatedBytes = 1L << 40, MaxHostAllocatedBytes = 0 };
-        long before = JsSandbox.AbandonedRuns;
         long start = Stopwatch.GetTimestamp();
         JsSandboxException e = await Assert.ThrowsAsync<JsSandboxException>(async () =>
             await Js.Run("let b = 3n; while (true) b = b * b;", options: options));
         TimeSpan took = Stopwatch.GetElapsedTime(start);
         Assert.Equal(JsSandboxFailure.Time, e.Kind);
         Assert.True(took < TimeSpan.FromSeconds(3), $"took {took}");
-        Assert.Equal(before + 1, JsSandbox.AbandonedRuns);
-        Assert.True(JsSandbox.AbandonedRunsStillRunning >= 1);
+        // The engine polls the clock inside BigInt multiplication, but only between chunks of work. Once the code is warm, a late multiply can run
+        // a few hundred milliseconds past the limit (observed 1.27 s for a 1 s limit; 1.00 s in a cold process), which is longer than the host's
+        // grace, so the host may abandon the run. Either outcome is correct: the caller got Time promptly. The abandon counter is process-wide, so
+        // it is not asserted here.
     }
 
     [Fact]

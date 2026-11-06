@@ -52,6 +52,10 @@ public sealed partial class Runtime
 
             string[] dirs = StateDirectories(store, sinks);
             global::OneLlm.Capabilities result = dirs.Length == 0 ? caps : caps.WithProtectedPaths(dirs);
+            if (Access.PathGuard.GitListed(caps.ShellAccess))
+            {
+                result = result.WithGitCeiling();
+            }
             _protectedCaps = new ProtectedCapabilities(caps, store, sinks, result);
             return result;
         }

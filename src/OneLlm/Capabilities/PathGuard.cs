@@ -121,7 +121,7 @@ internal static class PathGuard
             return;
         }
 
-        string[] parts = Path.GetRelativePath(best, real).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        string[] parts = RelativeBelow(best, real).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         foreach (string part in parts)
         {
             string name = part.TrimEnd(' ', '.');
@@ -248,12 +248,18 @@ internal static class PathGuard
         return Path.IsPathFullyQualified(path) ? path : Path.Join(workingDirectory, path);
     }
 
+    // The part of a path below its root, cut by length so no short name is expanded on the way (see RefuseShortNames); "." for the root.
+    private static string RelativeBelow(string root, string real) =>
+        real.Length > root.Length ? real[root.Length..].TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : ".";
+
     // Windows also answers to a generated 8.3 name for a long name (GIT~1 for .git, ONELLM~1 for .onellm). The protection checks compare
     // names, so a short alias would walk around them. A component below the root that contains '~' must therefore be the exact name of an
     // entry in its directory; one that exists only through an alias is refused. (The root is the host's own spelling and is not checked.)
     private static void RefuseShortNames(string realRoot, string real, string original)
     {
-        string relative = Path.GetRelativePath(realRoot, real);
+        // Cut the root off by length. Path.GetRelativePath (like Path.GetFullPath) asks Windows to expand short names, which would hide
+        // exactly the aliases this looks for.
+        string relative = RelativeBelow(realRoot, real);
         if (relative == "." || !relative.Contains('~', StringComparison.Ordinal))
         {
             return;

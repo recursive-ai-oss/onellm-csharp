@@ -61,9 +61,10 @@ internal sealed class RunAgentAsyncTool : ITool
         else
         {
             AgentDefinition? definition;
+            bool registered = false;
             try
             {
-                definition = FindDefinition(rt, reference, context);
+                definition = FindDefinition(rt, reference, context, out registered);
             }
             catch (OneLlmException ex)
             {
@@ -95,6 +96,9 @@ internal sealed class RunAgentAsyncTool : ITool
                         SpawnerInstanceId = context.InstanceId,
                         CallerToolCallId = context.ToolCallId,
                         DelegationPrompt = prompt,
+                        // A definition the host registered picks its own tools; one read from a file (which the agent may have written)
+                        // gets at most the tools of the agent that starts it.
+                        ToolCeiling = !registered && context.Agent is { } caller ? new HashSet<string>(caller.Setup.Tools.Keys, StringComparer.Ordinal) : null,
                         WorkingDirectory = ToolArgs.String(inputs, "workingDir") is { Length: > 0 } wd ? wd : null,
                         SwarmUri = ToolArgs.String(inputs, "swarm") is { Length: > 0 } sw ? sw : null,
                     },
@@ -120,6 +124,11 @@ internal sealed class RunAgentAsyncTool : ITool
     /// </summary>
     internal static async ValueTask<ToolResult?> Deliver(Runtime rt, string agentId, string prompt, ToolContext context, CancellationToken cancellationToken)
     {
+        if (!await AgentTools.MayReachAsync(context, agentId, cancellationToken).ConfigureAwait(false))
+        {
+            return AgentTools.NotYours(agentId);
+        }
+
         LiveAgent? existing = await rt.AgentHost.GetAsync(agentId, cancellationToken).ConfigureAwait(false);
         if (existing is null)
         {
@@ -142,11 +151,13 @@ internal sealed class RunAgentAsyncTool : ITool
     }
 
     // A registered name wins. A path is read only when it lies under a folder the calling agent may read, after symlinks are followed.
-    private static AgentDefinition? FindDefinition(Runtime rt, string reference, ToolContext context)
+    private static AgentDefinition? FindDefinition(Runtime rt, string reference, ToolContext context, out bool registered)
     {
-        if (rt.AgentDefinitions.Find(reference) is { } registered)
+        registered = false;
+        if (rt.AgentDefinitions.Find(reference) is { } found)
         {
-            return registered;
+            registered = true;
+            return found;
         }
 
         foreach (string candidate in new[] { reference, reference + ".yaml", reference + ".yml", Path.Combine(reference, "agent.yaml") })
@@ -253,7 +264,8 @@ internal static class AwaitCore
         var agents = new List<(string Id, LiveAgent? Agent)>();
         foreach (string id in ids)
         {
-            agents.Add((id, await host.GetAsync(id, cancellationToken).ConfigureAwait(false)));
+            // An instance that is not the caller's to look at is reported as missing, so a wait never leaks what another agent did.
+            agents.Add((id, await AgentTools.MayReachAsync(context, id, cancellationToken).ConfigureAwait(false) ? await host.GetAsync(id, cancellationToken).ConfigureAwait(false) : null));
         }
 
         LiveAgent? caller = context.Agent;

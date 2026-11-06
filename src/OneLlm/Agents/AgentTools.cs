@@ -36,6 +36,16 @@ internal static class AgentTools
 
     public static AgentHost? HostOf(ToolContext context) => context.Runtime?.AgentHost;
 
+    /// <summary>
+    /// True when the calling agent may use its agent tools on <paramref name="targetId"/>: its own sub-agents and itself. A tool run by host
+    /// code outside an agent loop is not restricted.
+    /// </summary>
+    public static async ValueTask<bool> MayReachAsync(ToolContext context, string targetId, CancellationToken cancellationToken) =>
+        context.Agent is null || context.Runtime is null || await context.Runtime.AgentHost.MayReachAsync(context.InstanceId, targetId, cancellationToken).ConfigureAwait(false);
+
+    public static ToolResult NotYours(string id) =>
+        Err($"'{id}' is not one of your sub-agents. Agents can only look at and message the agents they started (and their own descendants).");
+
     public static ToolResult NoRuntime() => Err("this tool needs an agent running in a runtime.");
 
     public static ToolResult Text(StringBuilder sb) => ToolResult.FromText(sb.ToString());
@@ -160,6 +170,11 @@ internal sealed class ListAgentInstancesTool : ITool
         var list = new JsonArray();
         await foreach (InstanceSummary s in rt.Store.ListAsync(new InstanceQuery { NameContains = string.IsNullOrEmpty(name) ? null : name, State = string.IsNullOrEmpty(state) ? null : state }, cancellationToken).ConfigureAwait(false))
         {
+            if (!await AgentTools.MayReachAsync(context, s.InstanceId, cancellationToken).ConfigureAwait(false))
+            {
+                continue;
+            }
+
             Instance? loaded = null;
             if (!string.IsNullOrEmpty(swarm))
             {

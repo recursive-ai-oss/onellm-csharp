@@ -40,35 +40,39 @@ public sealed partial class Runtime
                 return set;
             }
 
-            string[] dirs = StateDirectories();
-            lock (_gate)
+            // Read on every tool call, so the common case allocates nothing: the answer is reused while the grants, the store and the
+            // sink list are the same objects as last time.
+            IInstanceStore? store = _store;
+            IReadOnlyList<IRecordSink> sinks = Sinks.Items;
+            ProtectedCapabilities? cached = _protectedCaps;
+            if (cached is not null && ReferenceEquals(cached.Source, caps) && ReferenceEquals(cached.Store, store) && ReferenceEquals(cached.Sinks, sinks))
             {
-                if (_protectedCaps is { } cached && ReferenceEquals(cached.Source, caps) && cached.Dirs.AsSpan().SequenceEqual(dirs))
-                {
-                    return cached.Result;
-                }
-
-                global::OneLlm.Capabilities result = dirs.Length == 0 ? caps : caps.WithWriteProtected(dirs);
-                _protectedCaps = (caps, dirs, result);
-                return result;
+                return cached.Result;
             }
+
+            string[] dirs = StateDirectories(store, sinks);
+            global::OneLlm.Capabilities result = dirs.Length == 0 ? caps : caps.WithWriteProtected(dirs);
+            _protectedCaps = new ProtectedCapabilities(caps, store, sinks, result);
+            return result;
         }
 
         set => _capabilities = value ?? throw new ArgumentNullException(nameof(value));
     }
 
     private ICapabilities _capabilities = global::OneLlm.Capabilities.Default();
-    private (global::OneLlm.Capabilities Source, string[] Dirs, global::OneLlm.Capabilities Result)? _protectedCaps;
+    private volatile ProtectedCapabilities? _protectedCaps;
 
-    private string[] StateDirectories()
+    private sealed record ProtectedCapabilities(global::OneLlm.Capabilities Source, IInstanceStore? Store, IReadOnlyList<IRecordSink> Sinks, global::OneLlm.Capabilities Result);
+
+    private static string[] StateDirectories(IInstanceStore? store, IReadOnlyList<IRecordSink> sinks)
     {
         var dirs = new List<string>();
-        if (Store is FileInstanceStore fs)
+        if (store is FileInstanceStore fs)
         {
             dirs.Add(fs.Directory);
         }
 
-        foreach (IRecordSink sink in Sinks.Items)
+        foreach (IRecordSink sink in sinks)
         {
             if (sink is JsonlRecordSink j)
             {

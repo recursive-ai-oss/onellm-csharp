@@ -43,6 +43,13 @@ public sealed class ResolvedModel
     /// <summary>The model's name as the provider's API takes it, after aliases.</summary>
     public string Name { get; }
 
+    /// <summary>
+    /// The model string to put in a request body: the catalog entry's <c>wireModel</c> property when it has one (the Decisions entry has its own
+    /// catalog name but the API knows the model as <c>gpt-6-luna</c>), otherwise <see cref="Name"/>. Build requests from this, never from
+    /// <see cref="Requested"/>, which may be an alias.
+    /// </summary>
+    public string WireName => Model?.Properties is { } props && props.TryGetValue("wireModel", out object? w) && w is string wm && wm.Length > 0 ? wm : Name;
+
     /// <summary>The catalog entry, or null when the name matched only a pattern.</summary>
     public ModelSpec? Model { get; }
 

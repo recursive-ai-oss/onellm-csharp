@@ -302,7 +302,7 @@ public sealed class SmokeRunner
                 Encoding.UTF8.GetBytes("""{"type":"choice","instructions":"Which area does this support ticket belong to?","criteria":{"billing":"Charges and refunds","orders":"Delivery and returns"}}"""));
             var request = new DecisionRequest
             {
-                Model = _model,
+                Model = _resolved.WireName,
                 State = Encoding.UTF8.GetBytes("""{"ticket":"I was charged twice for my last order."}"""),
                 Questions = [question],
             };

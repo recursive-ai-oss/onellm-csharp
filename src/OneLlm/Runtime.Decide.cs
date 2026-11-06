@@ -272,7 +272,7 @@ public sealed partial class Runtime
                 else if (decisions)
                 {
                     var meter = new DecisionMeter(this, run, model, decisionProvider!);
-                    string wire = model.Model?.Properties is { } props && props.TryGetValue("wireModel", out object? w) && w is string wm ? wm : (model.WasQualified ? model.Name : model.Requested);
+                    string wire = model.WireName;
                     string cacheKey = def.Cache.Key ?? decider.Name;
                     output = await DecisionEngine.RunAsync(
                         meter,

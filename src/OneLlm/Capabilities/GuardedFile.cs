@@ -33,9 +33,14 @@ internal static class GuardedFile
     }
 
     /// <summary>Opens for writing without truncating, checks, and only then truncates (unless appending), so a swapped link never costs data.</summary>
-    internal static FileStream OpenWrite(ICapabilities caps, string path, bool append)
+    internal static FileStream OpenWrite(ICapabilities caps, string path, bool append, bool state = false)
     {
-        string real = caps.ResolveWrite(path);
+        // The todo and memory tools keep their files in the runtime's state directory, which the general file tools may not write to.
+        // They still need a write root; they skip only the protected-path check.
+        Func<string> resolve = state
+            ? () => PathGuard.Resolve(caps.WriteRoots, caps.WorkingDirectory, path, write: true)
+            : () => caps.ResolveWrite(path);
+        string real = resolve();
         string? dir = Path.GetDirectoryName(real);
         if (!string.IsNullOrEmpty(dir))
         {
@@ -52,7 +57,7 @@ internal static class GuardedFile
         });
         try
         {
-            Recheck(real, caps.ResolveWrite(path), path);
+            Recheck(real, resolve(), path);
             if (append)
             {
                 stream.Seek(0, SeekOrigin.End);

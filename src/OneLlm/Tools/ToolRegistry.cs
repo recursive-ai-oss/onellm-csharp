@@ -43,6 +43,10 @@ public sealed class CapabilityIntersection : ICapabilities
         return a is Capabilities ca && b is Capabilities cb ? ca.Intersect(cb) : new CapabilityIntersection(a, b);
     }
 
+    internal ICapabilities First => _a;
+
+    internal ICapabilities Second => _b;
+
     /// <inheritdoc />
     public IReadOnlyList<string> FileRoots => _write;
 
@@ -60,6 +64,12 @@ public sealed class CapabilityIntersection : ICapabilities
 
     /// <inheritdoc />
     public bool ShellEnabled => ShellAccess.Enabled;
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> WriteProtectedPaths => [.. _a.WriteProtectedPaths.Union(_b.WriteProtectedPaths, StringComparer.Ordinal)];
+
+    /// <inheritdoc />
+    public bool AllowRepoControlWrites => _a.AllowRepoControlWrites && _b.AllowRepoControlWrites;
 
     /// <inheritdoc />
     public bool NetworkEnabled => _a.NetworkEnabled && _b.NetworkEnabled;

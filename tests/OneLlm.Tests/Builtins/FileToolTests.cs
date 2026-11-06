@@ -303,7 +303,7 @@ public class ListAndSearchToolTests
         }
 
         string tree = Kit.Text(await Kit.Run("list_files", "{}", Capabilities.Files(s.Root)));
-        Assert.Contains("out-link/ -> ", tree, StringComparison.Ordinal);
+        Assert.Contains("out-link/ (symlink)", tree, StringComparison.Ordinal);
         Assert.DoesNotContain("o.txt", tree, StringComparison.Ordinal);
     }
 

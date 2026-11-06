@@ -3,6 +3,7 @@ using OneLlm.Definitions;
 using OneLlm.Hooks;
 using OneLlm.Http;
 using OneLlm.Instances;
+using OneLlm.Records;
 using OneLlm.Tools;
 
 namespace OneLlm;
@@ -24,7 +25,63 @@ public sealed partial class Runtime
     /// What agents may do: file roots, shell, network. Definitions never grant anything; this is the ceiling. A sub-agent gets at most its
     /// parent's grants. Defaults to files under the working directory at the time the runtime was made, with no shell and no network.
     /// </summary>
-    public ICapabilities Capabilities { get; set; } = global::OneLlm.Capabilities.Default();
+    /// <remarks>
+    /// When these are a <see cref="global::OneLlm.Capabilities"/>, the value read back also protects the directories of a
+    /// <see cref="FileInstanceStore"/> and <see cref="JsonlRecordSink"/> this runtime uses, so file tools cannot rewrite instances or audit records
+    /// that sit under a write root. The value read back may therefore be a different object from the one assigned.
+    /// </remarks>
+    public ICapabilities Capabilities
+    {
+        get
+        {
+            ICapabilities set = _capabilities;
+            if (set is not global::OneLlm.Capabilities caps)
+            {
+                return set;
+            }
+
+            // Read on every tool call, so the common case allocates nothing: the answer is reused while the grants, the store and the
+            // sink list are the same objects as last time.
+            IInstanceStore? store = _store;
+            IReadOnlyList<IRecordSink> sinks = Sinks.Items;
+            ProtectedCapabilities? cached = _protectedCaps;
+            if (cached is not null && ReferenceEquals(cached.Source, caps) && ReferenceEquals(cached.Store, store) && ReferenceEquals(cached.Sinks, sinks))
+            {
+                return cached.Result;
+            }
+
+            string[] dirs = StateDirectories(store, sinks);
+            global::OneLlm.Capabilities result = dirs.Length == 0 ? caps : caps.WithWriteProtected(dirs);
+            _protectedCaps = new ProtectedCapabilities(caps, store, sinks, result);
+            return result;
+        }
+
+        set => _capabilities = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    private ICapabilities _capabilities = global::OneLlm.Capabilities.Default();
+    private volatile ProtectedCapabilities? _protectedCaps;
+
+    private sealed record ProtectedCapabilities(global::OneLlm.Capabilities Source, IInstanceStore? Store, IReadOnlyList<IRecordSink> Sinks, global::OneLlm.Capabilities Result);
+
+    private static string[] StateDirectories(IInstanceStore? store, IReadOnlyList<IRecordSink> sinks)
+    {
+        var dirs = new List<string>();
+        if (store is FileInstanceStore fs)
+        {
+            dirs.Add(fs.Directory);
+        }
+
+        foreach (IRecordSink sink in sinks)
+        {
+            if (sink is JsonlRecordSink j)
+            {
+                dirs.Add(j.DirectoryPath);
+            }
+        }
+
+        return [.. dirs];
+    }
 
     /// <summary>
     /// False by default: an agent's tools (<c>query_agent</c>, <c>message_agent</c>, <c>await_agent</c>, <c>monitor_agent</c>, <c>list_agent_instances</c>)

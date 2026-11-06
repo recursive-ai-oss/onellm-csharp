@@ -19,7 +19,7 @@ var caps = Capabilities.Files("work")                          // read and write
 
 `a + b` unions the grants. The grants an agent started with are saved with its instance and re-applied (intersected with the resuming runtime's) on resume; network entries are saved only for the built-in `Capabilities`, so a custom `ICapabilities` that allows network resumes with it off. Agents reach only their own sub-agents through the agent tools (see the agents notes).
 
-`a.Intersect(b)` is what a sub-agent gets: never wider than either side (roots are intersected by containment, the shell is the stricter policy, hosts must be allowed by both, and with two approvers both are asked).
+`a.Intersect(b)` is what a sub-agent gets: never wider than either side (roots are intersected by containment, the shell is the stricter policy, hosts must be allowed by both, and with two approvers both are asked). An intersection never reaches a kind of address one side lacks: `AnyPublicHosts` intersected with `Network("localhost")` allows nothing, because public-only access never covers loopback, private or link-local addresses, and entries that can (addresses, ranges, `localhost` names) are dropped. Write protections (below) are the union of both sides'.
 
 ## Files
 
@@ -27,19 +27,30 @@ Every path is resolved to a real path before the root check: relative paths star
 
 **What is guaranteed between check and use.** Files are opened through a double check: resolve, open, then resolve the opened path again and compare. A link swapped in between the first resolution and the open is detected and the handle is closed before anything is read, and a write through a swapped link does not truncate the outside file. Not covered: a link swapped and swapped back around the open, hard links (a hard link inside a root is a name for the same file), and a dangling-link swap on a write target can create an empty file outside the roots before the refusal. Hosts that face hostile local users should place the roots on a directory only the agent can write to.
 
+**Files the model cannot write even under a write root.** Two kinds of path are refused by `write_file`, `replace_string` and `apply_patch` (reads are unaffected):
+- *Repository control paths*: any `.git`, `.hg` or `.svn` component and `.gitmodules`. A program on the shell allow-list (`git`, a build tool) reads configuration and hooks from there, so a write is a way to run any command. `Capabilities.WithRepoControlWrites()` allows them when the host has no shell granted or trusts the model.
+- *The runtime's own state*: the `.onellm` directory under a `Capabilities.Files(root)` grant, and the directories of a `FileInstanceStore` and `JsonlRecordSink` the `Runtime` uses (read `Runtime.Capabilities` to get the protected value), plus anything added with `Capabilities.WithWriteProtected(...)`. Otherwise the model could rewrite its own transcript, approvals and audit records. The `todo` and `memory` tools still write their files in the default state directory; if you move it with `BuiltinOptions.StateDirectory`, protect it too.
+
 ## Shell
 
 `execute_terminal_command` is off until granted.
 - **Open:** the line runs in the platform shell.
-- **Allow-list:** the line is never given to a shell. It is split into a program and arguments; shell syntax (`;`, `&&`, `|`, backticks, `$(`, redirection, globbing, quoting tricks) is refused before anything runs, and metacharacters inside an argument are plain text. An entry is a program (`ls`) or a program with leading arguments (`git status`), which then allows only those subcommands. The program is looked up on `PATH` only (never the working directory), and the model cannot change `PATH`, `LD_*` and similar variables. Variables that look like secrets (names ending in KEY, TOKEN, SECRET or PASSWORD, cloud credential variables) are not passed to the process unless the host sets `BuiltinOptions.ShellInheritSecrets`.
+- **Allow-list:** the line is never given to a shell. It is split into a program and arguments; shell syntax (`;`, `&&`, `|`, backticks, `$(`, redirection, globbing, quoting tricks) is refused before anything runs, and metacharacters inside an argument are plain text. An entry is a program (`ls`) or a program with leading arguments (`git status`), which then allows only those subcommands. The program is looked up on `PATH` only (never the working directory).
+- **Environment.** Allow-listed and approval-gated commands start from a minimal environment (`PATH`, `HOME`, `USER`, `LOGNAME`, `LANG`, `LC_*`, `TERM`, `TZ`, `TMPDIR` and the Windows system variables); nothing else of the host's environment reaches them. The host adds names with `BuiltinOptions.ShellInheritedEnvironmentNames`. The model may not set any variable (`GIT_CONFIG_*`, `PAGER`, `HOME`, `PYTHON*` and the like change what an allowed program runs) unless the host names it in `BuiltinOptions.ShellModelEnvironmentNames`. With an open shell the child inherits the host environment minus variables that look like secrets (names ending in KEY, TOKEN, SECRET or PASSWORD, cloud credential variables; `BuiltinOptions.ShellInheritSecrets` keeps them), which is a name heuristic, not a guarantee; the model may set any variable except those that replace the program search path or loader (`PATH`, `LD_*`, ...).
+- **An allow-list entry is not a sandbox.** It grants everything that program can do. `git`, `dotnet`, `make`, `npm`, `find` and interpreters can run arbitrary code from files in the tree or from their arguments; list only programs and subcommands whose full behaviour you accept. The file grants do not apply to what a listed program opens: `cat /abs/path` reads any file the operating-system user can, and `working_dir` needs only read access.
+- **Terminal approval** (the `onellm` tool) prints the program, arguments and working directory with control characters shown as `\uXXXX` escapes.
 - **Output:** 10 KB per stream by default (`BuiltinOptions.ShellOutputLimitBytes`): the head and the tail are kept with an elision marker. Default timeout 30 s, capped at `ShellMaxTimeoutSeconds`. Timeout and cancellation kill the process and its children.
-- Known gap: the kill is `Process.Kill(entireProcessTree)`; a child that detaches into its own session can outlive it.
+- Known gap: the kill is `Process.Kill(entireProcessTree)`; a child that detaches into its own session (`setsid`) can outlive a timeout. It needs an open shell, because a program on an allow-list cannot be given shell syntax.
+- Known gap: hard links. A hard link inside a root to a file outside it reads and writes the same file; .NET has no portable link count without native calls. Keep roots on a directory only the agent writes to.
 
 ## Network
 
 Tool traffic goes through `EgressClient`, which is public so adapters can reuse it. Entries: `host`, `*.suffix` (subdomains, not the apex), `host:port`, an address or a CIDR range, or `localhost`. Rules:
 - A name entry never grants loopback, private or link-local addresses, even if the name resolves to one (DNS rebinding); the address is checked when the connection is made. An address or CIDR entry, or the `localhost` entry, does grant them.
-- Redirects are followed by hand, at most a fixed number of hops, and every hop is checked against the grant before it is requested. Credential-looking headers (names containing auth, cookie, key, token, secret or password) are dropped when a hop changes origin. A 303 turns a POST into a GET.
+- Redirects are followed by hand, at most a fixed number of hops, and every hop is checked against the grant before it is requested. When a hop changes origin, every caller header except Accept, Accept-Language, Accept-Encoding, Content-Type and User-Agent is dropped, and a 307 or 308 that would resend a request body there is refused. A 303 turns a POST into a GET.
+- Connection pools are kept per network policy. The address check runs when a connection is opened, so a pool shared between grant sets would let a narrower grant reuse a loopback connection a wider one opened; grants with the same entries share a pool, different ones never do.
+- Loopback, private and link-local ranges include the IPv6 forms that embed or translate to IPv4 (`::ffff:a.b.c.d`, `::a.b.c.d`, `::ffff:0:a.b.c.d`, `64:ff9b::/96`, `64:ff9b:1::/48`, `2002::/16`).
+- The media tools (`generate_image`, `transcribe`, ...) read granted files and send them to the provider the host configured; the network grant is not consulted for that provider.
 - System proxies are not used.
 
 ## Built-in tools
@@ -53,7 +64,7 @@ Tool traffic goes through `EgressClient`, which is public so adapters can reuse 
 | `todo`, `memory` | write root (state under `.onellm/` of the working directory by default) |
 | `ask_user` | none |
 
-`search_files_regex` uses a linear-time regex engine, so a pattern cannot hang the tool. `search_web` is costed per query from the pricing data in `SearchPricing`; the Brave key comes from `BRAVE_API_KEY`, is held in a `Secret` and is scrubbed from errors.
+`search_files_regex` uses a linear-time regex engine, so a pattern cannot hang the tool. Glob patterns (`inclusionPatterns`, `exclusionPatterns`, `.gitignore` lines) are matched in time proportional to pattern times name, however many `*` they hold. `list_files` marks a symlink as `(symlink)` and does not print its target, which may lie outside the roots. `run_decider` resolves every link in the decider's directory against the read roots before loading it. `search_web` is costed per query from the pricing data in `SearchPricing`; the Brave key comes from `BRAVE_API_KEY`, is held in a `Secret` and is scrubbed from errors.
 
 `ask_user` returns one JSON part `{"type":"ask_user","question":…,"choices":[…]}`; `AskUser.TryGetRequest` recognises it so a runner can put the instance in a waiting state.
 
@@ -66,7 +77,7 @@ A unified diff, as `diff -u` or `git diff` print it:
 
 ## Reference loading
 
-`ToolReferenceResolver` checks a definition's references against the registered tools and the grants. `Strict` throws `BadDefinitionException` (file, line, column, naming the tool and the grant or package to add); `Lenient` removes the reference and records a warning. A reference to a group needs every tool in the group granted to count as granted. A definition cannot grant anything.
+`ToolReferenceResolver` checks a definition's references against the registered tools and the grants. `Strict` throws `BadDefinitionException` (file, line, column, naming the tool and the grant or package to add); `Lenient` removes the reference and records a warning. A reference to a group counts as granted only when every tool in the group is granted; in lenient mode the warning says the source was left out, and the tools of the group that are granted are still registered individually (they hold only grants the runtime gave). A definition cannot grant anything.
 
 ## Needs a Windows run
 

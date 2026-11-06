@@ -14,6 +14,13 @@ public class ParsingAndGrantTests
     private static readonly string[] s_flags = ["yes"];
 
     [Fact]
+    public void An_approval_prompt_shows_control_characters_as_escapes()
+    {
+        Assert.Equal("ls \\u000d\\u001b[2Kgit status", CliApp.Printable("ls \r\u001b[2Kgit status"));
+        Assert.Equal("plain text", CliApp.Printable("plain text"));
+    }
+
+    [Fact]
     public void Options_come_as_name_value_or_name_equals_value_and_repeat()
     {
         CliArgs a = CliArgs.Parse(["x.yaml", "--input", "a=1", "--input=b=2", "--yes", "--root", "r"], s_valued, s_optional, s_flags);

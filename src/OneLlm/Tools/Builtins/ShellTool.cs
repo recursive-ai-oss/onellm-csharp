@@ -64,7 +64,7 @@ internal sealed class ShellTool : BuiltinTool
             return Fail("Failed to start command: the working directory does not exist.");
         }
 
-        Dictionary<string, string> extraEnv = ParseEnv(envPairs, policy);
+        Dictionary<string, string> extraEnv = ParseEnv(envPairs, policy, _options);
 
         var psi = new ProcessStartInfo
         {
@@ -134,7 +134,7 @@ internal sealed class ShellTool : BuiltinTool
             }
         }
 
-        BuildEnvironment(psi, extraEnv);
+        BuildEnvironment(psi, extraEnv, policy);
         return await RunProcessAsync(psi, timeout, warning, context.TimeProvider, cancellationToken).ConfigureAwait(false);
     }
 
@@ -235,7 +235,7 @@ internal sealed class ShellTool : BuiltinTool
         }
     }
 
-    private static Dictionary<string, string> ParseEnv(List<string> pairs, ShellPolicy policy)
+    private static Dictionary<string, string> ParseEnv(List<string> pairs, ShellPolicy policy, BuiltinOptions options)
     {
         var env = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (string pair in pairs)
@@ -252,6 +252,14 @@ internal sealed class ShellTool : BuiltinTool
                 throw new ToolInputException("env", $"name '{Clip(key)}' may only contain letters, digits and underscores");
             }
 
+            // With an allow-list or approval the model sets no variable the host did not name: GIT_CONFIG_*, PAGER, HOME, PYTHON* and
+            // many more make an allowed program run something else.
+            bool restricted = policy.IsAllowList || policy.RequiresApproval;
+            if (restricted && !options.ShellModelEnvironmentNames.Contains(key, StringComparer.Ordinal))
+            {
+                throw new CapabilityMissingException($"Setting the environment variable {key}", "it to BuiltinOptions.ShellModelEnvironmentNames (commands here are allow-listed or approval-gated)");
+            }
+
             // Variables that change which program or library runs are not the model's to set unless it already has an open shell.
             bool blocked = s_blockedEnvNames.Contains(key, StringComparer.OrdinalIgnoreCase) || s_blockedEnvPrefixes.Any(p => key.StartsWith(p, StringComparison.OrdinalIgnoreCase));
             if (blocked && !(policy.Enabled && !policy.IsAllowList && !policy.RequiresApproval))
@@ -265,9 +273,24 @@ internal sealed class ShellTool : BuiltinTool
         return env;
     }
 
-    private void BuildEnvironment(ProcessStartInfo psi, Dictionary<string, string> extra)
+    // Variables an allow-listed or approval-gated command inherits. Everything else of the host's environment (tokens, cloud
+    // credentials, tool configuration such as GIT_* or PYTHON*) stays out.
+    private static readonly string[] s_baseEnvNames = ["PATH", "HOME", "USER", "LOGNAME", "LANG", "LANGUAGE", "TERM", "TZ", "TMPDIR", "TEMP", "TMP", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PROGRAMFILES", "PROGRAMDATA"];
+
+    private void BuildEnvironment(ProcessStartInfo psi, Dictionary<string, string> extra, ShellPolicy policy)
     {
-        if (!_options.ShellInheritSecrets)
+        if (policy.IsAllowList || policy.RequiresApproval)
+        {
+            var keep = new HashSet<string>(s_baseEnvNames.Concat(_options.ShellInheritedEnvironmentNames), StringComparer.OrdinalIgnoreCase);
+            foreach (string key in psi.Environment.Keys.ToArray())
+            {
+                if (!keep.Contains(key) && !key.StartsWith("LC_", StringComparison.Ordinal))
+                {
+                    psi.Environment.Remove(key);
+                }
+            }
+        }
+        else if (!_options.ShellInheritSecrets)
         {
             foreach (string key in psi.Environment.Keys.ToArray())
             {

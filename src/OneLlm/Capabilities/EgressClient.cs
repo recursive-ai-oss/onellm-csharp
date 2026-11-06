@@ -17,7 +17,25 @@ namespace OneLlm.Access;
 public static class EgressClient
 {
     private static readonly HttpRequestOptionsKey<ICapabilities> s_capsKey = new("OneLlm.Capabilities");
-    private static readonly Lazy<HttpClient> s_client = new(CreateClient, LazyThreadSafetyMode.ExecutionAndPublication);
+
+    // One connection pool per network policy. The address check runs when a connection is opened, and a pooled connection is reused
+    // without it, so a pool shared between grant sets would let a caller with a narrower grant ride a connection a wider one opened
+    // (a loopback connection, say). Equal policies share a pool; different ones never do.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Lazy<HttpClient>> s_clients = new(StringComparer.Ordinal);
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ICapabilities, string> s_foreignKeys = new();
+    private static long s_nextForeignKey;
+
+    private static HttpClient ClientFor(ICapabilities caps) =>
+        s_clients.GetOrAdd(PolicyKey(caps), static _ => new Lazy<HttpClient>(CreateClient, LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+
+    // Two grant sets with the same key decide every request and address alike.
+    internal static string PolicyKey(ICapabilities caps) => caps switch
+    {
+        Capabilities c => "c:" + (c.AnyPublicNetwork ? "any" : "-") + ":" + string.Join(',', c.NetworkHosts.Select(h => h.Text).Order(StringComparer.Ordinal)),
+        CapabilityIntersection i => "i:(" + PolicyKey(i.First) + ")&(" + PolicyKey(i.Second) + ")",
+        NoCapabilities => "none",
+        _ => s_foreignKeys.GetValue(caps, static _ => "x:" + Interlocked.Increment(ref s_nextForeignKey).ToString(System.Globalization.CultureInfo.InvariantCulture)),
+    };
 
     private static HttpClient CreateClient() => new(new SocketsHttpHandler
     {
@@ -36,7 +54,7 @@ public static class EgressClient
     /// <param name="caps">The grants. A request or redirect to a host they do not allow is refused before anything is sent.</param>
     /// <param name="method">The method.</param>
     /// <param name="uri">The first URI.</param>
-    /// <param name="headers">Request headers. Credential-looking headers are dropped when a redirect leaves the original scheme, host and port.</param>
+    /// <param name="headers">Request headers. Every header but Accept, Accept-Language, Accept-Encoding, Content-Type and User-Agent is dropped when a redirect leaves the original scheme, host and port, and a redirect that would resend a body there is refused.</param>
     /// <param name="body">A UTF-8 text body, or null.</param>
     /// <param name="cancellationToken">Cancels the request.</param>
     /// <param name="maxRedirects">How many redirects to follow. Default 5.</param>
@@ -69,7 +87,7 @@ public static class EgressClient
                 {
                     contentType = h.Value;
                 }
-                else if ((sameOrigin || !IsCredentialHeader(h.Key)) && !string.Equals(h.Key, "Host", StringComparison.OrdinalIgnoreCase))
+                else if ((sameOrigin || IsCrossOriginSafeHeader(h.Key)) && !string.Equals(h.Key, "Host", StringComparison.OrdinalIgnoreCase))
                 {
                     request.Headers.TryAddWithoutValidation(h.Key, h.Value);
                 }
@@ -86,7 +104,7 @@ public static class EgressClient
                 }
             }
 
-            HttpResponseMessage response = await s_client.Value.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            HttpResponseMessage response = await ClientFor(caps).SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
             if (!IsRedirect(response.StatusCode) || response.Headers.Location is not Uri location)
             {
                 return response;
@@ -99,6 +117,13 @@ public static class EgressClient
             }
 
             uri = location.IsAbsoluteUri ? location : new Uri(uri, location);
+            if (currentBody is not null && current != HttpMethod.Get && current != HttpMethod.Head && !SameOrigin(origin, uri)
+                && response.StatusCode is HttpStatusCode.TemporaryRedirect or HttpStatusCode.PermanentRedirect)
+            {
+                // 307 and 308 repeat the method and body; a body written for one origin is not sent to another.
+                throw new HttpRequestException("A redirect to another origin asked to resend the request body; it was refused.");
+            }
+
             // RFC 9110 15.4: 303 always becomes GET; 301 and 302 turn POST into GET. 307 and 308 keep the method and body.
             if (response.StatusCode == HttpStatusCode.SeeOther || (response.StatusCode is HttpStatusCode.MovedPermanently or HttpStatusCode.Found && current == HttpMethod.Post))
             {
@@ -158,13 +183,13 @@ public static class EgressClient
         && string.Equals(EgressPolicy.CanonicalHost(a), EgressPolicy.CanonicalHost(b), StringComparison.Ordinal)
         && a.Port == b.Port;
 
-    private static bool IsCredentialHeader(string name) =>
-        name.Contains("auth", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("cookie", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("key", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("token", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("secret", StringComparison.OrdinalIgnoreCase)
-        || name.Contains("password", StringComparison.OrdinalIgnoreCase);
+    // On a hop to another origin only these caller headers are kept. A deny-list by name cannot know what a custom header carries
+    // (a session id is a credential too), so everything not listed is dropped.
+    private static bool IsCrossOriginSafeHeader(string name) =>
+        name.Equals("Accept", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("Accept-Language", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("Accept-Encoding", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("User-Agent", StringComparison.OrdinalIgnoreCase);
 
     // Resolves the host here, refuses it when any address is outside the grants, and connects to an address that was checked.
     private static async ValueTask<Stream> ConnectAsync(SocketsHttpConnectionContext context, CancellationToken cancellationToken)

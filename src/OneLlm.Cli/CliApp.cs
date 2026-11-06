@@ -177,7 +177,27 @@ internal sealed partial class CliApp
     }
 
     private async ValueTask<bool> TerminalShellApprover(ShellRequest request, CancellationToken cancellationToken) =>
-        await AskAsync($"Run `{request.Program} {string.Join(' ', request.Arguments)}`?", cancellationToken).ConfigureAwait(false);
+        await AskAsync($"Run `{Printable(request.Program)} {string.Join(' ', request.Arguments.Select(Printable))}` in {Printable(request.WorkingDirectory)}?", cancellationToken).ConfigureAwait(false);
+
+    // A command comes from the model. Control characters (a carriage return, an escape sequence) could rewrite what the person reads
+    // on this line, so they are shown as \u escapes.
+    internal static string Printable(string text)
+    {
+        var sb = new System.Text.StringBuilder(text.Length);
+        foreach (char c in text)
+        {
+            if (char.IsControl(c) || c is '\u2028' or '\u2029' or '\u202E' or '\u2066' or '\u2067' or '\u2068' or '\u2069')
+            {
+                sb.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+            }
+            else
+            {
+                sb.Append(c);
+            }
+        }
+
+        return sb.ToString();
+    }
 
     /// <summary>Asks a yes/no question on the terminal. The default is no, and end of input is no.</summary>
     private async ValueTask<bool> AskAsync(string question, CancellationToken cancellationToken)

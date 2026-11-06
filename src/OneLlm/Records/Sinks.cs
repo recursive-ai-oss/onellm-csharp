@@ -33,6 +33,8 @@ public sealed class RecordSinks : IRecordSink
         _sinks = [.. _sinks, sink];
     }
 
+    internal IReadOnlyList<IRecordSink> Items => _sinks;
+
     /// <summary>True when no sink is registered, so the caller can skip building records at all.</summary>
     public bool IsEmpty => _sinks.Length == 0;
 
@@ -94,6 +96,9 @@ public sealed class JsonlRecordSink : IRecordSink
         ArgumentException.ThrowIfNullOrEmpty(directory);
         _directory = Path.GetFullPath(directory);
     }
+
+    /// <summary>The directory that holds the files.</summary>
+    public string DirectoryPath => _directory;
 
     /// <summary>Serializes a record to its one-line JSON form, without a trailing newline. Other sinks store this text so every sink reads back the same shape.</summary>
     /// <param name="record">The record.</param>

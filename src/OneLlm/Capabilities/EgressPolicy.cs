@@ -51,6 +51,22 @@ internal static class EgressPolicy
             return IsSpecialV4(b[12], b[13], b[14]); // 64:ff9b::/96 NAT64
         }
 
+        bool zeroPrefix8 = b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0 && b[4] == 0 && b[5] == 0 && b[6] == 0 && b[7] == 0;
+        if (zeroPrefix8 && b[8] == 0 && b[9] == 0 && b[10] == 0 && b[11] == 0)
+        {
+            return true; // ::/96 IPv4-compatible (deprecated): ::127.0.0.1 would otherwise look like an ordinary address
+        }
+
+        if (zeroPrefix8 && b[8] == 0xFF && b[9] == 0xFF && b[10] == 0 && b[11] == 0)
+        {
+            return IsSpecialV4(b[12], b[13], b[14]); // ::ffff:0:0/96 SIIT translation, judged by the embedded address
+        }
+
+        if (b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xFF && b[3] == 0x9B && b[4] == 0x00 && b[5] == 0x01)
+        {
+            return true; // 64:ff9b:1::/48 local-use translation prefix
+        }
+
         if (b[0] == 0x20 && b[1] == 0x02)
         {
             return IsSpecialV4(b[2], b[3], b[4]); // 2002::/16 6to4

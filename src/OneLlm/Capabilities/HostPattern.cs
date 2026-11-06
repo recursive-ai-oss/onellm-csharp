@@ -45,6 +45,9 @@ public sealed class HostPattern : IEquatable<HostPattern>
     /// <summary>True for an address or range entry, which can grant loopback, private and link-local addresses.</summary>
     public bool IsAddress => _kind is Kind.Address or Kind.Range;
 
+    /// <summary>True for an entry that can grant a loopback, private or link-local address: an address, a range, or a <c>localhost</c> name.</summary>
+    public bool CanReachNonPublic => IsAddress || _name == "localhost" || _name.EndsWith(".localhost", StringComparison.Ordinal);
+
     /// <summary>Parses an entry.</summary>
     /// <param name="text">The entry, for example <c>api.example.com</c>, <c>*.example.com:8443</c> or <c>10.0.0.0/8</c>.</param>
     /// <returns>The pattern.</returns>

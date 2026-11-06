@@ -97,8 +97,9 @@ internal sealed class SearchFilesRegexTool : BuiltinTool
             // RE2 spells named groups (?P<name>...); .NET spells them (?<name>...). Matching is case-insensitive, as the tool always was.
             re = new Regex(pattern.Replace("(?P<", "(?<", StringComparison.Ordinal), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
         }
-        catch (ArgumentException e)
+        catch (Exception e) when (e is ArgumentException or NotSupportedException)
         {
+            // NotSupportedException: the linear-time engine refuses patterns whose automaton would be too large (nested counted repeats).
             return ValueTask.FromResult(ToolResult.Error("ERROR: Invalid regex pattern: " + e.Message));
         }
 

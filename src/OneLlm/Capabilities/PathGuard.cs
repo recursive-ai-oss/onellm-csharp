@@ -66,6 +66,75 @@ internal static class PathGuard
         throw Denied(path, $"it is outside the directories granted for {what} access");
     }
 
+    // Names that make a tool read its configuration or run hooks from the tree: a write there turns an allow-listed program into
+    // arbitrary command execution.
+    private static readonly string[] s_repoControlNames = [".git", ".hg", ".svn", ".gitmodules"];
+
+    /// <summary>
+    /// After a write path resolved under a root: refuses repository control paths unless allowed, and anything under a protected directory.
+    /// </summary>
+    internal static void CheckWriteProtection(IReadOnlyList<string> roots, string real, IReadOnlyList<string> protectedPaths, bool allowRepoControl, string original)
+    {
+        foreach (string p in protectedPaths)
+        {
+            string realProtected;
+            try
+            {
+                realProtected = RealPath(MakeAbsolute(p, p), p);
+            }
+            catch (CapabilityMissingException)
+            {
+                realProtected = p;
+            }
+
+            if (IsUnder(real, realProtected))
+            {
+                throw Refused(original, "it is inside the runtime's own state, which tools may read but not change");
+            }
+        }
+
+        if (allowRepoControl)
+        {
+            return;
+        }
+
+        string? best = null;
+        foreach (string root in roots)
+        {
+            string realRoot;
+            try
+            {
+                realRoot = RealPath(MakeAbsolute(root, root), root);
+            }
+            catch (CapabilityMissingException)
+            {
+                continue;
+            }
+
+            if (IsUnder(real, realRoot) && (best is null || realRoot.Length > best.Length))
+            {
+                best = realRoot;
+            }
+        }
+
+        if (best is null)
+        {
+            return;
+        }
+
+        foreach (string part in Path.GetRelativePath(best, real).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        {
+            string name = part.TrimEnd(' ', '.');
+            if (s_repoControlNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+            {
+                throw Refused(original, "repository control files can change what a program on the shell allow-list runs");
+            }
+        }
+    }
+
+    private static CapabilityMissingException Refused(string path, string why) =>
+        new($"Writing '{path}' ({why})", "write access to it from the host, with Capabilities.WithRepoControlWrites() or by not protecting the directory");
+
     /// <summary>Whether <paramref name="path"/> equals <paramref name="root"/> or lies below it. Both must already be real paths.</summary>
     internal static bool IsUnder(string path, string root) => IsUnder(path, root, PathComparison);
 

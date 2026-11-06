@@ -83,6 +83,7 @@ public sealed class SpendGuard
     private readonly object _gate = new();
     private decimal _spent;
     private decimal _reserved;
+    private decimal? _spendCap;
 
     /// <summary>Creates a guard.</summary>
     /// <param name="maxCostPerCall">The most one call may cost in USD, or null for no per-call limit.</param>
@@ -103,15 +104,31 @@ public sealed class SpendGuard
 
         ArgumentOutOfRangeException.ThrowIfNegative(alreadySpent);
         MaxCostPerCall = maxCostPerCall;
-        SpendCap = spendCap;
+        _spendCap = spendCap;
         _spent = alreadySpent;
     }
 
     /// <summary>The per-call limit in USD, or null.</summary>
     public decimal? MaxCostPerCall { get; }
 
-    /// <summary>The spend cap in USD, or null.</summary>
-    public decimal? SpendCap { get; }
+    /// <summary>The spend cap in USD, or null. A new value applies to the next <see cref="Reserve"/>; what has been spent is kept.</summary>
+    public decimal? SpendCap
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _spendCap;
+            }
+        }
+        internal set
+        {
+            lock (_gate)
+            {
+                _spendCap = value;
+            }
+        }
+    }
 
     /// <summary>What has been spent so far in USD.</summary>
     public decimal Spent

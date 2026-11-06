@@ -54,6 +54,7 @@ Usage is priced from the catalog (see [pricing](pricing-and-counting.md)); an un
 warning. `Runtime.SpendCap` (whole runtime), `Runtime.InstanceSpendCap` (one instance, counting its earlier turns) and
 `Runtime.MaxCostPerCall` are checked before a call against its worst case (local token estimate plus the full output allowance)
 and after against the real cost. A call that could pass a cap throws `BudgetExceededException` before anything is sent.
+The caps are read at each call, so setting, raising, lowering or clearing one on a running `Runtime` takes effect on the next call; `Runtime.Spent` keeps adding up across changes.
 
 ## Scripted runs
 

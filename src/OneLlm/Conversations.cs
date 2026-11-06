@@ -1,6 +1,8 @@
+using OneLlm.Hooks;
 using OneLlm.Instances;
 using OneLlm.Runners;
 using OneLlm.Messages;
+using OneLlm.Pricing;
 using OneLlm.Providers;
 
 namespace OneLlm;
@@ -78,20 +80,27 @@ public sealed class StreamingAnswer : IAsyncEnumerable<StreamEvent>
         InferenceCall? call = null;
         IAsyncEnumerator<StreamEvent>? events = null;
         Exception? failure = null;
+        Message? given = null;
+        HookContext? streamContext = null;
         bool finished = false;
         try
         {
             try
             {
-                call = InferenceCall.Begin(_runtime, scope, turn.Model, turn.Provider, turn.Request);
-                events = turn.Provider.StreamAsync(call.Request, cancellationToken).GetAsyncEnumerator(cancellationToken);
+                (ChatRequest request, given) = await scope.BeforeInferenceAsync(turn.Request, cancellationToken).ConfigureAwait(false);
+                if (given is null)
+                {
+                    call = InferenceCall.Begin(_runtime, scope, turn.Model, turn.Provider, request);
+                    events = turn.Provider.StreamAsync(call.Request, cancellationToken).GetAsyncEnumerator(cancellationToken);
+                    streamContext = scope.Hooks.Has(HookPoints.StreamEvent) ? new HookContext(HookPoints.StreamEvent, scope.Instance, scope.Iteration) : null;
+                }
             }
             catch (Exception ex)
             {
                 failure = ex;
             }
 
-            while (failure is null)
+            while (failure is null && given is null)
             {
                 bool more;
                 try
@@ -110,6 +119,11 @@ public sealed class StreamingAnswer : IAsyncEnumerable<StreamEvent>
                 }
 
                 accumulator.Add(events.Current);
+                if (streamContext is not null)
+                {
+                    scope.Hooks.EmitStreamEvent(streamContext, events.Current);
+                }
+
                 yield return events.Current;
             }
 
@@ -117,7 +131,9 @@ public sealed class StreamingAnswer : IAsyncEnumerable<StreamEvent>
             {
                 try
                 {
-                    AskResult result = await FinishAsync(call!, scope, turn.Model, accumulator, cancellationToken).ConfigureAwait(false);
+                    AskResult result = given is not null
+                        ? await RespondAsync(given, scope, turn.Model, cancellationToken).ConfigureAwait(false)
+                        : await FinishAsync(call!, scope, turn.Model, accumulator, cancellationToken).ConfigureAwait(false);
                     finished = true;
                     _result.TrySetResult(result);
                 }
@@ -170,9 +186,18 @@ public sealed class StreamingAnswer : IAsyncEnumerable<StreamEvent>
     {
         (Message stamped, Cost cost, FinishReason finish, IReadOnlyList<ResponseWarning> warnings) = await call
             .CompleteAsync(accumulator.ToMessage(), accumulator.Finish, accumulator.FinishReasonRaw, accumulator.ResponseId, cancellationToken, accumulator.Warnings).ConfigureAwait(false);
+        stamped = await scope.AfterInferenceAsync(call.Request, stamped, cost, cancellationToken).ConfigureAwait(false);
         await scope.AppendAsync(stamped, cancellationToken).ConfigureAwait(false);
         await scope.CompleteAsync(_endState, cancellationToken).ConfigureAwait(false);
         return new AskResult(stamped.GetAssistantText(), stamped, scope.Instance, model.Id, cost, finish, warnings);
+    }
+
+    // A hook answered for the model: no events arrive, the instance gets the hook's message, and nothing is spent.
+    private async Task<AskResult> RespondAsync(Message given, RunScope scope, Catalog.ResolvedModel model, CancellationToken cancellationToken)
+    {
+        await scope.AppendAsync(given, cancellationToken).ConfigureAwait(false);
+        await scope.CompleteAsync(_endState, cancellationToken).ConfigureAwait(false);
+        return new AskResult(given.GetAssistantText(), given, scope.Instance, model.Id, Cost.Zero, FinishReason.Stop, []);
     }
 
     private static bool HasContent(MessageAccumulator accumulator)

@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- `Runtime.SpendCap` is read at each call. Before, the value at the first call was kept, so setting, raising, lowering or clearing it later had no effect. `Runtime.Spent` keeps adding up across changes.
+- Host hooks from `Runtime.Hooks` now run on every kind of run, not only agents: `Ask`, `Stream` and `Chat` calls and scripted runs fire `BeforeInference`, `AfterInference`, `OnCost`, `OnMessage`, `OnStateChange` and `StreamEvent` with the agent loop's rules (interceptors fail closed, observers fail open, every change is recorded). Decider runs fire `OnCost`. Hooks named by a `.flow` follow the same rules as on agents.
 - Docs: the happy-path page uses catalog model names (`gemini-pro`, `embedding-small`); README and getting-started snippets name the namespaces they need; the README states which providers ran live at 1.0; package readmes link to the tagged docs.
 
 ## [1.0.0] - 2026-11-06

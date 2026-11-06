@@ -146,6 +146,7 @@ internal sealed class InferenceCall
                 },
                 cancellationToken).ConfigureAwait(false);
         }
+        await _scope.CostAsync(cost, cancellationToken).ConfigureAwait(false);
         return (stamped, cost, finish, (IReadOnlyList<ResponseWarning>?)_warnings ?? []);
     }
 

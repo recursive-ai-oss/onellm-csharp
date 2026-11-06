@@ -121,7 +121,11 @@ public sealed partial class Runtime
         {
             lock (_gate)
             {
-                return _runtimeGuard ??= new SpendGuard(null, SpendCap);
+                // The cap is a public setter that may change at any time, so each use copies its current value into the guard.
+                // Spent stays in the guard, so it keeps adding up across cap changes.
+                SpendGuard guard = _runtimeGuard ??= new SpendGuard(null, SpendCap);
+                guard.SpendCap = SpendCap;
+                return guard;
             }
         }
     }

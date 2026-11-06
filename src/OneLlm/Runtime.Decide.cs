@@ -243,7 +243,7 @@ public sealed partial class Runtime
         long started = TimeProvider.GetTimestamp();
         string engine = decisions ? (decisionProvider!.Name == "typesafe" ? "jev" : "decisions") : "llm";
 
-        RunScope run = await RunScope.StartAsync(this, instance, cancellationToken).ConfigureAwait(false);
+        RunScope run = await RunScope.StartAsync(this, instance, cancellationToken, OneLlm.Hooks.HookSet.ForRuntime(this)).ConfigureAwait(false);
         await using (run.ConfigureAwait(false))
         {
             try

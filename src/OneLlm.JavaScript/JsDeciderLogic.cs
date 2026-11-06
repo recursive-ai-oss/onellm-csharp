@@ -58,7 +58,7 @@ public sealed class JsDeciderLogic : IDeciderLogic
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException)
         {
-            throw new BadDefinitionException("cannot read the decider logic: " + e.Message, file, 0, 0, e);
+            throw new BadDefinitionException("cannot read the decider logic.", file, 0, 0, e);
         }
 
         if (file.EndsWith(".ts", StringComparison.OrdinalIgnoreCase))

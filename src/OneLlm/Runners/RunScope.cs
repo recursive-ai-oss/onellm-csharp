@@ -36,7 +36,8 @@ internal sealed class RunScope : IAsyncDisposable
         IInstanceLease lease = await runtime.Store.AcquireAsync(instance.InstanceId, cancellationToken).ConfigureAwait(false);
         try
         {
-            decimal spent = instance.Messages.Sum(static m => m.Usage?.Cost ?? 0m);
+            // A negative total (a bad tool cost written into an older instance) counts as zero: the instance must still load.
+            decimal spent = Math.Max(0m, instance.Messages.Sum(static m => m.Usage?.Cost ?? 0m));
             var scope = new RunScope(runtime, instance, lease, new SpendGuard(runtime.MaxCostPerCall, runtime.InstanceSpendCap, spent));
             DateTimeOffset now = runtime.TimeProvider.GetUtcNow();
             instance.State = InstanceStates.Running;

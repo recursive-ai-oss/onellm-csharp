@@ -81,6 +81,17 @@ A unified diff, as `diff -u` or `git diff` print it:
 
 `ToolReferenceResolver` checks a definition's references against the registered tools and the grants. `Strict` throws `BadDefinitionException` (file, line, column, naming the tool and the grant or package to add); `Lenient` removes the reference and records a warning. A reference to a group counts as granted only when every tool in the group is granted; in lenient mode the warning says the source was left out, and the tools of the group that are granted are still registered individually (they hold only grants the runtime gave). A definition cannot grant anything.
 
-## Needs a Windows run
+## On Windows
 
-Junction and reparse-point resolution, reserved-name handling against the real file system, the `cmd.exe` shell form and case-insensitive roots are tested through their logic on Linux and need a Windows run before release.
+The same rules hold on Windows, with these forms handled explicitly (each has a test that runs there):
+- **Junctions and symbolic links** are followed like any link before the root check, for reads, writes, listings, searches and `apply_patch`.
+- **Case.** Roots, protected directories and the version-control names (`.GIT`, `.Git`, `CVS`) compare without regard to case.
+- **8.3 short names.** Windows can answer to a generated short name (`GIT~1` for `.git`, `ONELLM~1` for `.onellm`), which would walk around name-based protection. A path component below a root that contains `~` must be the exact name of an entry in its directory; one that exists only through its alias is refused. A short alias of the root itself is a different spelling than the grant and is refused as outside; grant the root by its long name. Volumes with short names switched off have no aliases to refuse.
+- **Trailing dots and spaces** are dropped from each name, as Windows does, before any comparison (`.onellm.\instances` is `.onellm\instances`); a name of only dots and spaces is refused.
+- **Drive-relative, device, extended and network forms** (`C:foo`, `\foo`, `/foo`, `\\?\`, `\\.\`, `\??\`, `\\server\share`) are refused. A path on a drive or share no root is on is refused before anything is probed, so no network connection is made. Forward and back slashes both separate names.
+- **Alternate data streams** (`file.txt:stream`) and **device names** (`NUL`, `CON`, `COM1`..`COM9`, `LPT1`..`LPT9`, the superscript forms, with or without an extension) are refused.
+- **cmd.exe, batch files and PowerShell.** With an allow-list, a program that re-reads its arguments as commands (`cmd`, a `.bat` or `.cmd` file, `powershell`, `pwsh`) is refused any argument holding the characters that start another command or expand a variable (`& | < > ^ % !` and quotes for cmd; `; & | $` backtick, parentheses, braces and quotes for PowerShell). An entry that lists `cmd /c echo` therefore cannot be extended to `cmd /c echo hi & whoami`. Listing `cmd`, `powershell` or an interpreter without leading arguments still grants everything that program can do: an allow-list entry is not a sandbox. `.bat` and `.cmd` are not found by bare name in allow-list mode (PATHEXT entries for them are skipped); name the file by its full path.
+- **Environment.** Allow-listed and approval-gated commands start with `PATH`, `PATHEXT`, `ComSpec`, `SystemRoot`, `SystemDrive`, `windir`, the user-profile and program-files variables, `TEMP`/`TMP` and `NUMBER_OF_PROCESSORS`; nothing else of the host's environment is passed.
+- **Timeouts** kill the process and its children (`Process.Kill` of the tree).
+
+Not covered on any platform: hard links (see above), a detached process that survives its parent, and an allow-listed program that is itself an interpreter.

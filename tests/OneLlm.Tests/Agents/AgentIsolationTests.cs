@@ -205,7 +205,7 @@ public class AgentIsolationTests
         await File.WriteAllTextAsync(fine, "name: fine\nmodel: demo\nsystemPrompt: CHILD\nreferences:\n  - tools: [task_complete]\n");
         env.Provider.Fallback = req => (req.System ?? "").Contains("CHILD", StringComparison.Ordinal)
             ? Complete("child done", "k")
-            : req.Messages.Any(static m => m.ToolCalls.Count > 0) ? Say("parent done") : Calls(("p1", "run_agent_async", $$"""{"agentSwarmUri":"{{child}}","prompt":"x"}"""), ("p2", "run_agent_async", $$"""{"agentSwarmUri":"{{fine}}","prompt":"x"}"""));
+            : req.Messages.Any(static m => m.ToolCalls.Count > 0) ? Say("parent done") : Calls(("p1", "run_agent_async", new System.Text.Json.Nodes.JsonObject { ["agentSwarmUri"] = child, ["prompt"] = "x" }.ToJsonString()), ("p2", "run_agent_async", new System.Text.Json.Nodes.JsonObject { ["agentSwarmUri"] = fine, ["prompt"] = "x" }.ToJsonString()));
 
         AgentResult r = await Within(env.Rt.RunAgentAsync(Def("parent", ["run_agent_async"]), null, Go()));
 
@@ -372,7 +372,8 @@ public class AgentIsolationTests
         string root = NewTempDirectory();
         string marker = Path.Combine(root, "marker");
         env.Rt.Capabilities = Capabilities.Files(root) + Capabilities.ShellWithLoopApproval;
-        env.Provider.Enqueue(Calls(("c1", "execute_terminal_command", $$"""{"command":"touch","args":["{{marker}}"]}""")), Say("fine"));
+        string[] touchArgs = OperatingSystem.IsWindows() ? ["/c", "echo x> " + marker] : [marker];
+        env.Provider.Enqueue(Calls(("c1", "execute_terminal_command", new System.Text.Json.Nodes.JsonObject { ["command"] = OperatingSystem.IsWindows() ? "cmd" : "touch", ["args"] = new System.Text.Json.Nodes.JsonArray([.. touchArgs.Select(static a => (System.Text.Json.Nodes.JsonNode?)System.Text.Json.Nodes.JsonValue.Create(a))]) }.ToJsonString())), Say("fine"));
         AgentRun run = await env.Rt.StartAgentAsync(Def("a", ["execute_terminal_command"]), null, Go());
         await Within(run.AwaitAsync());
 

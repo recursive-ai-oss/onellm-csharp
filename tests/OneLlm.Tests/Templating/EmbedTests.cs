@@ -77,7 +77,7 @@ public sealed class EmbedTests : IDisposable
             Assert.DoesNotContain("secret", dots.Message, StringComparison.Ordinal);
 
             // An absolute reference is not this source's to answer.
-            TemplateException abs = Assert.Throws<TemplateException>(() => Template.Parse("{{embed \"" + outside + "\"}}").Render(null, opts));
+            TemplateException abs = Assert.Throws<TemplateException>(() => Template.Parse("{{embed " + System.Text.Json.JsonSerializer.Serialize(outside) + "}}").Render(null, opts));
             Assert.Contains("not found", abs.Message, StringComparison.Ordinal);
 
             // A link inside the root that points outside is followed before the check.

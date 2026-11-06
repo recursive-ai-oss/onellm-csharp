@@ -460,22 +460,48 @@ internal sealed partial class LiveAgent
 
     public static decimal OwnCostOf(Instance instance)
     {
-        decimal total = 0m;
-        foreach (Compaction c in instance.Compactions)
+        // A parent prices a live child while the child's own thread is still adding to its history, and the lists are not locked.
+        // A pass that overlaps a change is simply run again; the next one sees the settled list.
+        for (int attempt = 0; ; attempt++)
         {
-            if (c.ExtensionData is { } d && d.TryGetValue(ReplacedCostKey, out object? v) && v is string text
+            try
+            {
+                return SumCost(instance);
+            }
+            catch (Exception e) when (e is InvalidOperationException or ArgumentOutOfRangeException && attempt < 16)
+            {
+                Thread.Yield();
+            }
+        }
+    }
+
+    private static decimal SumCost(Instance instance)
+    {
+        decimal total = 0m;
+        List<Compaction> compactions = instance.Compactions;
+        for (int i = 0; i < compactions.Count; i++)
+        {
+            if ((Compaction?)compactions[i] is { ExtensionData: { } d } && d.TryGetValue(ReplacedCostKey, out object? v) && v is string text
                 && decimal.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out decimal replaced))
             {
                 total += replaced;
             }
         }
 
-        foreach (Message m in instance.Messages)
+        List<Message> messages = instance.Messages;
+        for (int i = 0; i < messages.Count; i++)
         {
-            total += m.Usage?.Cost ?? 0m;
-            foreach (ToolCall c in m.ToolCalls)
+            // A slot that reads as empty is a history being rebuilt by its own thread (compaction); the retry above covers the rest.
+            if ((Message?)messages[i] is not { } m)
             {
-                total += c.Cost;
+                continue;
+            }
+
+            total += m.Usage?.Cost ?? 0m;
+            IReadOnlyList<ToolCall> calls = m.ToolCalls;
+            for (int k = 0; k < calls.Count; k++)
+            {
+                total += calls[k].Cost;
             }
         }
 

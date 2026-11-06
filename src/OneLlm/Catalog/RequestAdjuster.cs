@@ -58,16 +58,16 @@ public static class RequestAdjuster
     {
         ArgumentNullException.ThrowIfNull(resolved);
         ArgumentNullException.ThrowIfNull(request);
-        var warnings = new List<ResponseWarning>();
+        List<ResponseWarning>? warnings = null;
         void Note(string code, string parameter, string reason) =>
-            warnings.Add(new ResponseWarning(code, $"{parameter}: {reason}", parameter));
+            (warnings ??= []).Add(new ResponseWarning(code, $"{parameter}: {reason}", parameter));
 
         Exception Refuse(string parameter, string reason) => new UnsupportedParameterException(resolved.Id, parameter, reason);
 
         ModelSpec? model = resolved.Model;
         if (model is null)
         {
-            return new AdjustedRequest(request, warnings);
+            return new AdjustedRequest(request, (IReadOnlyList<ResponseWarning>?)warnings ?? []);
         }
 
         ProviderCapabilitiesSpec? provider = resolved.Provider.Capabilities;
@@ -99,7 +99,10 @@ public static class RequestAdjuster
             throw Refuse("responseFormat", "the model does not support structured output against a schema (supportsStructuredOutput)");
         }
 
-        CheckInputs(request, model, Capability, Refuse);
+        if (HasAssets(request))
+        {
+            CheckInputs(request, model, Capability, Refuse);
+        }
 
         if (request.Reasoning is { Effort: { } effort } && model.Thinking?.Efforts is { Count: > 0 } efforts
             && !efforts.Exists(e => string.Equals(e, effort, StringComparison.OrdinalIgnoreCase)))
@@ -168,7 +171,45 @@ public static class RequestAdjuster
             Note("parameter_clamped", "maxOutputTokens", $"{maxOut} is above the model's limit of {limit}; using the limit (maxOutputTokens)");
         }
 
-        return new AdjustedRequest(result, warnings);
+        return new AdjustedRequest(result, (IReadOnlyList<ResponseWarning>?)warnings ?? []);
+    }
+
+    // Text-only histories (most of them) have nothing for the input check to find.
+    private static bool HasAssets(ChatRequest request)
+    {
+        IReadOnlyList<Message> messages = request.Messages;
+        for (int i = 0; i < messages.Count; i++)
+        {
+            Message m = messages[i];
+            if (PartsHaveAsset(m.User) || PartsHaveAsset(m.Assistant))
+            {
+                return true;
+            }
+
+            IReadOnlyList<ToolCall> calls = m.ToolCalls;
+            for (int c = 0; c < calls.Count; c++)
+            {
+                if (PartsHaveAsset(calls[c].Result))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool PartsHaveAsset(IReadOnlyList<Part> parts)
+    {
+        for (int i = 0; i < parts.Count; i++)
+        {
+            if (parts[i] is AssetPart)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsStandardTier(string tier) =>

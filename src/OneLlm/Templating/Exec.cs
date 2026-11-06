@@ -243,10 +243,13 @@ internal sealed class Exec
         else if (val is long or byte)
         {
             long count = val is long lv ? lv : (byte)val;
-            // Range over an integer yields 0 .. n-1.
+            // Range over an integer yields 0 .. n-1, of the integer's own type (observed from Go 1.26: a byte from index of a string
+            // ranges as uint8, which shows in %T and %!(EXTRA ...) output).
+            bool isByte = val is byte;
             for (long i = 0; i < count; i++)
             {
-                if (!Iteration(i, i))
+                object item = isByte ? (object)(byte)i : i;
+                if (!Iteration(item, item))
                 {
                     break;
                 }

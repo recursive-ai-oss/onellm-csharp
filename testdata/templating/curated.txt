@@ -1062,3 +1062,18 @@ tmpl:
 data: {"m": {"k": null}}
 tmpl:
 [{{(index .m "k").x}}]
+
+### regex-dollar-is-end-of-text
+data: {"s": "hello\n", "t": "hello"}
+tmpl:
+{{regexMatch "o$" .s}} {{regexMatch "o$" .t}} {{regexMatch "(?m)o$" .s}} {{regexMatch "[$]x" "a$x"}} {{regexMatch "a\\$" "a$"}} [{{regexReplace "o$" "!" "hello\n"}}]
+
+### regex-empty-flag-group
+data: {}
+tmpl:
+{{regexMatch "(?)" ""}} {{regexReplace "(?)a" "b" "aa"}}
+
+### range-over-byte
+data: {}
+tmpl:
+{{range $e := (index "\x03" 0)}}{{printf "%T " $e}}{{end}}

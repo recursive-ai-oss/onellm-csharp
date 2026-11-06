@@ -120,6 +120,19 @@ public class TemplateBehaviourTests
     }
 
     [Fact]
+    public void Documented_differences_from_Go_stay_as_documented()
+    {
+        // Found by differential fuzzing and listed under "Known differences from Go" in docs/templating.md; pinned so a change is deliberate.
+        // A string cut through a multi-byte character becomes U+FFFD (3 bytes) instead of a raw byte (1 byte).
+        Assert.Equal("3", Render("""{{len (slice "ü" 1)}}""", new Dictionary<string, object?>()));
+
+        // A slice of a slice cannot grow back toward the original list's capacity.
+        var scope = new Dictionary<string, object?> { ["items"] = new List<object?> { 1L, 2L, 3L } };
+        TemplateException ex = Assert.Throws<TemplateException>(() => Render("{{slice (slice .items 1 1) 0 2}}", scope));
+        Assert.Equal(TemplateErrorKind.Execute, ex.Kind);
+    }
+
+    [Fact]
     public void Missing_key_modes()
     {
         var scope = new Dictionary<string, object?> { ["m"] = new Dictionary<string, object?>() };

@@ -9,6 +9,7 @@
     <IsAotCompatible>true</IsAotCompatible>
     <IsTrimmable>true</IsTrimmable>
     <EnablePackageValidation>true</EnablePackageValidation>
+    <PackageValidationBaselineVersion>1.0.0</PackageValidationBaselineVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageReadmeFile>PACKAGE.md</PackageReadmeFile>
     <PackageTags>llm;ai;agents;tools;html;markdown;nativeaot;trimmable</PackageTags>

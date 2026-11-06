@@ -109,8 +109,10 @@ public class ToolBoundaryTests
 
         ToolResult granted = await Kit.Run("write_file", """{"path":".git/info-note","content":"ok"}""", caps.WithRepoControlWrites());
         Assert.False(granted.IsError, Kit.Text(granted));
-        // A root that is itself inside a control directory is the host's choice.
-        Assert.False((await Kit.Run("write_file", """{"path":"note","content":"ok"}""", Capabilities.Files(s.In(".git")))).IsError);
+        // A root that is itself a control directory is protected too, unless the host opts in.
+        Capabilities inside = Capabilities.Files(s.In(".git"));
+        Assert.True((await Kit.Run("write_file", """{"path":"note","content":"ok"}""", inside)).IsError);
+        Assert.False((await Kit.Run("write_file", """{"path":"note","content":"ok"}""", inside.WithRepoControlWrites())).IsError);
     }
 
     [Fact]
@@ -438,5 +440,67 @@ public class ToolBoundaryTests
         Capabilities caps = Capabilities.Files(s.Root);
         Assert.False((await Kit.Run("memory", """{"action":"append","content":"note"}""", caps)).IsError);
         Assert.Equal("note", Kit.Text(await Kit.Run("memory", "{}", caps)));
+    }
+
+    [Fact]
+    public async Task A_root_that_is_a_git_directory_is_protected()
+    {
+        using var s = new Scratch();
+        s.Write("bare.git/HEAD", "ref: refs/heads/main\n");
+        Directory.CreateDirectory(s.In("bare.git/objects"));
+        Directory.CreateDirectory(s.In("bare.git/refs"));
+        Capabilities root = Capabilities.Files(s.In("bare.git"));
+        foreach (string path in new[] { "config", "hooks/pre-receive", "info/exclude" })
+        {
+            Assert.True((await Kit.Run("write_file", WriteArgs(path), root)).IsError, path);
+            Assert.False(File.Exists(s.In("bare.git/" + path)), path);
+        }
+
+        Assert.False((await Kit.Run("write_file", WriteArgs("config"), root.WithRepoControlWrites())).IsError);
+    }
+
+    [Theory]
+    [InlineData(".bzr/branch/x")]
+    [InlineData(".jj/repo/config.toml")]
+    [InlineData("_darcs/prefs/x")]
+    [InlineData(".fslckout")]
+    [InlineData(".sl/config")]
+    [InlineData("CVS/Root")]
+    [InlineData("sub/.BZR/x")]
+    [InlineData("sub/cvs/x")]
+    [InlineData("sub/.jj./x")]
+    public async Task Other_version_control_directories_are_protected(string path)
+    {
+        using var s = new Scratch();
+        Capabilities caps = Capabilities.Files(s.Root);
+        ToolResult r = await Kit.Run("write_file", WriteArgs(path), caps);
+        Assert.True(r.IsError, path);
+        Assert.Contains("repository control", Kit.Text(r), StringComparison.Ordinal);
+        Assert.False((await Kit.Run("write_file", WriteArgs(path), caps.WithRepoControlWrites())).IsError);
+    }
+
+    [Fact]
+    public async Task A_multi_file_patch_that_one_protection_refuses_writes_nothing()
+    {
+        using var s = new Scratch();
+        Capabilities caps = Capabilities.Files(s.Root);
+        string patch = string.Concat(new[] { "gd/HEAD", "gd/objects/info/keep", "gd/refs/heads/keep", "gd/config" }
+            .Select(static p => $"--- /dev/null\n+++ b/{p}\n@@ -0,0 +1 @@\n+x\n"));
+        foreach (bool dry in new[] { true, false })
+        {
+            ToolResult r = await Kit.Run("apply_patch", new JsonObject { ["patch"] = patch, ["dry_run"] = dry }.ToJsonString(), caps);
+            Assert.True(r.IsError, "dry=" + dry);
+            Assert.Contains("Nothing was written", Kit.Text(r), StringComparison.Ordinal);
+        }
+
+        Assert.False(Directory.Exists(s.In("gd")));
+
+        // An ordinary multi-file patch still applies, and a refused file among ordinary ones stops all of them.
+        string mixed = "--- /dev/null\n+++ b/ok.txt\n@@ -0,0 +1 @@\n+x\n--- /dev/null\n+++ b/.git/config\n@@ -0,0 +1 @@\n+x\n";
+        Assert.True((await Kit.Run("apply_patch", new JsonObject { ["patch"] = mixed }.ToJsonString(), caps)).IsError);
+        Assert.False(File.Exists(s.In("ok.txt")));
+        string fine = "--- /dev/null\n+++ b/a.txt\n@@ -0,0 +1 @@\n+x\n--- /dev/null\n+++ b/b.txt\n@@ -0,0 +1 @@\n+y\n";
+        Assert.False((await Kit.Run("apply_patch", new JsonObject { ["patch"] = fine }.ToJsonString(), caps)).IsError);
+        Assert.True(File.Exists(s.In("a.txt")) && File.Exists(s.In("b.txt")));
     }
 }

@@ -68,12 +68,12 @@ internal static class PathGuard
 
     // Names that make a tool read its configuration or run hooks from the tree: a write there turns an allow-listed program into
     // arbitrary command execution.
-    private static readonly string[] s_repoControlNames = [".git", ".hg", ".svn", ".gitmodules"];
+    private static readonly string[] s_repoControlNames = [".git", ".hg", ".svn", ".gitmodules", ".bzr", ".jj", "_darcs", ".fslckout", ".sl", "CVS"];
 
     /// <summary>
     /// After a write path resolved under a root: refuses repository control paths unless allowed, and anything under a protected directory.
     /// </summary>
-    internal static void CheckWriteProtection(IReadOnlyList<string> roots, string real, IReadOnlyList<string> protectedPaths, bool allowRepoControl, string original)
+    internal static void CheckWriteProtection(IReadOnlyList<string> roots, string real, IReadOnlyList<string> protectedPaths, bool allowRepoControl, string original, IReadOnlySet<string>? pending = null)
     {
         if (IsInProtected(real, protectedPaths))
         {
@@ -123,14 +123,29 @@ internal static class PathGuard
         // .git is a file pointing at it) or a bare repository has no ".git" in its path, yet a planted config or hook in it runs
         // commands for an allow-listed git. A directory is one when it has HEAD, objects and refs. The check counts the file being
         // written, so the write that would complete the set is refused too, whatever order the pieces arrive in.
-        string dir = best;
-        for (int i = 0; i < parts.Length - 1; i++)
+        // The root itself is checked too: a root that is a repository control directory, or a git directory, is not exempt. A host that
+        // wants one passes WithRepoControlWrites().
+        if (s_repoControlNames.Contains(Path.GetFileName(best.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)).TrimEnd(' ', '.'), StringComparer.OrdinalIgnoreCase))
         {
-            dir = Path.Join(dir, parts[i]);
+            throw Refused(original, "the root is a repository control directory");
+        }
+
+        string dir = best;
+        for (int i = -1; i < parts.Length - 1; i++)
+        {
+            if (i >= 0)
+            {
+                dir = Path.Join(dir, parts[i]);
+            }
+
             string first = parts[i + 1];
-            bool head = string.Equals(first, "HEAD", PathComparison) || File.Exists(Path.Join(dir, "HEAD"));
-            bool objects = string.Equals(first, "objects", PathComparison) || Directory.Exists(Path.Join(dir, "objects"));
-            bool refs = string.Equals(first, "refs", PathComparison) || Directory.Exists(Path.Join(dir, "refs"));
+            // Files being created by the same operation count as present, so a batch cannot complete a git directory piece by piece.
+            bool Pending(string name, bool tree) => pending is not null && pending.Any(p => tree
+                ? IsUnder(p, Path.Join(dir, name)) && !string.Equals(p, Path.Join(dir, name), PathComparison)
+                : string.Equals(p, Path.Join(dir, name), PathComparison));
+            bool head = string.Equals(first, "HEAD", PathComparison) || File.Exists(Path.Join(dir, "HEAD")) || Pending("HEAD", false);
+            bool objects = string.Equals(first, "objects", PathComparison) || Directory.Exists(Path.Join(dir, "objects")) || Pending("objects", true);
+            bool refs = string.Equals(first, "refs", PathComparison) || Directory.Exists(Path.Join(dir, "refs")) || Pending("refs", true);
             if (head && objects && refs)
             {
                 throw Refused(original, "it is inside a git directory (HEAD, objects and refs), whose config and hooks can make an allow-listed git run commands");

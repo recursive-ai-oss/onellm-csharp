@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Security
+
+- Shell: allow-listed and approval-gated commands start from a minimal environment and the model sets no variable unless the host names it (`BuiltinOptions.ShellModelEnvironmentNames`, `ShellInheritedEnvironmentNames`); file tools refuse writes into `.git`, `.hg`, `.svn` and `.gitmodules` (`Capabilities.WithRepoControlWrites()` allows them) and into the runtime's own state directories (`Capabilities.WithWriteProtected(...)`; a `Runtime` protects its file store and JSONL sink directories). Intersecting `AnyPublicHosts` with a `localhost` or address entry no longer yields loopback. Connection pools are kept per network policy, redirects to another origin keep only plain headers and refuse to resend a body, and more IPv6 translation forms count as non-public. Glob patterns match in linear time. `list_files` no longer prints symlink targets, `run_decider` checks links in a decider directory against the read roots, and terminal approval prompts escape control characters.
+
 ### Added
 
 - Vertex AI Gemini `countTokens` and `embedContent` (Vertex's request bodies; one embedding per call); decider outputs are checked against a declared output schema (`DeciderOutputException`); `SpendLimitReachedException` for an Anthropic account spend limit; strip and adjust notices on `EmbeddingResponse.Warnings`.

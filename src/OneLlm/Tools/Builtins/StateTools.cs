@@ -27,7 +27,7 @@ internal static class StateFiles
 
     internal static async Task WriteAsync(ICapabilities caps, string path, string text, CancellationToken ct)
     {
-        await using FileStream s = GuardedFile.OpenWrite(caps, path, append: false);
+        await using FileStream s = GuardedFile.OpenWrite(caps, path, append: false, state: true);
         await s.WriteAsync(new UTF8Encoding(false).GetBytes(text), ct).ConfigureAwait(false);
     }
 }

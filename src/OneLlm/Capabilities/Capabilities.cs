@@ -18,9 +18,12 @@ public sealed class Capabilities : ICapabilities
     private readonly string[] _readRoots;
     private readonly string[] _writeRoots;
     private readonly HostPattern[] _hosts;
+    private readonly string[] _protected;
 
-    private Capabilities(string[] readRoots, string[] writeRoots, string? workingDirectory, ShellPolicy shell, HostPattern[] hosts, bool anyPublic)
+    private Capabilities(string[] readRoots, string[] writeRoots, string? workingDirectory, ShellPolicy shell, HostPattern[] hosts, bool anyPublic, string[]? protectedPaths = null, bool repoControl = false)
     {
+        _protected = protectedPaths ?? [];
+        AllowRepoControlWrites = repoControl;
         _readRoots = readRoots;
         _writeRoots = writeRoots;
         WorkingDirectory = workingDirectory;
@@ -49,7 +52,8 @@ public sealed class Capabilities : ICapabilities
     public static Capabilities Files(string root)
     {
         string full = Full(root);
-        return new([full], [full], full, ShellPolicy.Off, [], false);
+        // The default state directory holds the runtime's own instances, records and notes; the file tools never write there.
+        return new([full], [full], full, ShellPolicy.Off, [], false, [Path.Join(full, ".onellm")]);
     }
 
     /// <summary>Read-only access under <paramref name="root"/>, which also becomes the working directory.</summary>
@@ -119,7 +123,7 @@ public sealed class Capabilities : ICapabilities
     {
         ArgumentNullException.ThrowIfNull(directory);
         string real = ResolveRead(Path.IsPathFullyQualified(directory) ? directory : Path.Join(WorkingDirectory, directory));
-        return new(_readRoots, _writeRoots, real, ShellAccess, _hosts, AnyPublicNetwork);
+        return new(_readRoots, _writeRoots, real, ShellAccess, _hosts, AnyPublicNetwork, _protected, AllowRepoControlWrites);
     }
 
     /// <summary>Adds one set of grants to another: roots and hosts are unioned and the more permissive shell policy that one policy can express wins.</summary>
@@ -145,7 +149,9 @@ public sealed class Capabilities : ICapabilities
             WorkingDirectory ?? other.WorkingDirectory,
             ShellAccess.Union(other.ShellAccess),
             [.. _hosts.Union(other._hosts)],
-            AnyPublicNetwork || other.AnyPublicNetwork);
+            AnyPublicNetwork || other.AnyPublicNetwork,
+            [.. _protected.Union(other._protected, StringComparer.Ordinal)],
+            AllowRepoControlWrites || other.AllowRepoControlWrites);
     }
 
     /// <summary>
@@ -164,12 +170,13 @@ public sealed class Capabilities : ICapabilities
         bool anyPublic = AnyPublicNetwork && other.AnyPublicNetwork;
         if (AnyPublicNetwork && !other.AnyPublicNetwork)
         {
-            // Public-only access does not cover address entries, which exist to reach non-public hosts.
-            hosts = [.. other._hosts.Where(h => !h.IsAddress)];
+            // Public-only access reaches no loopback, private or link-local address, so entries that can (addresses, ranges and
+            // localhost names) are dropped: an intersection never allows a kind of address one side does not.
+            hosts = [.. other._hosts.Where(h => !h.CanReachNonPublic)];
         }
         else if (!AnyPublicNetwork && other.AnyPublicNetwork)
         {
-            hosts = [.. _hosts.Where(h => !h.IsAddress)];
+            hosts = [.. _hosts.Where(h => !h.CanReachNonPublic)];
         }
         else
         {
@@ -177,7 +184,9 @@ public sealed class Capabilities : ICapabilities
         }
 
         string? wd = new[] { WorkingDirectory, other.WorkingDirectory }.FirstOrDefault(d => d is not null && read.Any(r => PathGuard.IsUnder(d, r))) ?? read.FirstOrDefault();
-        return new(read, write, wd, ShellAccess.Intersect(other.ShellAccess), hosts, anyPublic);
+        return new(read, write, wd, ShellAccess.Intersect(other.ShellAccess), hosts, anyPublic,
+            [.. _protected.Union(other._protected, StringComparer.Ordinal)],
+            AllowRepoControlWrites && other.AllowRepoControlWrites);
     }
 
     /// <inheritdoc />
@@ -241,7 +250,41 @@ public sealed class Capabilities : ICapabilities
     /// <param name="path">An absolute path, or one relative to <see cref="WorkingDirectory"/>.</param>
     /// <returns>The real, absolute path to open.</returns>
     /// <exception cref="CapabilityMissingException">The path is outside every write root.</exception>
-    public string ResolveWrite(string path) => PathGuard.Resolve(_writeRoots, WorkingDirectory, path, write: true);
+    public string ResolveWrite(string path)
+    {
+        string real = PathGuard.Resolve(_writeRoots, WorkingDirectory, path, write: true);
+        PathGuard.CheckWriteProtection(_writeRoots, real, _protected, AllowRepoControlWrites, path);
+        return real;
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> WriteProtectedPaths => _protected;
+
+    /// <inheritdoc />
+    public bool AllowRepoControlWrites { get; }
+
+    /// <summary>
+    /// The same grants, with more directories the file tools may not write to even though a write root contains them. Use it for
+    /// anything the model must not edit: the runtime's instance and record directories, its notes, configuration. Reads are unaffected.
+    /// A runtime protects the directories of its file instance store and JSONL record sink by itself.
+    /// </summary>
+    /// <param name="directories">Directories (relative paths are made absolute against the current directory).</param>
+    /// <returns>The new grants.</returns>
+    public Capabilities WithWriteProtected(params string[] directories)
+    {
+        ArgumentNullException.ThrowIfNull(directories);
+        string[] all = [.. _protected.Union(directories.Select(Full), StringComparer.Ordinal)];
+        return all.Length == _protected.Length ? this : new(_readRoots, _writeRoots, WorkingDirectory, ShellAccess, _hosts, AnyPublicNetwork, all, AllowRepoControlWrites);
+    }
+
+    /// <summary>
+    /// The same grants, with writes allowed into repository control directories (<c>.git</c>, <c>.hg</c>, <c>.svn</c>) and <c>.gitmodules</c>.
+    /// They are refused by default because a program on the shell allow-list (<c>git</c>, a build tool) reads its configuration and
+    /// hooks from there, so a write is a way to run any command. Grant it only when no shell is granted or the host trusts the model.
+    /// </summary>
+    /// <returns>The new grants.</returns>
+    public Capabilities WithRepoControlWrites() =>
+        AllowRepoControlWrites ? this : new(_readRoots, _writeRoots, WorkingDirectory, ShellAccess, _hosts, AnyPublicNetwork, _protected, true);
 
     /// <summary>A short description of the grants for logs and error messages. It names no secrets.</summary>
     /// <returns>For example <c>files(rw: /work) shell(off) network(off)</c>.</returns>

@@ -37,6 +37,27 @@ internal sealed class RunDeciderTool : BuiltinTool
     {
     }
 
+    // Decider.Load reads decider.yaml, the schema and the logic file by plain path. A link among them that leads outside the read
+    // roots would be read despite the check above, so every link in the decider's directory is resolved against the grants first.
+    private static void RefuseLinksOutside(ICapabilities caps, string real)
+    {
+        string dir = Directory.Exists(real) ? real : Path.GetDirectoryName(real) ?? real;
+        try
+        {
+            foreach (string file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+            {
+                if (new FileInfo(file).LinkTarget is not null)
+                {
+                    _ = caps.ResolveRead(file);
+                }
+            }
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // An unreadable directory fails in Load with its own message.
+        }
+    }
+
     protected override async ValueTask<ToolResult> RunAsync(JsonObject inputs, ToolContext context, CancellationToken cancellationToken)
     {
         string path = Args.RequiredString(inputs, "decider");
@@ -55,6 +76,7 @@ internal sealed class RunDeciderTool : BuiltinTool
 
         // Resolve first: a path outside the granted roots (or through a symlink out of them) is refused before a byte is read.
         string real = context.Capabilities.ResolveRead(path);
+        RefuseLinksOutside(context.Capabilities, real);
         Decider decider;
         DecisionResult result;
         try

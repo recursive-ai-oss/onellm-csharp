@@ -18,9 +18,14 @@ internal sealed class StubServer : IDisposable
     private readonly CancellationTokenSource _stop = new();
     private readonly List<StubRequest> _requests = [];
 
-    public StubServer(Func<StubRequest, StubResponse> handler)
+    private readonly bool _keepAlive;
+
+    /// <param name="handler">Answers each request.</param>
+    /// <param name="keepAlive">True to serve many requests per connection, so a client pool reuses it.</param>
+    public StubServer(Func<StubRequest, StubResponse> handler, bool keepAlive = false)
     {
         _handler = handler;
+        _keepAlive = keepAlive;
         _listener.Start();
         Port = ((IPEndPoint)_listener.LocalEndpoint).Port;
         _ = Task.Run(AcceptLoop);
@@ -73,6 +78,8 @@ internal sealed class StubServer : IDisposable
             try
             {
                 NetworkStream stream = client.GetStream();
+                do
+                {
                 var head = new StringBuilder();
                 byte[] one = new byte[1];
                 while (!head.ToString().EndsWith("\r\n\r\n", StringComparison.Ordinal))
@@ -111,7 +118,7 @@ internal sealed class StubServer : IDisposable
                 StubResponse r = _handler(request);
                 byte[] payload = r.Bytes ?? Encoding.UTF8.GetBytes(r.Body);
                 var resp = new StringBuilder();
-                resp.Append($"HTTP/1.1 {r.Status} {Reason(r.Status)}\r\nContent-Type: {r.ContentType}\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n");
+                resp.Append($"HTTP/1.1 {r.Status} {Reason(r.Status)}\r\nContent-Type: {r.ContentType}\r\nContent-Length: {payload.Length}\r\n{(_keepAlive ? "" : "Connection: close\r\n")}");
                 foreach ((string k, string v) in r.Headers ?? [])
                 {
                     resp.Append($"{k}: {v}\r\n");
@@ -121,6 +128,8 @@ internal sealed class StubServer : IDisposable
                 await stream.WriteAsync(Encoding.ASCII.GetBytes(resp.ToString()));
                 await stream.WriteAsync(payload);
                 await stream.FlushAsync();
+                }
+                while (_keepAlive);
             }
             catch (Exception e) when (e is IOException or SocketException or ObjectDisposedException)
             {
@@ -134,6 +143,7 @@ internal sealed class StubServer : IDisposable
         200 => "OK",
         301 => "Moved Permanently",
         302 => "Found",
+        307 => "Temporary Redirect",
         404 => "Not Found",
         429 => "Too Many Requests",
         500 => "Internal Server Error",

@@ -100,7 +100,8 @@ internal sealed class ListFilesTool : BuiltinTool
             current.IsDir = f.IsDir;
             current.Size = f.Size;
             current.Modified = modified ? WalkFormat(f) : null;
-            current.Link = f.IsSymlink ? f.LinkTarget ?? "?" : null;
+            // Only that it is a link: its target may be a path outside the granted roots, which the listing should not disclose.
+            current.Link = f.IsSymlink ? "symlink" : null;
         }
 
         var sb = new StringBuilder();
@@ -114,7 +115,7 @@ internal sealed class ListFilesTool : BuiltinTool
     {
         if (!isRoot)
         {
-            string name = node.Name + (node.IsDir ? "/" : "") + (node.Link is not null ? " -> " + node.Link : "");
+            string name = node.Name + (node.IsDir ? "/" : "") + (node.Link is not null ? " (" + node.Link + ")" : "");
             sb.Append(prefix).Append(isLast ? "└── " : "├── ").Append(name);
             var meta = new List<string>(2);
             if (!node.IsDir)

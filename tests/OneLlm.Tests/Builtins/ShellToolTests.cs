@@ -245,7 +245,9 @@ public class ShellToolTests
             Assert.True(r.IsError, e);
         }
 
-        Assert.False((await Kit.Run("execute_terminal_command", J("echo", ["hi"], env: ["HARMLESS=1"]), caps)).IsError);
+        // No variable at all, unless the host names it.
+        Assert.True((await Kit.Run("execute_terminal_command", J("echo", ["hi"], env: ["HARMLESS=1"]), caps)).IsError);
+        Assert.False((await Kit.Run("execute_terminal_command", J("echo", ["hi"], env: ["HARMLESS=1"]), caps, new BuiltinOptions { ShellModelEnvironmentNames = ["HARMLESS"] })).IsError);
     }
 
     // --- approval ---

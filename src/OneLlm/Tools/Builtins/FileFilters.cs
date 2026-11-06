@@ -5,83 +5,97 @@ namespace OneLlm.Tools.Builtins;
 /// <summary>Shell-style name matching: <c>*</c> and <c>?</c> never match a <c>/</c>, <c>[a-z]</c> and <c>[^a-z]</c> are classes, and a backslash escapes the next character.</summary>
 internal static class Glob
 {
-    internal static bool Match(string pattern, string name) => Match(pattern, 0, name, 0);
-
-    private static bool Match(string p, int pi, string s, int si)
+    // Iterative matching with one remembered star: when the rest of the pattern fails, the most recent star takes one more character
+    // and matching resumes after it. That is O(pattern x name) however many stars there are; a recursive matcher is exponential on
+    // patterns such as "*a*a*a*b", and a model chooses these patterns. Only the latest star needs remembering because a star never
+    // crosses '/', so an earlier star could not reach any text the latest one cannot.
+    internal static bool Match(string p, string s)
     {
-        while (pi < p.Length)
+        int pi = 0;
+        int si = 0;
+        int starPi = -1;
+        int starSi = 0;
+        while (si < s.Length)
         {
-            char c = p[pi];
-            switch (c)
+            if (pi < p.Length && p[pi] == '*')
             {
-                case '*':
-                    while (pi < p.Length && p[pi] == '*')
-                    {
-                        pi++;
-                    }
-
-                    if (pi == p.Length)
-                    {
-                        return s.IndexOf('/', si) < 0;
-                    }
-
-                    for (int k = si; k <= s.Length; k++)
-                    {
-                        if (Match(p, pi, s, k))
-                        {
-                            return true;
-                        }
-
-                        if (k < s.Length && s[k] == '/')
-                        {
-                            break;
-                        }
-                    }
-
-                    return false;
-                case '?':
-                    if (si >= s.Length || s[si] == '/')
-                    {
-                        return false;
-                    }
-
+                while (pi < p.Length && p[pi] == '*')
+                {
                     pi++;
-                    si++;
-                    break;
-                case '[':
-                    if (si >= s.Length || s[si] == '/')
-                    {
-                        return false;
-                    }
+                }
 
-                    int end = ClassEnd(p, pi);
-                    if (end < 0 || !InClass(p, pi + 1, end, s[si]))
-                    {
-                        return false;
-                    }
+                if (pi == p.Length)
+                {
+                    return s.IndexOf('/', si) < 0;
+                }
 
-                    pi = end + 1;
-                    si++;
-                    break;
-                default:
-                    if (c == '\\' && pi + 1 < p.Length)
-                    {
-                        pi++;
-                        c = p[pi];
-                    }
-
-                    if (si >= s.Length || s[si] != c)
-                    {
-                        return false;
-                    }
-
-                    pi++;
-                    si++;
-                    break;
+                starPi = pi;
+                starSi = si;
+                continue;
             }
+
+            if (pi < p.Length && StepMatches(p, ref pi, s[si]))
+            {
+                si++;
+                continue;
+            }
+
+            if (starPi < 0 || starSi >= s.Length || s[starSi] == '/')
+            {
+                return false;
+            }
+
+            starSi++;
+            si = starSi;
+            pi = starPi;
         }
 
-        return si == s.Length;
+        while (pi < p.Length && p[pi] == '*')
+        {
+            pi++;
+        }
+
+        return pi == p.Length;
+    }
+
+    // Matches one character of the name against the next pattern element and advances past that element.
+    private static bool StepMatches(string p, ref int pi, char ch)
+    {
+        char c = p[pi];
+        switch (c)
+        {
+            case '?':
+                pi++;
+                return ch != '/';
+            case '[':
+                if (ch == '/')
+                {
+                    return false;
+                }
+
+                int end = ClassEnd(p, pi);
+                if (end < 0 || !InClass(p, pi + 1, end, ch))
+                {
+                    return false;
+                }
+
+                pi = end + 1;
+                return true;
+            default:
+                if (c == '\\' && pi + 1 < p.Length)
+                {
+                    pi++;
+                    c = p[pi];
+                }
+
+                if (ch != c)
+                {
+                    return false;
+                }
+
+                pi++;
+                return true;
+        }
     }
 
     private static int ClassEnd(string p, int open)

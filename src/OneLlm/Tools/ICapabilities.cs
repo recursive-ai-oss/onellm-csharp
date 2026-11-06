@@ -54,7 +54,18 @@ public interface ICapabilities
     /// <param name="path">An absolute path, or one relative to <see cref="WorkingDirectory"/>.</param>
     /// <returns>The real, absolute path to open.</returns>
     /// <exception cref="CapabilityMissingException">The path is outside every write root, or no write access is granted.</exception>
-    string ResolveWrite(string path) => PathGuard.Resolve(WriteRoots, WorkingDirectory, path, write: true);
+    string ResolveWrite(string path)
+    {
+        string real = PathGuard.Resolve(WriteRoots, WorkingDirectory, path, write: true);
+        PathGuard.CheckWriteProtection(WriteRoots, real, WriteProtectedPaths, AllowRepoControlWrites, path);
+        return real;
+    }
+
+    /// <summary>Directories under a write root that file tools still may not write to (the runtime's own state). Defaults to none.</summary>
+    IReadOnlyList<string> WriteProtectedPaths => [];
+
+    /// <summary>True when file tools may write into repository control directories such as <c>.git</c>. Defaults to false.</summary>
+    bool AllowRepoControlWrites => false;
 }
 
 /// <summary>Grants nothing: no file roots, no shell, no network. The safe default for a context built without a runtime.</summary>

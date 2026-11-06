@@ -3,6 +3,7 @@ using OneLlm.Definitions;
 using OneLlm.Hooks;
 using OneLlm.Http;
 using OneLlm.Instances;
+using OneLlm.Records;
 using OneLlm.Tools;
 
 namespace OneLlm;
@@ -24,7 +25,59 @@ public sealed partial class Runtime
     /// What agents may do: file roots, shell, network. Definitions never grant anything; this is the ceiling. A sub-agent gets at most its
     /// parent's grants. Defaults to files under the working directory at the time the runtime was made, with no shell and no network.
     /// </summary>
-    public ICapabilities Capabilities { get; set; } = global::OneLlm.Capabilities.Default();
+    /// <remarks>
+    /// When these are a <see cref="global::OneLlm.Capabilities"/>, the value read back also protects the directories of a
+    /// <see cref="FileInstanceStore"/> and <see cref="JsonlRecordSink"/> this runtime uses, so file tools cannot rewrite instances or audit records
+    /// that sit under a write root. The value read back may therefore be a different object from the one assigned.
+    /// </remarks>
+    public ICapabilities Capabilities
+    {
+        get
+        {
+            ICapabilities set = _capabilities;
+            if (set is not global::OneLlm.Capabilities caps)
+            {
+                return set;
+            }
+
+            string[] dirs = StateDirectories();
+            lock (_gate)
+            {
+                if (_protectedCaps is { } cached && ReferenceEquals(cached.Source, caps) && cached.Dirs.AsSpan().SequenceEqual(dirs))
+                {
+                    return cached.Result;
+                }
+
+                global::OneLlm.Capabilities result = dirs.Length == 0 ? caps : caps.WithWriteProtected(dirs);
+                _protectedCaps = (caps, dirs, result);
+                return result;
+            }
+        }
+
+        set => _capabilities = value ?? throw new ArgumentNullException(nameof(value));
+    }
+
+    private ICapabilities _capabilities = global::OneLlm.Capabilities.Default();
+    private (global::OneLlm.Capabilities Source, string[] Dirs, global::OneLlm.Capabilities Result)? _protectedCaps;
+
+    private string[] StateDirectories()
+    {
+        var dirs = new List<string>();
+        if (Store is FileInstanceStore fs)
+        {
+            dirs.Add(fs.Directory);
+        }
+
+        foreach (IRecordSink sink in Sinks.Items)
+        {
+            if (sink is JsonlRecordSink j)
+            {
+                dirs.Add(j.DirectoryPath);
+            }
+        }
+
+        return [.. dirs];
+    }
 
     /// <summary>
     /// Retries of a model call inside the agent loop, for failures the provider marks transient, after the provider client's own retries.

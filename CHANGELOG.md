@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Changed
+
+- `RecursiveAI.OneLlm.JavaScript` now builds on OneEcma 1.0.1, whose allocation budget covers array, buffer, string and collection growth; the sandbox creates engines with `ExplainErrors = false` until OneEcma bounds the error-explanation replay (1.1.0), and keeps the host allocation backstop as defence in depth. More memory patterns are tested with the backstop on and off. A sandboxed run now ends at its time limit even when the engine cannot be interrupted (a huge BigInt multiplication): the caller gets the `Time` failure, the engine thread is abandoned and counted (`JsSandbox.AbandonedRuns`, `JsSandbox.AbandonedRunsStillRunning`).
+
 ### Added
 
 - Vertex AI Gemini `countTokens` and `embedContent` (Vertex's request bodies; one embedding per call); decider outputs are checked against a declared output schema (`DeciderOutputException`); `SpendLimitReachedException` for an Anthropic account spend limit; strip and adjust notices on `EmbeddingResponse.Warnings`.

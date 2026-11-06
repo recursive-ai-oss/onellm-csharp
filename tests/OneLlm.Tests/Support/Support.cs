@@ -159,6 +159,9 @@ internal sealed class Scratch : IDisposable
         // The temp path honours TMPDIR, which the test runs point at disk.
         string baseDir = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "onellm-tools-" + Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(baseDir);
+        // The guard reports real paths, and macOS temp directories sit behind a link (/var is /private/var), so the scratch directory
+        // is named by its real path from the start; tests that compare or intercept paths then see the spelling the guard returns.
+        baseDir = OneLlm.Capabilities.Files(baseDir).ResolveRead(".");
         Root = Path.GetFullPath(Path.Combine(baseDir, "root"));
         Outside = Path.GetFullPath(Path.Combine(baseDir, "outside"));
         Directory.CreateDirectory(Root);

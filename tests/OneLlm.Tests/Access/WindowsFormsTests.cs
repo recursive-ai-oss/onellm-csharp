@@ -141,7 +141,8 @@ public class WindowsFormsTests
         Assert.True(w.IsError, gitShort);
         Assert.False(File.Exists(s.In(".git\\config")));
         Assert.True((await Kit.Run("write_file", Args(gitShort + "\\hooks\\pre-commit"), caps)).IsError);
-        Assert.True((await Kit.Run("write_file", Args(stateShort + "\\instances\\evil.yaml"), caps)).IsError);
+        ToolResult stateWrite = await Kit.Run("write_file", Args(stateShort + "\\instances\\evil.yaml"), caps);
+        Assert.True(stateWrite.IsError, $"state alias [{stateShort}] root [{s.Root}]: {Kit.Text(stateWrite)}");
         ToolResult read = await Kit.Run("read_file", One("path", stateShort + "\\instances\\i-1.yaml"), caps);
         Assert.True(read.IsError);
         Assert.DoesNotContain("TRANSCRIPT", Kit.Text(read), StringComparison.Ordinal);

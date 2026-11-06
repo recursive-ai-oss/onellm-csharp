@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- Changelog correction for 1.0.1: every spend limit picks up a new value, not only `Runtime.SpendCap`. `SpendCap` is read at each model call; `MaxCostPerCall` and `InstanceSpendCap` are read when each run starts, which for `Ask`, `Stream` and each `Chat` turn is each call. Decider runs also fire `OnMessage` and `OnStateChange`, not only `OnCost`.
+- Docs: the core package readme links to the tagged docs.
+
 ## [1.0.1] - 2026-11-06
 
 ### Fixed

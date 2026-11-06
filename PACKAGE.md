@@ -14,10 +14,10 @@ Console.WriteLine($"{r.Text} costs {r.Cost.Total}");
 
 Set `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` or `GEMINI_API_KEY` for the provider you use.
 
-- [Getting started](https://github.com/recursive-ai-oss/onellm-csharp/blob/main/docs/getting-started.md)
-- [The happy path and the runtime](https://github.com/recursive-ai-oss/onellm-csharp/blob/main/docs/happy-path.md)
-- [Agents](https://github.com/recursive-ai-oss/onellm-csharp/blob/main/docs/agents.md), [capabilities](https://github.com/recursive-ai-oss/onellm-csharp/blob/main/docs/capabilities.md), [deciders](https://github.com/recursive-ai-oss/onellm-csharp/blob/main/docs/deciders.md)
-- [Reads like](https://github.com/recursive-ai-oss/onellm-csharp/blob/main/docs/reads-like.md): call-for-call tables from other .NET LLM libraries
+- [Getting started](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.1/docs/getting-started.md)
+- [The happy path and the runtime](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.1/docs/happy-path.md)
+- [Agents](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.1/docs/agents.md), [capabilities](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.1/docs/capabilities.md), [deciders](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.1/docs/deciders.md)
+- [Reads like](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.1/docs/reads-like.md): call-for-call tables from other .NET LLM libraries
 
 Related packages: `RecursiveAI.OneLlm.Web`, `RecursiveAI.OneLlm.Extensions.AI`, `RecursiveAI.OneLlm.EntityFrameworkCore`, `RecursiveAI.OneLlm.OneLite`.
 

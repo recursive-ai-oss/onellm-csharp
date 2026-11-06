@@ -177,9 +177,18 @@ internal sealed class AgentEnv : IDisposable
 
     public void Dispose()
     {
-        if (System.IO.Directory.Exists(Directory))
+        // A sub-agent a test leaves running may still hold its record file open for a moment (Windows refuses to delete an open file,
+        // and a late write can recreate a directory). Cleanup of a scratch directory is best effort and never fails the test.
+        for (int attempt = 0; attempt < 20 && System.IO.Directory.Exists(Directory); attempt++)
         {
-            System.IO.Directory.Delete(Directory, recursive: true);
+            try
+            {
+                System.IO.Directory.Delete(Directory, recursive: true);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                Thread.Sleep(50);
+            }
         }
     }
 }

@@ -639,4 +639,37 @@ public class ToolBoundaryTests
 
         Assert.False((await Kit.Run("write_file", WriteArgs(".gitconfig"), Capabilities.Files(s.Root))).IsError);
     }
+
+    [Theory]
+    [InlineData("env git status")]
+    [InlineData("/usr/bin/env git status")]
+    [InlineData("timeout 60 git status")]
+    [InlineData("nice git status")]
+    [InlineData("nice -n 5 git log")]
+    [InlineData("env")]
+    [InlineData("xargs")]
+    [InlineData("gh pr list")]
+    [InlineData("lazygit")]
+    [InlineData("make")]
+    [InlineData("cargo build")]
+    public async Task A_launcher_or_git_front_end_on_the_allow_list_counts_as_listing_git(string entry)
+    {
+        using var s = new Scratch();
+        Capabilities caps = Capabilities.Files(s.Root) + Capabilities.ShellCommands(entry);
+        Assert.True(PathGuard.GitListed(caps.ShellAccess), entry);
+        Assert.True((await Kit.Run("write_file", WriteArgs("gd/config"), caps)).IsError, entry);
+        Assert.True((await Kit.Run("write_file", WriteArgs("gd/hooks/pre-commit"), caps)).IsError, entry);
+    }
+
+    [Theory]
+    [InlineData("ls")]
+    [InlineData("cat")]
+    [InlineData("echo hello")]
+    public async Task Ordinary_programs_do_not_arm_the_git_rule(string entry)
+    {
+        using var s = new Scratch();
+        Capabilities caps = Capabilities.Files(s.Root) + Capabilities.ShellCommands(entry);
+        Assert.False(PathGuard.GitListed(caps.ShellAccess), entry);
+        Assert.False((await Kit.Run("write_file", WriteArgs("app/config"), caps)).IsError, entry);
+    }
 }

@@ -20,10 +20,10 @@ using Microsoft.AspNetCore.Http;
 internal static class SyntheticServer
 {
     private static readonly object Gate = new();
-    private static Config s_config = new(2000, 8, 8);
+    private static Config s_config = new(2000, 8, 8, "", "");
     private static readonly Dictionary<string, byte[][]> Cache = new(StringComparer.Ordinal);
 
-    private readonly record struct Config(int Events, int Bytes, int FlushEvery);
+    private readonly record struct Config(int Events, int Bytes, int FlushEvery, string Tool, string Text);
 
     public static async Task<bool> TryHandleAsync(HttpContext context)
     {
@@ -38,7 +38,16 @@ internal static class SyntheticServer
                     Events = Read(context, "events", c.Events),
                     Bytes = Read(context, "bytes", c.Bytes),
                     FlushEvery = Math.Max(1, Read(context, "flushEvery", c.FlushEvery)),
+                    // text=... fixes the answer's words (split into pieces of `bytes` characters); events then follows from its length.
+                    Text = context.Request.Query.TryGetValue("text", out var words) ? words.ToString() : c.Text,
+                    // tool=task_complete makes Chat Completions answers (whole and streamed) a call to that tool, so an agent run ends.
+                    Tool = context.Request.Query.TryGetValue("tool", out var tool) ? tool.ToString() : c.Tool,
                 };
+                if (c.Text.Length > 0)
+                {
+                    c = c with { Events = (c.Text.Length + c.Bytes - 1) / c.Bytes };
+                }
+
                 s_config = c;
                 Cache.Clear();
             }
@@ -50,6 +59,25 @@ internal static class SyntheticServer
         if (!HttpMethods.IsPost(context.Request.Method))
         {
             return false;
+        }
+
+        // Endpoints the smoke rehearsal uses (counts, embeddings, decisions, tool calls, structured output). Streams and plain turns fall
+        // through to the generated answers below.
+        if (!path.EndsWith(":streamGenerateContent", StringComparison.Ordinal))
+        {
+            using var raw = new MemoryStream();
+            await context.Request.Body.CopyToAsync(raw, context.RequestAborted);
+            string text = Encoding.UTF8.GetString(raw.GetBuffer(), 0, (int)raw.Length);
+            if (!HasStreamTrue(raw.GetBuffer().AsSpan(0, (int)raw.Length)) && SmokeResponses.Respond(path, text) is { } json)
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(json);
+                context.Response.ContentType = "application/json";
+                context.Response.ContentLength = bytes.Length;
+                await context.Response.Body.WriteAsync(bytes, context.RequestAborted);
+                return true;
+            }
+
+            context.Items["body"] = raw.ToArray();
         }
 
         string? kind = null;
@@ -83,7 +111,15 @@ internal static class SyntheticServer
 
         // Read the whole body so the connection stays reusable; look for the stream flag as we go.
         using var body = new MemoryStream();
-        await context.Request.Body.CopyToAsync(body, context.RequestAborted);
+        if (context.Items.TryGetValue("body", out object? already) && already is byte[] saved)
+        {
+            body.Write(saved);
+        }
+        else
+        {
+            await context.Request.Body.CopyToAsync(body, context.RequestAborted);
+        }
+
         if (kind != "gemini")
         {
             stream = HasStreamTrue(body.GetBuffer().AsSpan(0, (int)body.Length));
@@ -142,6 +178,13 @@ internal static class SyntheticServer
 
     private static string Delta(int i, int bytes)
     {
+        string fixedText = s_config.Text;
+        if (fixedText.Length > 0)
+        {
+            int start = i * bytes;
+            return start >= fixedText.Length ? "" : fixedText.Substring(start, Math.Min(bytes, fixedText.Length - start));
+        }
+
         var sb = new StringBuilder(bytes);
         for (int k = 0; k < bytes; k++)
         {
@@ -162,6 +205,12 @@ internal static class SyntheticServer
         return sb.ToString();
     }
 
+    // The arguments of the tool call the mock makes: what task_complete takes.
+    private const string ToolArgs = "{\\\"result\\\":\\\"done (mock)\\\",\\\"summary\\\":\\\"rehearsal\\\"}";
+
+    private static string ToolWhole(string tool) =>
+        $$$"""{"id":"chatcmpl-mock","object":"chat.completion","created":1700000000,"model":"mock-model","choices":[{"index":0,"message":{"role":"assistant","content":null,"tool_calls":[{"id":"call_1","type":"function","function":{"name":"{{{tool}}}","arguments":"{{{ToolArgs}}}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":25,"completion_tokens":10,"total_tokens":35}}""";
+
     private static byte[] U(string s) => Encoding.UTF8.GetBytes(s);
 
     private static byte[] BuildWhole(string kind, Config c)
@@ -172,6 +221,7 @@ internal static class SyntheticServer
         {
             "anthropic" => $$$"""{"id":"msg_mock","type":"message","role":"assistant","model":"mock-model","content":[{"type":"text","text":"{{{t}}}"}],"stop_reason":"end_turn","stop_sequence":null,"usage":{"input_tokens":25,"output_tokens":{{{outTokens}}}}}""",
             "responses" => $$$"""{"id":"resp_mock","object":"response","created_at":1700000000,"status":"completed","error":null,"incomplete_details":null,"model":"mock-model","output":[{"id":"msg_1","type":"message","status":"completed","role":"assistant","content":[{"type":"output_text","text":"{{{t}}}","annotations":[]}]}],"parallel_tool_calls":true,"tool_choice":"auto","tools":[],"usage":{"input_tokens":25,"input_tokens_details":{"cached_tokens":0},"output_tokens":{{{outTokens}}},"output_tokens_details":{"reasoning_tokens":0},"total_tokens":{{{25 + outTokens}}}}}""",
+            "chat" when c.Tool.Length > 0 => ToolWhole(c.Tool),
             "chat" => $$$"""{"id":"chatcmpl-mock","object":"chat.completion","created":1700000000,"model":"mock-model","choices":[{"index":0,"message":{"role":"assistant","content":"{{{t}}}"},"finish_reason":"stop"}],"usage":{"prompt_tokens":25,"completion_tokens":{{{outTokens}}},"total_tokens":{{{25 + outTokens}}}}}""",
             _ => $$$"""{"candidates":[{"content":{"role":"model","parts":[{"text":"{{{t}}}"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":25,"candidatesTokenCount":{{{outTokens}}},"totalTokenCount":{{{25 + outTokens}}}},"modelVersion":"mock-model"}""",
         });
@@ -217,6 +267,14 @@ internal static class SyntheticServer
                 string usageJson = $$$"""{"input_tokens":25,"input_tokens_details":{"cached_tokens":0},"output_tokens":{{{outTokens}}},"output_tokens_details":{"reasoning_tokens":0},"total_tokens":{{{25 + outTokens}}}}""";
                 string done = $$$"""{"id":"resp_mock","object":"response","created_at":1700000000,"status":"completed","model":"mock-model","output":[{"id":"msg_1","type":"message","status":"completed","role":"assistant","content":[{"type":"output_text","text":"{{{t}}}","annotations":[]}]}],"parallel_tool_calls":true,"tool_choice":"auto","tools":[],"usage":{{{usageJson}}}}""";
                 Ev("response.completed", $$$"""{"type":"response.completed","sequence_number":{{{seq++}}},"response":{{{done}}}}""");
+                break;
+
+            case "chat" when c.Tool.Length > 0:
+                Ev(null, $$$"""{"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,"model":"mock-model","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"{{{c.Tool}}}","arguments":""}}]},"finish_reason":null}]}""");
+                Ev(null, $$$"""{"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,"model":"mock-model","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{{{ToolArgs}}}"}}]},"finish_reason":null}]}""");
+                Ev(null, """{"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,"model":"mock-model","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}""");
+                Ev(null, """{"id":"chatcmpl-mock","object":"chat.completion.chunk","created":1700000000,"model":"mock-model","choices":[],"usage":{"prompt_tokens":25,"completion_tokens":10,"total_tokens":35}}""");
+                list.Add(U("data: [DONE]\n\n"));
                 break;
 
             case "chat":

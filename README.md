@@ -101,6 +101,7 @@ The source generators for `[Tool]` and `[Decider]` ship inside the core package.
 | [Reads like](docs/reads-like.md) | call-for-call tables from Microsoft.Extensions.AI, Microsoft Agent Framework and the vendor SDKs |
 | [JavaScript tools and hooks](docs/javascript.md) | tool files, hooks, decider logic, `run_javascript` |
 | [The `onellm` command line](docs/cli.md) | verbs, grants, exit codes, the example agents |
+| [Results](docs/results.md) | speed, conformance, parity, AOT and live-run results, with method |
 | [`spec/`](spec/) | the file formats: definitions, instances, catalog, messages, records |
 
 ## Build

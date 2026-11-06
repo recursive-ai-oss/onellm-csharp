@@ -62,7 +62,7 @@ public interface ICapabilities
     string ResolveWrite(string path)
     {
         string real = PathGuard.Resolve(WriteRoots, WorkingDirectory, path, write: true);
-        PathGuard.CheckWriteProtection(WriteRoots, real, ProtectedPaths, AllowRepoControlWrites, path, gitListed: PathGuard.GitListed(ShellAccess));
+        PathGuard.CheckWriteProtection(WriteRoots, real, ProtectedPaths, AllowRepoControlWrites, path, gitListed: GitCeiling || PathGuard.GitListed(ShellAccess));
         return real;
     }
 
@@ -71,6 +71,9 @@ public interface ICapabilities
 
     /// <summary>True when file tools may write into repository control directories such as <c>.git</c>. Defaults to false.</summary>
     bool AllowRepoControlWrites => false;
+
+    /// <summary>True when the runtime these grants belong to lists git on its shell allow-list, so git configuration and hook files are refused to file tools even for a writer with no shell. Defaults to false.</summary>
+    bool GitCeiling => false;
 }
 
 /// <summary>Grants nothing: no file roots, no shell, no network. The safe default for a context built without a runtime.</summary>

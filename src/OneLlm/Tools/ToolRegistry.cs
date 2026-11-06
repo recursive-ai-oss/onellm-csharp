@@ -1,3 +1,4 @@
+using OneLlm.Access;
 using OneLlm.Definitions;
 using OneLlm.Tools.Builtins;
 
@@ -70,6 +71,9 @@ public sealed class CapabilityIntersection : ICapabilities
 
     /// <inheritdoc />
     public bool AllowRepoControlWrites => _a.AllowRepoControlWrites && _b.AllowRepoControlWrites;
+
+    /// <inheritdoc />
+    public bool GitCeiling => _a.GitCeiling || _b.GitCeiling || PathGuard.GitListed(_a.ShellAccess) || PathGuard.GitListed(_b.ShellAccess);
 
     /// <inheritdoc />
     public bool NetworkEnabled => _a.NetworkEnabled && _b.NetworkEnabled;

@@ -156,7 +156,7 @@ public class ToolBoundaryTests
         rt.Sinks.Add(new JsonlRecordSink(s.In("audit")));
         Assert.Throws<CapabilityMissingException>(() => rt.Capabilities.ResolveWrite("state/runs/x.yaml"));
         Assert.Throws<CapabilityMissingException>(() => rt.Capabilities.ResolveWrite("audit/_runtime.jsonl"));
-        Assert.Equal(s.In("state/other.txt"), rt.Capabilities.ResolveWrite("state/other.txt"));
+        Assert.Equal(s.In(Path.Combine("state", "other.txt")), rt.Capabilities.ResolveWrite("state/other.txt"));
         Assert.Same(rt.Capabilities, rt.Capabilities);
 
         // Intersections keep every protection.
@@ -435,7 +435,7 @@ public class ToolBoundaryTests
         s.Write("audit/i-1.jsonl", "secret");
         Assert.Throws<CapabilityMissingException>(() => rt.Capabilities.ResolveRead("state/runs/i-1.yaml"));
         Assert.Throws<CapabilityMissingException>(() => rt.Capabilities.ResolveRead("audit/i-1.jsonl"));
-        Assert.Equal(s.In("state/other.txt"), rt.Capabilities.ResolveRead("state/other.txt"));
+        Assert.Equal(s.In(Path.Combine("state", "other.txt")), rt.Capabilities.ResolveRead("state/other.txt"));
         Assert.True((await Kit.Run("read_file", Kit.One("path", Kit.Js("audit/i-1.jsonl")), rt.Capabilities)).IsError);
         Capabilities caps = Capabilities.Files(s.Root);
         Assert.False((await Kit.Run("memory", """{"action":"append","content":"note"}""", caps)).IsError);

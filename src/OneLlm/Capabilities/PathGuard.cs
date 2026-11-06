@@ -25,6 +25,7 @@ internal static class PathGuard
         "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$",
         "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
         "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³",
     };
 
     /// <summary>Resolves <paramref name="path"/> and checks it lies under one of <paramref name="roots"/>.</summary>
@@ -44,6 +45,12 @@ internal static class PathGuard
         }
 
         string absolute = MakeAbsolute(path, workingDirectory ?? roots[0]);
+        if (OperatingSystem.IsWindows() && !roots.Any(r => string.Equals(Path.GetPathRoot(MakeAbsolute(r, r)), Path.GetPathRoot(absolute), StringComparison.OrdinalIgnoreCase)))
+        {
+            // A different drive or a network share: refused before any component is probed, so no connection is attempted.
+            throw Denied(path, "it is on a drive or share no directory is granted on");
+        }
+
         string real = RealPath(absolute, path);
         foreach (string root in roots)
         {
@@ -59,6 +66,11 @@ internal static class PathGuard
 
             if (IsUnder(real, realRoot))
             {
+                if (OperatingSystem.IsWindows())
+                {
+                    RefuseShortNames(realRoot, real, path);
+                }
+
                 return real;
             }
         }
@@ -227,13 +239,50 @@ internal static class PathGuard
                 throw Denied(path, "the path names a drive or root without being fully qualified");
             }
 
-            if (path.StartsWith(@"\\?\", StringComparison.Ordinal) || path.StartsWith(@"\\.\", StringComparison.Ordinal))
+            if (path.StartsWith(@"\\?\", StringComparison.Ordinal) || path.StartsWith(@"\\.\", StringComparison.Ordinal) || path.StartsWith(@"\??\", StringComparison.Ordinal))
             {
                 throw Denied(path, "device and extended-length paths are not allowed");
             }
         }
 
         return Path.IsPathFullyQualified(path) ? path : Path.Join(workingDirectory, path);
+    }
+
+    // Windows also answers to a generated 8.3 name for a long name (GIT~1 for .git, ONELLM~1 for .onellm). The protection checks compare
+    // names, so a short alias would walk around them. A component below the root that contains '~' must therefore be the exact name of an
+    // entry in its directory; one that exists only through an alias is refused. (The root is the host's own spelling and is not checked.)
+    private static void RefuseShortNames(string realRoot, string real, string original)
+    {
+        string relative = Path.GetRelativePath(realRoot, real);
+        if (relative == "." || !relative.Contains('~', StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        string dir = realRoot;
+        foreach (string part in relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        {
+            string next = Path.Join(dir, part);
+            if (part.Contains('~', StringComparison.Ordinal) && (File.Exists(next) || Directory.Exists(next)))
+            {
+                bool exact;
+                try
+                {
+                    exact = Directory.EnumerateFileSystemEntries(dir).Any(e => string.Equals(Path.GetFileName(e), part, StringComparison.OrdinalIgnoreCase));
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    exact = false;
+                }
+
+                if (!exact)
+                {
+                    throw Denied(original, "it uses a short (8.3) alias of a name; use the full name");
+                }
+            }
+
+            dir = next;
+        }
     }
 
     private static string RealPath(string absolute, string original)
@@ -262,6 +311,15 @@ internal static class PathGuard
             if (OperatingSystem.IsWindows())
             {
                 CheckWindowsName(part, original);
+
+                // Win32 drops trailing dots and spaces from a name, so ".onellm." is ".onellm"; compare the name the file system will use.
+                string trimmed = part.TrimEnd(' ', '.');
+                if (trimmed.Length == 0)
+                {
+                    throw Denied(original, "a name made only of dots and spaces");
+                }
+
+                part = trimmed;
             }
 
             string next = Path.Join(current, part);

@@ -136,7 +136,7 @@ public class FileToolTests
         using var s = new Scratch();
         Capabilities caps = Capabilities.Files(s.Root);
         ToolResult r = await Kit.Run("write_file", """{"path":"x/y/z.txt","content":"héllo"}""", caps);
-        Assert.Equal($"Successfully wrote 6 bytes to {s.In("x/y/z.txt")}", Kit.Text(r));
+        Assert.Equal($"Successfully wrote 6 bytes to {s.In(Path.Combine("x", "y", "z.txt"))}", Kit.Text(r));
         await Kit.Run("write_file", """{"path":"x/y/z.txt","content":"!","append":true}""", caps);
         Assert.Equal("héllo!", File.ReadAllText(s.In("x/y/z.txt")));
         await Kit.Run("write_file", """{"path":"x/y/z.txt","content":"new"}""", caps);

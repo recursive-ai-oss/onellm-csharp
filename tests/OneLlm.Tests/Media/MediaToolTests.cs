@@ -201,7 +201,7 @@ public class MediaToolTests : IDisposable
     [InlineData("moderate", """{"images":["../secret/private.png"]}""")]
     public async Task Paths_outside_the_roots_are_refused_before_any_provider_call(string tool, string json)
     {
-        json = json.Replace("ABS_OUTSIDE", Path.Combine(_outside, "private"), StringComparison.Ordinal);
+        json = json.Replace("ABS_OUTSIDE", Path.Combine(_outside, "private").Replace("\\", "\\\\", StringComparison.Ordinal), StringComparison.Ordinal);
         ToolResult r = await Run(tool, json);
         Assert.True(r.IsError);
         Assert.Contains("outside", TextOf(r), StringComparison.Ordinal);

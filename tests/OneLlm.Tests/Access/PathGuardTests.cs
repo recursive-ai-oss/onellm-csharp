@@ -253,9 +253,13 @@ public class PathGuardTests
     [Fact]
     public void Windows_and_macOS_compare_paths_ignoring_case()
     {
-        Assert.True(PathGuard.IsUnder("/Work/Sub/f.txt", "/work", StringComparison.OrdinalIgnoreCase));
-        Assert.False(PathGuard.IsUnder("/Work/Sub/f.txt", "/work", StringComparison.Ordinal));
-        Assert.False(PathGuard.IsUnder("/Workshop/f.txt", "/work", StringComparison.OrdinalIgnoreCase));
+        // Built with the platform separator: on Windows a '/' is not what the guard compares against.
+        string sep = Path.DirectorySeparatorChar.ToString();
+        string top = Path.GetPathRoot(Path.GetFullPath("."))!;
+        string work = top + "work";
+        Assert.True(PathGuard.IsUnder(top + "Work" + sep + "Sub" + sep + "f.txt", work, StringComparison.OrdinalIgnoreCase));
+        Assert.False(PathGuard.IsUnder(top + "Work" + sep + "Sub" + sep + "f.txt", work, StringComparison.Ordinal));
+        Assert.False(PathGuard.IsUnder(top + "Workshop" + sep + "f.txt", work, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

@@ -113,6 +113,17 @@ internal sealed class ShellTool : BuiltinTool
                 throw new CapabilityMissingException($"Running '{Clip(command)}'", $"it to the shell allow-list (currently: {string.Join(", ", policy.Commands ?? [])})");
             }
 
+            // A batch file or a shell given as the program re-parses its arguments, so "&", "|" or "%VAR%" in one would run or expand something
+            // the allow-list never saw. Plain text arguments are fine; these characters are refused rather than escaped.
+            if (OperatingSystem.IsWindows() && policy.IsAllowList && ReparsesArguments(program) is { } risky)
+            {
+                string? bad = args.FirstOrDefault(a => a.AsSpan().IndexOfAny(risky) >= 0);
+                if (bad is not null)
+                {
+                    return Fail($"'{Clip(command)}' re-reads its arguments as commands, so the argument '{Clip(bad)}' (with one of {new string(risky)}) is not allowed. Pass plain text only.");
+                }
+            }
+
             psi.FileName = program;
             foreach (string a in args)
             {
@@ -275,7 +286,7 @@ internal sealed class ShellTool : BuiltinTool
 
     // Variables an allow-listed or approval-gated command inherits. Everything else of the host's environment (tokens, cloud
     // credentials, tool configuration such as GIT_* or PYTHON*) stays out.
-    private static readonly string[] s_baseEnvNames = ["PATH", "HOME", "USER", "LOGNAME", "LANG", "LANGUAGE", "TERM", "TZ", "TMPDIR", "TEMP", "TMP", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "PROGRAMFILES", "PROGRAMDATA"];
+    private static readonly string[] s_baseEnvNames = ["PATH", "HOME", "USER", "LOGNAME", "LANG", "LANGUAGE", "TERM", "TZ", "TMPDIR", "TEMP", "TMP", "SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "COMSPEC", "PATHEXT", "USERPROFILE", "USERNAME", "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA", "ALLUSERSPROFILE", "PROGRAMFILES", "PROGRAMFILES(X86)", "PROGRAMW6432", "COMMONPROGRAMFILES", "COMMONPROGRAMFILES(X86)", "COMMONPROGRAMW6432", "PROGRAMDATA", "PROCESSOR_ARCHITECTURE", "NUMBER_OF_PROCESSORS", "OS"];
 
     private void BuildEnvironment(ProcessStartInfo psi, Dictionary<string, string> extra, ShellPolicy policy)
     {
@@ -321,9 +332,11 @@ internal sealed class ShellTool : BuiltinTool
             return false;
         }
 
-        foreach (char c in command)
+        for (int i = 0; i < command.Length; i++)
         {
-            if (char.IsWhiteSpace(c) || char.IsControl(c) || ";|&$`<>()*?[]{}~!#\"'^%".Contains(c, StringComparison.Ordinal))
+            char c = command[i];
+            // '~' means the home directory only at the start; inside a path it is an ordinary character (8.3 names such as RUNNER~1).
+            if (c == '~' && i == 0 || char.IsWhiteSpace(c) || char.IsControl(c) || ";|&$`<>()*?[]{}!#\"'^%".Contains(c, StringComparison.Ordinal))
             {
                 return false;
             }
@@ -348,7 +361,7 @@ internal sealed class ShellTool : BuiltinTool
         else
         {
             string[] dirs = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
-            candidates = dirs.Where(Path.IsPathRooted).SelectMany(d => extensions.Select(e => Path.Join(d, command + e)));
+            candidates = dirs.Where(Path.IsPathFullyQualified).SelectMany(d => extensions.Select(e => Path.Join(d, command + e)));
         }
 
         foreach (string c in candidates)
@@ -360,6 +373,24 @@ internal sealed class ShellTool : BuiltinTool
         }
 
         return null;
+    }
+
+    // The characters that make cmd.exe or PowerShell treat part of an argument as another command or as a variable.
+    private static readonly char[] s_cmdMeta = ['&', '|', '<', '>', '^', '%', '!', '"', '\r', '\n', '`'];
+    private static readonly char[] s_powershellMeta = [';', '&', '|', '<', '>', '$', '`', '(', ')', '{', '}', '"', '\'', '\r', '\n', '@'];
+
+    // The characters to refuse in arguments when the program interprets them (cmd.exe, a .bat/.cmd file, PowerShell), or null for an ordinary program.
+    internal static char[]? ReparsesArguments(string program)
+    {
+        string name = Path.GetFileName(program);
+        string ext = Path.GetExtension(name);
+        string stem = Path.GetFileNameWithoutExtension(name);
+        if (ext.Equals(".bat", StringComparison.OrdinalIgnoreCase) || ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase) || stem.Equals("cmd", StringComparison.OrdinalIgnoreCase))
+        {
+            return s_cmdMeta;
+        }
+
+        return stem.Equals("powershell", StringComparison.OrdinalIgnoreCase) || stem.Equals("pwsh", StringComparison.OrdinalIgnoreCase) ? s_powershellMeta : null;
     }
 
     private static string Clip(string s) => s.Length <= 80 ? s : s[..80] + "...";

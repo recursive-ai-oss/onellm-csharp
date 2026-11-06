@@ -123,7 +123,7 @@ internal sealed class TodoTool : BuiltinTool
     private static string Serialize(List<(string Content, string Status)> items)
     {
         using var ms = new MemoryStream();
-        using (var w = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true }))
+        using (var w = new Utf8JsonWriter(ms, new JsonWriterOptions { Indented = true, NewLine = "\n" }))
         {
             w.WriteStartArray();
             foreach ((string content, string status) in items)

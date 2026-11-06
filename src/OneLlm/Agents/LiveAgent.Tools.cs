@@ -14,6 +14,8 @@ internal readonly record struct ToolPhase(bool Pending, bool EndsLoop, bool Asks
 
 internal sealed partial class LiveAgent
 {
+    private const string ShellToolName = "execute_terminal_command";
+
     /// <summary>One tool call on its way through hooks, approval and the tool itself.</summary>
     private sealed class CallState
     {
@@ -40,6 +42,9 @@ internal sealed partial class LiveAgent
 
         public bool Cancelled { get; set; }
 
+        /// <summary>A person approved this call through the saved approval gate.</summary>
+        public bool Approved { get; set; }
+
         /// <summary>The call was answered before this pass (an earlier part of a turn held for approval); it is kept as it is.</summary>
         public bool Prior { get; init; }
 
@@ -54,14 +59,14 @@ internal sealed partial class LiveAgent
     /// put back in call order. A call that needs approval is held: the turn is saved with that call unanswered and the agent rests in
     /// <c>waiting_for_approval</c>; the other calls of the turn still run.
     /// </summary>
-    private async ValueTask<ToolPhase> ExecuteToolsAsync(Message message, bool injected, CancellationToken token)
+    private async ValueTask<ToolPhase> ExecuteToolsAsync(Message message, CancellationToken token)
     {
         // Indexed loops over the interface lists on this path: enumerating them would allocate on every turn.
         IReadOnlyList<ToolCall> toolCalls = message.ToolCalls;
         var states = new List<CallState>(toolCalls.Count);
         for (int i = 0; i < toolCalls.Count; i++)
         {
-            CallState st = await PrepareAsync(toolCalls[i], injected, token).ConfigureAwait(false);
+            CallState st = await PrepareAsync(toolCalls[i], token).ConfigureAwait(false);
             states.Add(st);
         }
 
@@ -69,7 +74,7 @@ internal sealed partial class LiveAgent
         return await CommitAsync(message, states, replaceExisting: false, token).ConfigureAwait(false);
     }
 
-    private async ValueTask<CallState> PrepareAsync(ToolCall call, bool injected, CancellationToken token)
+    private async ValueTask<CallState> PrepareAsync(ToolCall call, CancellationToken token)
     {
         var st = new CallState { Call = call };
         if (!Setup.Tools.TryGetValue(call.Tool, out ITool? tool))
@@ -106,11 +111,17 @@ internal sealed partial class LiveAgent
             }
         }
 
-        // Calls the definition itself injects were written by the agent's author, so they do not stop for approval.
-        if (tool.Definition.RequiresApproval && !injected)
+        // Injected calls stop for approval like any other: a definition can be written by a model, so its author is not a trusted approver.
+        if (tool.Definition.RequiresApproval)
         {
             st.Pending = true;
             st.PendingReason = $"The tool '{call.Tool}' requires approval.";
+        }
+        else if (tool.Definition.Name == ShellToolName && Setup.Capabilities.ShellAccess is { RequiresApproval: true, Approver: null })
+        {
+            // Shell grants that name no approver use this gate, which is saved with the instance and survives a restart.
+            st.Pending = true;
+            st.PendingReason = "Running a shell command requires approval.";
         }
 
         return st;
@@ -176,6 +187,7 @@ internal sealed partial class LiveAgent
             Agent = this,
             LogSink = Runtime.ToolLog,
             Services = Runtime.Services,
+            ApprovedByLoop = st.Approved,
         };
         Emit(AgentEventKind.ToolCallStarted, call: st.Call);
         long started = Runtime.TimeProvider.GetTimestamp();
@@ -379,6 +391,7 @@ internal sealed partial class LiveAgent
                 else
                 {
                     st.Tool = tool;
+                    st.Approved = true;
                     st.Inputs = call.Inputs is null ? new JsonObject() : (JsonObject)call.Inputs.DeepClone();
                 }
 

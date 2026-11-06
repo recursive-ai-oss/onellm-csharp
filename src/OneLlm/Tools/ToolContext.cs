@@ -46,6 +46,9 @@ public sealed class ToolContext
     /// <summary>The live agent making the call, when the loop made this context. Lets a wait end when a message arrives for the caller.</summary>
     internal Agents.LiveAgent? Agent { get; init; }
 
+    /// <summary>True when the agent loop held this call for approval and a person approved it.</summary>
+    internal bool ApprovedByLoop { get; init; }
+
     /// <summary>Host services a tool may look up, such as an HTTP client factory. Null when the host offers none.</summary>
     public IServiceProvider? Services { get; init; }
 

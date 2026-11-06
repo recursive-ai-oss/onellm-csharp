@@ -41,6 +41,12 @@ internal sealed class AgentHost
         {
             ceiling = CapabilityIntersection.Of(ceiling, parent.Setup.Capabilities);
         }
+        else if (options.SpawnerInstanceId is { } savedParent && await _runtime.Store.LoadAsync(savedParent, cancellationToken).ConfigureAwait(false) is { } parentInstance
+            && GrantSummary.Restore(parentInstance.ExtensionData?.GetValueOrDefault(GrantSummary.Key)) is { } parentGrants)
+        {
+            // The parent is resting, not live: the grants it was saved with still bound the child.
+            ceiling = CapabilityIntersection.Of(ceiling, parentGrants);
+        }
 
         ICapabilities caps = options.Capabilities is null ? ceiling : CapabilityIntersection.Of(options.Capabilities, ceiling);
 
@@ -70,7 +76,15 @@ internal sealed class AgentHost
             (instance.ExtensionData ??= [])["swarmUri"] = swarmUri;
         }
 
-        AgentSetup setup = BuildSetup(instance, options, caps, lenient);
+        IReadOnlySet<string>? toolCeiling = options.ToolCeiling;
+        AgentSetup setup = BuildSetup(instance, options, caps, lenient, toolCeiling);
+        Dictionary<string, object?> saved = GrantSummary.Of(caps);
+        if (toolCeiling is not null)
+        {
+            saved["tools"] = toolCeiling.Order(StringComparer.Ordinal).Select(static t => (object?)t).ToList();
+        }
+
+        (instance.ExtensionData ??= [])[GrantSummary.Key] = saved;
         setup.Warnings.InsertRange(0, definition.Warnings);
         var agent = new LiveAgent(_runtime, this, instance, setup) { Options = options };
         _live[instance.InstanceId] = agent;
@@ -81,6 +95,41 @@ internal sealed class AgentHost
 
         agent.StartSegment(initial: true);
         return agent;
+    }
+
+    /// <summary>
+    /// Whether the agent <paramref name="callerId"/> may look at or act on <paramref name="targetId"/> with its agent tools: itself and its own
+    /// descendants (found by following spawner links, live or saved). Other instances may hold wider grants than the caller, so reaching
+    /// them would void the caller's narrowing. A host that wants agents to reach any instance sets <see cref="Runtime.AgentsMayReachAnyInstance"/>.
+    /// </summary>
+    public async ValueTask<bool> MayReachAsync(string callerId, string targetId, CancellationToken cancellationToken)
+    {
+        if (_runtime.AgentsMayReachAnyInstance || callerId == targetId)
+        {
+            return true;
+        }
+
+        string current = targetId;
+        // The depth bound also stops a corrupted store that links instances in a circle.
+        for (int depth = 0; depth < 256; depth++)
+        {
+            string? parent = _parentOf.TryGetValue(current, out string? known)
+                ? known
+                : (await _runtime.Store.LoadAsync(current, cancellationToken).ConfigureAwait(false))?.SpawnerInstanceId;
+            if (parent is null)
+            {
+                return false;
+            }
+
+            if (parent == callerId)
+            {
+                return true;
+            }
+
+            current = parent;
+        }
+
+        return false;
     }
 
     /// <summary>Finds a live agent, or loads a saved instance into one that is resting. Pending approvals keep their state.</summary>
@@ -121,7 +170,14 @@ internal sealed class AgentHost
 
         LiveAgent? parent = instance.SpawnerInstanceId is { } sid && _live.TryGetValue(sid, out LiveAgent? p) ? p : null;
         ICapabilities caps = parent is null ? _runtime.Capabilities : CapabilityIntersection.Of(_runtime.Capabilities, parent.Setup.Capabilities);
-        AgentSetup setup = BuildSetup(instance, new AgentStartOptions(), caps, lenient: true);
+        // What the instance was started with bounds it again: a read-only start stays read-only in any runtime that resumes it.
+        object? savedGrants = instance.ExtensionData?.GetValueOrDefault(GrantSummary.Key);
+        if (GrantSummary.Restore(savedGrants) is { } restored)
+        {
+            caps = CapabilityIntersection.Of(caps, restored);
+        }
+
+        AgentSetup setup = BuildSetup(instance, new AgentStartOptions(), caps, lenient: true, GrantSummary.SavedToolCeiling(savedGrants));
         var agent = new LiveAgent(_runtime, this, instance, setup);
         _live[instanceId] = agent;
         if (instance.SpawnerInstanceId is { } spawner)
@@ -151,7 +207,7 @@ internal sealed class AgentHost
         }
     }
 
-    private AgentSetup BuildSetup(Instance instance, AgentStartOptions options, ICapabilities caps, bool lenient)
+    private AgentSetup BuildSetup(Instance instance, AgentStartOptions options, ICapabilities caps, bool lenient, IReadOnlySet<string>? toolCeiling)
     {
         ResolvedModelPair pair = ResolvedModelPair.Of(_runtime, instance.Model!);
         var warnings = new List<string>();
@@ -162,7 +218,25 @@ internal sealed class AgentHost
         foreach (ToolReference reference in instance.References)
         {
             ReferenceCheck check = resolver.Check(reference);
-            fromRefs.AddRange(check.GrantedTools);
+            foreach (ITool granted in check.GrantedTools)
+            {
+                // A sub-agent started from a file the model could have written holds at most the tools its parent holds (task_complete
+                // grants nothing, so every agent may end its run).
+                if (toolCeiling is not null && granted.Definition.Name != "task_complete" && !toolCeiling.Contains(granted.Definition.Name))
+                {
+                    string over = $"The tool '{granted.Definition.Name}' is not one the agent that started this one holds.";
+                    if (!lenient)
+                    {
+                        throw new BadDefinitionException(over, instance.DefinitionPath ?? instance.SourceName, reference.Line, reference.Column);
+                    }
+
+                    warnings.Add(over + " It was left out.");
+                    continue;
+                }
+
+                fromRefs.Add(granted);
+            }
+
             if (check.IsGranted)
             {
                 continue;

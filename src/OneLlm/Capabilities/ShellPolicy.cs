@@ -39,7 +39,11 @@ public sealed class ShellPolicy
     /// <summary>True when commands may run at all.</summary>
     public bool Enabled { get; }
 
-    /// <summary>True when every command needs <see cref="Approver"/> to agree first. With no approver, every command is refused.</summary>
+    /// <summary>
+    /// True when every command needs approval first. With an <see cref="Approver"/>, the approver is asked inside the tool. With none, the
+    /// agent loop asks: the call waits in <c>waiting_for_approval</c> (saved with the instance) until a person approves or denies it, and
+    /// outside an agent loop every command is refused.
+    /// </summary>
     public bool RequiresApproval { get; }
 
     /// <summary>Asked before each command when <see cref="RequiresApproval"/> is true.</summary>
@@ -68,6 +72,19 @@ public sealed class ShellPolicy
     {
         ArgumentNullException.ThrowIfNull(approver);
         return new ShellPolicy(true, null, true, approver);
+    }
+
+    /// <summary>Any command, but each one waits for a person through the agent loop's saved approval gate (Approve or Deny, also after a restart).</summary>
+    /// <returns>The policy.</returns>
+    public static ShellPolicy WithLoopApproval() => new(true, null, true, null);
+
+    /// <summary>The same allow-list or open policy, but every command waits for the agent loop's approval gate.</summary>
+    /// <param name="commands">Allow-list entries to keep, or null for any program.</param>
+    /// <returns>The policy.</returns>
+    internal static ShellPolicy LoopApprovalFor(IEnumerable<string>? commands)
+    {
+        string[][]? entries = commands is null ? null : [.. commands.Select(Tokenize).Where(t => t.Length > 0)];
+        return new ShellPolicy(true, entries, true, null);
     }
 
     /// <summary>The same policy, but every command also needs approval.</summary>

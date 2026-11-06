@@ -145,7 +145,13 @@ for entry in "${AGENTS[@]}"; do
   state="$(printf '%s' "$summary" | sed -E 's/.* · ([a-z_]+) · [0-9]+ turns.*/\1/')"
   turns="$(printf '%s' "$summary" | sed -E 's/.* · ([0-9]+) turns.*/\1/')"
   cost="$(printf '%s' "$summary" | sed -E 's/.*cost \$?([0-9.]+).*/\1/')"
-  if [ -z "$summary" ]; then state="-"; turns="-"; cost="0"; fi
+  if [ -z "$summary" ]; then
+    state="-"; turns="-"; cost="0"
+    # A run that stopped on an error (a spend cap, a provider failure) prints no summary line but may have spent money; the saved
+    # instances in its state directory know. Without this the table's total would leave that spend out.
+    saved="$(cd "$dir" && timeout 60 dotnet "$CLIDLL" cost --root . --state "$dir/.state" 2>/dev/null | sed -n -E 's/^[0-9]+ instances?: \$?([0-9.]+).*/\1/p' | tail -n1)"
+    if [ -n "$saved" ]; then cost="$saved"; fi
+  fi
   case "$state" in
     stopped) outcome="task_complete" ;;
     waiting) outcome="answered, no task_complete" ;;

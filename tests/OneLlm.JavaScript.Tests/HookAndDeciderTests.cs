@@ -57,6 +57,8 @@ internal sealed class HookEnv : IDisposable
             Providers = new ProviderRegistry(_ => null),
             DefinitionHooks = new JsHookSource(),
         };
+        // Hook files a definition names are read through the read grants, so the folder that holds them is a granted root.
+        Rt.Capabilities = Capabilities.Files(Dir);
         Rt.Providers.Set("scripted", Provider);
         Records = new JsonlRecordSink(Path.Combine(Dir, "records"));
         Rt.Sinks.Add(Records);
@@ -255,10 +257,11 @@ public class JsHookTests
         env.Hook("none.js", "export const x = 1;");
         env.Hook("some.js", "export function onCost() {}");
         var source = new JsHookSource();
-        Assert.Contains("at least one", Assert.Throws<BadDefinitionException>(() => source.Load(env.Def([], "none.js"), Capabilities.None)).Message, StringComparison.Ordinal);
+        Capabilities granted = Capabilities.Files(env.Dir);
+        Assert.Contains("at least one", Assert.Throws<BadDefinitionException>(() => source.Load(env.Def([], "none.js"), granted)).Message, StringComparison.Ordinal);
         Assert.Contains("does not export", Assert.Throws<BadDefinitionException>(() => source.LoadFile(Path.Combine(env.Dir, "some.js"), Hooks.HookPoints.BeforeToolCall, Capabilities.None)).Message, StringComparison.Ordinal);
-        Assert.Throws<BadDefinitionException>(() => source.Load(env.Def([], "missing.js"), Capabilities.None));
-        IHook ok = source.Load(env.Def([], "some.js"), Capabilities.None).Single();
+        Assert.Throws<BadDefinitionException>(() => source.Load(env.Def([], "missing.js"), granted));
+        IHook ok = source.Load(env.Def([], "some.js"), granted).Single();
         Assert.Equal(Hooks.HookPoints.OnCost, ok.Points);
     }
 }

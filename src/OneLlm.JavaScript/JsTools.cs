@@ -41,7 +41,7 @@ public static class JsTools
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException)
         {
-            throw new BadDefinitionException("cannot read the tool file: " + e.Message, file, 0, 0, e);
+            throw new BadDefinitionException("cannot read the tool file.", file, 0, 0, e);
         }
 
         var sandbox = new JsSandbox(options, timeProvider);

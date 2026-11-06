@@ -41,11 +41,17 @@ internal sealed class AgentHost
         {
             ceiling = CapabilityIntersection.Of(ceiling, parent.Setup.Capabilities);
         }
-        else if (options.SpawnerInstanceId is { } savedParent && await _runtime.Store.LoadAsync(savedParent, cancellationToken).ConfigureAwait(false) is { } parentInstance
-            && GrantSummary.Restore(parentInstance.ExtensionData?.GetValueOrDefault(GrantSummary.Key)) is { } parentGrants)
+        else if (options.SpawnerInstanceId is { } savedParent && await _runtime.Store.LoadAsync(savedParent, cancellationToken).ConfigureAwait(false) is { } parentInstance)
         {
-            // The parent is resting, not live: the grants it was saved with still bound the child.
-            ceiling = CapabilityIntersection.Of(ceiling, parentGrants);
+            // The parent is resting, not live: the grants it was saved with still bound the child. Damaged grants bound it to nothing.
+            switch (GrantSummary.Evaluate(parentInstance.ExtensionData, out ICapabilities? parentGrants))
+            {
+                case GrantSummary.Kind.Valid:
+                    ceiling = CapabilityIntersection.Of(ceiling, parentGrants!);
+                    break;
+                case GrantSummary.Kind.Invalid:
+                    throw GrantSummary.Unreadable(savedParent);
+            }
         }
 
         ICapabilities caps = options.Capabilities is null ? ceiling : CapabilityIntersection.Of(options.Capabilities, ceiling);
@@ -85,6 +91,7 @@ internal sealed class AgentHost
         }
 
         (instance.ExtensionData ??= [])[GrantSummary.Key] = saved;
+        instance.ExtensionData[GrantSummary.RecordedKey] = true;
         setup.Warnings.InsertRange(0, definition.Warnings);
         var agent = new LiveAgent(_runtime, this, instance, setup) { Options = options };
         _live[instance.InstanceId] = agent;
@@ -171,10 +178,15 @@ internal sealed class AgentHost
         LiveAgent? parent = instance.SpawnerInstanceId is { } sid && _live.TryGetValue(sid, out LiveAgent? p) ? p : null;
         ICapabilities caps = parent is null ? _runtime.Capabilities : CapabilityIntersection.Of(_runtime.Capabilities, parent.Setup.Capabilities);
         // What the instance was started with bounds it again: a read-only start stays read-only in any runtime that resumes it.
+        // A recorded entry that is missing or damaged is not a licence to run with the runtime's grants: the instance does not run.
         object? savedGrants = instance.ExtensionData?.GetValueOrDefault(GrantSummary.Key);
-        if (GrantSummary.Restore(savedGrants) is { } restored)
+        switch (GrantSummary.Evaluate(instance.ExtensionData, out ICapabilities? restored))
         {
-            caps = CapabilityIntersection.Of(caps, restored);
+            case GrantSummary.Kind.Valid:
+                caps = CapabilityIntersection.Of(caps, restored!);
+                break;
+            case GrantSummary.Kind.Invalid:
+                throw GrantSummary.Unreadable(instanceId);
         }
 
         AgentSetup setup = BuildSetup(instance, new AgentStartOptions(), caps, lenient: true, GrantSummary.SavedToolCeiling(savedGrants));

@@ -48,7 +48,12 @@ public interface ICapabilities
     /// <param name="path">An absolute path, or one relative to <see cref="WorkingDirectory"/>.</param>
     /// <returns>The real, absolute path to open.</returns>
     /// <exception cref="CapabilityMissingException">The path is outside every read root, or no file access is granted.</exception>
-    string ResolveRead(string path) => PathGuard.Resolve(ReadRoots, WorkingDirectory, path, write: false);
+    string ResolveRead(string path)
+    {
+        string real = PathGuard.Resolve(ReadRoots, WorkingDirectory, path, write: false);
+        PathGuard.CheckReadProtection(real, ProtectedPaths, path);
+        return real;
+    }
 
     /// <summary>Resolves <paramref name="path"/> for writing. The last component may not exist yet; its parent chain is resolved and must lie under a write root.</summary>
     /// <param name="path">An absolute path, or one relative to <see cref="WorkingDirectory"/>.</param>
@@ -57,12 +62,12 @@ public interface ICapabilities
     string ResolveWrite(string path)
     {
         string real = PathGuard.Resolve(WriteRoots, WorkingDirectory, path, write: true);
-        PathGuard.CheckWriteProtection(WriteRoots, real, WriteProtectedPaths, AllowRepoControlWrites, path);
+        PathGuard.CheckWriteProtection(WriteRoots, real, ProtectedPaths, AllowRepoControlWrites, path);
         return real;
     }
 
-    /// <summary>Directories under a write root that file tools still may not write to (the runtime's own state). Defaults to none.</summary>
-    IReadOnlyList<string> WriteProtectedPaths => [];
+    /// <summary>Directories file tools may neither read nor write even though a root contains them (the runtime's own state: saved instances and records). Defaults to none.</summary>
+    IReadOnlyList<string> ProtectedPaths => [];
 
     /// <summary>True when file tools may write into repository control directories such as <c>.git</c>. Defaults to false.</summary>
     bool AllowRepoControlWrites => false;

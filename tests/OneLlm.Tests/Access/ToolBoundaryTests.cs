@@ -160,8 +160,8 @@ public class ToolBoundaryTests
         // Intersections keep every protection.
         ICapabilities child = CapabilityIntersection.Of(rt.Capabilities, Capabilities.Files(s.Root));
         Assert.Throws<CapabilityMissingException>(() => child.ResolveWrite("audit/_runtime.jsonl"));
-        // Reading stays possible.
-        Assert.Equal(s.In("audit/_runtime.jsonl"), rt.Capabilities.ResolveRead("audit/_runtime.jsonl"));
+        // The state is unreadable too.
+        Assert.Throws<CapabilityMissingException>(() => rt.Capabilities.ResolveRead("audit/_runtime.jsonl"));
     }
 
     // ---- network
@@ -323,5 +323,120 @@ public class ToolBoundaryTests
         ToolResult r = await ToolInvoker.InvokeAsync(tool, (JsonObject)JsonNode.Parse("""{"decider":"dec"}""")!, ctx, default);
         Assert.True(r.IsError);
         Assert.Contains("outside the directories granted", Kit.Text(r), StringComparison.Ordinal);
+    }
+
+    // ---- git directories by what they are
+
+    private static string WriteArgs(string path, string content = "x") => new JsonObject { ["path"] = path, ["content"] = content }.ToJsonString();
+
+    [Fact]
+    public async Task A_git_directory_is_protected_by_what_it_holds_not_by_its_name()
+    {
+        using var s = new Scratch();
+        s.Write("gitdata/HEAD", "ref: refs/heads/main\n");
+        Directory.CreateDirectory(s.In("gitdata/objects"));
+        Directory.CreateDirectory(s.In("gitdata/refs"));
+        s.Write("bare.git/HEAD", "ref: refs/heads/main\n");
+        Directory.CreateDirectory(s.In("bare.git/objects"));
+        Directory.CreateDirectory(s.In("bare.git/refs"));
+        Capabilities caps = Capabilities.Files(s.Root);
+        foreach (string path in new[] { "gitdata/config", "gitdata/hooks/pre-commit", "gitdata/info/exclude", "gitdata/worktrees/w/config", "bare.git/config", "bare.git/hooks/pre-receive" })
+        {
+            ToolResult r = await Kit.Run("write_file", WriteArgs(path), caps);
+            Assert.True(r.IsError, path);
+            Assert.Contains("git directory", Kit.Text(r), StringComparison.Ordinal);
+            Assert.False(File.Exists(s.In(path)), path);
+        }
+
+        // Reading stays possible, and the host can opt in.
+        Assert.False((await Kit.Run("read_file", Kit.One("path", Kit.Js("bare.git/HEAD")), caps)).IsError);
+        Assert.False((await Kit.Run("write_file", WriteArgs("bare.git/config"), caps.WithRepoControlWrites())).IsError);
+    }
+
+    [Fact]
+    public async Task A_git_directory_cannot_be_assembled_from_its_parts_in_any_order()
+    {
+        using var s = new Scratch();
+        Capabilities caps = Capabilities.Files(s.Root);
+        // Planting the hook first: allowed while the directory is not yet one, but the write that completes HEAD + objects + refs is refused.
+        Assert.False((await Kit.Run("write_file", WriteArgs("evil/hooks/pre-commit"), caps)).IsError);
+        Assert.False((await Kit.Run("write_file", WriteArgs("evil/HEAD", "ref: refs/heads/main\n"), caps)).IsError);
+        Assert.False((await Kit.Run("write_file", WriteArgs("evil/objects/x"), caps)).IsError);
+        ToolResult last = await Kit.Run("write_file", WriteArgs("evil/refs/x"), caps);
+        Assert.True(last.IsError);
+        Assert.False(Directory.Exists(s.In("evil/refs")));
+        // Every other order ends at the same refusal.
+        Assert.False((await Kit.Run("write_file", WriteArgs("evil2/refs/x"), caps)).IsError);
+        Assert.False((await Kit.Run("write_file", WriteArgs("evil2/objects/x"), caps)).IsError);
+        Assert.True((await Kit.Run("write_file", WriteArgs("evil2/HEAD"), caps)).IsError);
+    }
+
+    [Fact]
+    public async Task Ordinary_directories_with_one_or_two_of_the_names_stay_writable()
+    {
+        using var s = new Scratch();
+        Capabilities caps = Capabilities.Files(s.Root);
+        foreach (string path in new[] { "app/config", "app/hooks/on-save.js", "docs/refs/a.md", "docs/objects/b.md", "lib/HEAD.txt" })
+        {
+            Assert.False((await Kit.Run("write_file", WriteArgs(path), caps)).IsError, path);
+        }
+    }
+
+    [Fact]
+    public async Task The_separate_git_dir_route_to_running_a_command_is_closed()
+    {
+        UnixOnly();
+        Assert.SkipUnless((Environment.GetEnvironmentVariable("PATH") ?? "").Split(':').Any(d => File.Exists(Path.Combine(d, "git"))), "git is not installed.");
+        using var s = new Scratch();
+        string pwn = s.In("PWNED");
+        Capabilities init = Capabilities.Files(s.Root) + Capabilities.ShellCommands("git init");
+        ToolResult made = await Kit.Run("execute_terminal_command", Shell("git", ["init", "-q", "--separate-git-dir=" + s.In("gitdata"), s.In("repo2")]), init);
+        Assert.False(made.IsError, Kit.Text(made));
+        Assert.True(File.Exists(s.In("repo2/.git")));
+        Capabilities caps = Capabilities.Files(s.Root) + Capabilities.ShellCommands("git status");
+        Assert.True((await Kit.Run("write_file", WriteArgs("gitdata/config", $"[core]\n\tfsmonitor = touch {pwn}\n"), caps)).IsError);
+        Assert.True((await Kit.Run("write_file", WriteArgs("repo2/.git", "gitdir: ../elsewhere"), caps)).IsError);
+        _ = await Kit.Run("execute_terminal_command", new JsonObject { ["command"] = "git", ["args"] = new JsonArray("status"), ["working_dir"] = "repo2" }.ToJsonString(), caps);
+        Assert.False(File.Exists(pwn));
+    }
+
+    // ---- the runtime's state is not readable either
+
+    [Fact]
+    public async Task File_tools_cannot_read_list_or_search_the_default_state_directory()
+    {
+        using var s = new Scratch();
+        s.Write(".onellm/instances/i-9.yaml", "messages: TRANSCRIPT-OF-ANOTHER-AGENT\n");
+        s.Write("notes.txt", "visible TRANSCRIPT-OF-ANOTHER-AGENT\n");
+        foreach (Capabilities caps in new[] { Capabilities.Files(s.Root), Capabilities.ReadOnlyFiles(s.Root) })
+        {
+            ToolResult read = await Kit.Run("read_file", Kit.One("path", Kit.Js(".onellm/instances/i-9.yaml")), caps);
+            Assert.True(read.IsError);
+            Assert.DoesNotContain("TRANSCRIPT", Kit.Text(read), StringComparison.Ordinal);
+            Assert.True((await Kit.Run("list_files", Kit.One("directory", Kit.Js(".onellm")), caps)).IsError);
+            string tree = Kit.Text(await Kit.Run("list_files", "{}", caps));
+            Assert.Contains("notes.txt", tree, StringComparison.Ordinal);
+            Assert.DoesNotContain("i-9", tree, StringComparison.Ordinal);
+            string hits = Kit.Text(await Kit.Run("search_files_regex", """{"pattern":"TRANSCRIPT","exclusion_patterns":[]}""", caps));
+            Assert.Contains("notes.txt", hits, StringComparison.Ordinal);
+            Assert.DoesNotContain("i-9", hits, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task A_runtimes_own_store_and_record_directories_are_unreadable_to_its_tools_but_todo_and_memory_work()
+    {
+        using var s = new Scratch();
+        var rt = new Runtime { Capabilities = Capabilities.Files(s.Root), Store = new FileInstanceStore(s.In("state/runs")) };
+        rt.Sinks.Add(new JsonlRecordSink(s.In("audit")));
+        s.Write("state/runs/i-1.yaml", "secret");
+        s.Write("audit/i-1.jsonl", "secret");
+        Assert.Throws<CapabilityMissingException>(() => rt.Capabilities.ResolveRead("state/runs/i-1.yaml"));
+        Assert.Throws<CapabilityMissingException>(() => rt.Capabilities.ResolveRead("audit/i-1.jsonl"));
+        Assert.Equal(s.In("state/other.txt"), rt.Capabilities.ResolveRead("state/other.txt"));
+        Assert.True((await Kit.Run("read_file", Kit.One("path", Kit.Js("audit/i-1.jsonl")), rt.Capabilities)).IsError);
+        Capabilities caps = Capabilities.Files(s.Root);
+        Assert.False((await Kit.Run("memory", """{"action":"append","content":"note"}""", caps)).IsError);
+        Assert.Equal("note", Kit.Text(await Kit.Run("memory", "{}", caps)));
     }
 }

@@ -348,6 +348,7 @@ internal sealed class FileWalker
     private readonly Dictionary<string, GitIgnore?> _cache = new(StringComparer.Ordinal);
     private readonly List<GitIgnore> _ancestors = [];
     private readonly string _baseReal;
+    private readonly string[] _protected;
 
     // baseDir is the real directory to walk. Ancestor .gitignore files are read only where the grants allow reading.
     internal FileWalker(string baseDir, ICapabilities caps, int maxDepth, IReadOnlyList<string> exclude, IReadOnlyList<string> include, bool useGitIgnore)
@@ -358,6 +359,7 @@ internal sealed class FileWalker
         _exclude = exclude;
         _include = include;
         _useGitIgnore = useGitIgnore;
+        _protected = Access.PathGuard.RealProtected(caps.ProtectedPaths);
         if (useGitIgnore)
         {
             LoadAncestors(caps);
@@ -402,6 +404,12 @@ internal sealed class FileWalker
             bool isLink = link is not null;
             bool isRealDir = info is DirectoryInfo && !isLink;
             bool isDir = isRealDir || (isLink && Directory.Exists(info.FullName));
+            if (_protected.Length > 0 && _protected.Any(p => Access.PathGuard.IsUnder(info.FullName, p)))
+            {
+                // The runtime's own state is not listed or searched: it holds other agents' saved transcripts.
+                continue;
+            }
+
             int depth = rel.Count(c => c == '/');
             if (isDir && _maxDepth >= 0 && depth >= _maxDepth)
             {

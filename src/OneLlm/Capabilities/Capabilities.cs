@@ -62,7 +62,7 @@ public sealed class Capabilities : ICapabilities
     public static Capabilities ReadOnlyFiles(string root)
     {
         string full = Full(root);
-        return new([full], [], full, ShellPolicy.Off, [], false);
+        return new([full], [], full, ShellPolicy.Off, [], false, [Path.Join(full, ".onellm")]);
     }
 
     /// <summary>Only the listed programs, run without a shell. See <see cref="ShellPolicy"/> for the entry format.</summary>
@@ -250,7 +250,12 @@ public sealed class Capabilities : ICapabilities
     /// <param name="path">An absolute path, or one relative to <see cref="WorkingDirectory"/>.</param>
     /// <returns>The real, absolute path to open.</returns>
     /// <exception cref="CapabilityMissingException">The path is outside every read root.</exception>
-    public string ResolveRead(string path) => PathGuard.Resolve(_readRoots, WorkingDirectory, path, write: false);
+    public string ResolveRead(string path)
+    {
+        string real = PathGuard.Resolve(_readRoots, WorkingDirectory, path, write: false);
+        PathGuard.CheckReadProtection(real, _protected, path);
+        return real;
+    }
 
     /// <summary>Resolves <paramref name="path"/> for writing; see <see cref="ICapabilities.ResolveWrite"/>.</summary>
     /// <param name="path">An absolute path, or one relative to <see cref="WorkingDirectory"/>.</param>
@@ -264,19 +269,20 @@ public sealed class Capabilities : ICapabilities
     }
 
     /// <inheritdoc />
-    public IReadOnlyList<string> WriteProtectedPaths => _protected;
+    public IReadOnlyList<string> ProtectedPaths => _protected;
 
     /// <inheritdoc />
     public bool AllowRepoControlWrites { get; }
 
     /// <summary>
-    /// The same grants, with more directories the file tools may not write to even though a write root contains them. Use it for
-    /// anything the model must not edit: the runtime's instance and record directories, its notes, configuration. Reads are unaffected.
+    /// The same grants, with more directories the file tools may neither read nor write even though a root contains them. Use it for
+    /// anything the model must not see or edit: the runtime's instance and record directories (saved transcripts), its notes, configuration.
+    /// The built-in <c>todo</c> and <c>memory</c> tools keep working in the default state directory.
     /// A runtime protects the directories of its file instance store and JSONL record sink by itself.
     /// </summary>
     /// <param name="directories">Directories (relative paths are made absolute against the current directory).</param>
     /// <returns>The new grants.</returns>
-    public Capabilities WithWriteProtected(params string[] directories)
+    public Capabilities WithProtectedPaths(params string[] directories)
     {
         ArgumentNullException.ThrowIfNull(directories);
         string[] all = [.. _protected.Union(directories.Select(Full), StringComparer.Ordinal)];

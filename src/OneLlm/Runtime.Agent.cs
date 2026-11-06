@@ -51,7 +51,7 @@ public sealed partial class Runtime
             }
 
             string[] dirs = StateDirectories(store, sinks);
-            global::OneLlm.Capabilities result = dirs.Length == 0 ? caps : caps.WithWriteProtected(dirs);
+            global::OneLlm.Capabilities result = dirs.Length == 0 ? caps : caps.WithProtectedPaths(dirs);
             _protectedCaps = new ProtectedCapabilities(caps, store, sinks, result);
             return result;
         }

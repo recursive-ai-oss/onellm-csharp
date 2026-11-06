@@ -130,6 +130,69 @@ public class AgentIsolationTests
         Assert.True(saved.ContainsKey("readRoots"));
     }
 
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("number")]
+    [InlineData("no-shell-section")]
+    [InlineData("roots-not-strings")]
+    public async Task An_instance_whose_recorded_grants_are_missing_or_damaged_does_not_run(string damage)
+    {
+        string store = NewTempDirectory();
+        string root = NewTempDirectory();
+        string id;
+        using (var a = new AgentEnv(store))
+        {
+            a.Rt.Capabilities = Capabilities.Files(root) + Capabilities.Shell;
+            a.Provider.Enqueue(Say("at rest"));
+            id = (await Within(a.Rt.RunAgentAsync(Def("a", []), null, Go()))).Instance.InstanceId;
+        }
+
+        using var b = new AgentEnv(store, "b");
+        b.Rt.Capabilities = Capabilities.Files(root) + Capabilities.Shell;
+        Instance saved = (await b.Rt.Store.LoadAsync(id))!;
+        switch (damage)
+        {
+            case "missing":
+                saved.ExtensionData!.Remove(GrantSummary.Key);
+                break;
+            case "number":
+                saved.ExtensionData![GrantSummary.Key] = 7;
+                break;
+            case "no-shell-section":
+                ((IDictionary<string, object?>)saved.ExtensionData![GrantSummary.Key]!).Remove("shell");
+                break;
+            default:
+                ((IDictionary<string, object?>)saved.ExtensionData![GrantSummary.Key]!)["readRoots"] = new List<object?> { 5 };
+                break;
+        }
+
+        await b.Rt.Store.SaveAsync(saved);
+        BadDefinitionException e = await Assert.ThrowsAsync<BadDefinitionException>(async () => await b.Rt.GetAgentAsync(id));
+        Assert.Contains("grants", e.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task An_instance_file_from_before_grants_were_recorded_keeps_the_runtime_grants()
+    {
+        string store = NewTempDirectory();
+        string root = NewTempDirectory();
+        string id;
+        using (var a = new AgentEnv(store))
+        {
+            a.Rt.Capabilities = Capabilities.Files(root);
+            a.Provider.Enqueue(Say("at rest"));
+            id = (await Within(a.Rt.RunAgentAsync(Def("a", []), null, Go()))).Instance.InstanceId;
+        }
+
+        using var b = new AgentEnv(store, "b");
+        b.Rt.Capabilities = Capabilities.Files(root);
+        Instance saved = (await b.Rt.Store.LoadAsync(id))!;
+        saved.ExtensionData!.Remove(GrantSummary.Key);
+        saved.ExtensionData.Remove(GrantSummary.RecordedKey);
+        await b.Rt.Store.SaveAsync(saved);
+        Assert.NotNull(await b.Rt.GetAgentAsync(id));
+    }
+
     [Fact]
     public async Task A_child_definition_a_model_wrote_gets_no_tool_its_parent_lacks()
     {

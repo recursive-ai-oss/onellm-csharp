@@ -376,7 +376,7 @@ internal sealed partial class LiveAgent
 
     // ---- one model call -----------------------------------------------------------------------------------------------------
 
-    private async Task<Message> InferAsync(CancellationToken token)
+    private async ValueTask<Message> InferAsync(CancellationToken token)
     {
         ChatRequest request = Runtime.BuildChat(Instance, Setup.Model, Setup.Settings, null, Setup.ToolDefinitions);
         HookSet hooks = Setup.Hooks;

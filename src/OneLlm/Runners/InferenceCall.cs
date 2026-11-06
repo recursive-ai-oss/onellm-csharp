@@ -22,9 +22,10 @@ internal sealed class InferenceCall
     private readonly long _started;
     private readonly decimal _runtimeReserved;
     private readonly decimal _instanceReserved;
-    private readonly List<ResponseWarning> _warnings;
+    // Made on the first warning: most calls have none.
+    private List<ResponseWarning>? _warnings;
 
-    private InferenceCall(Runtime runtime, RunScope scope, ResolvedModel model, IChatProvider provider, ChatRequest request, List<ResponseWarning> warnings, decimal runtimeReserved, decimal instanceReserved)
+    private InferenceCall(Runtime runtime, RunScope scope, ResolvedModel model, IChatProvider provider, ChatRequest request, List<ResponseWarning>? warnings, decimal runtimeReserved, decimal instanceReserved)
     {
         _runtime = runtime;
         _scope = scope;
@@ -51,7 +52,7 @@ internal sealed class InferenceCall
     public static InferenceCall Begin(Runtime runtime, RunScope scope, ResolvedModel model, IChatProvider provider, ChatRequest request)
     {
         AdjustedRequest adjusted = RequestAdjuster.Adjust(model, request.Model == model.Name ? request : request with { Model = model.Name });
-        var warnings = new List<ResponseWarning>(adjusted.Warnings);
+        List<ResponseWarning>? warnings = adjusted.Warnings.Count == 0 ? null : new List<ResponseWarning>(adjusted.Warnings);
         decimal runtimeReserved = 0m;
         decimal instanceReserved = 0m;
         SpendGuard runtimeGuard = runtime.RuntimeGuard;
@@ -82,7 +83,7 @@ internal sealed class InferenceCall
     {
         if (providerWarnings is { Count: > 0 })
         {
-            _warnings.AddRange(providerWarnings);
+            (_warnings ??= []).AddRange(providerWarnings);
         }
 
         DateTimeOffset now = _runtime.TimeProvider.GetUtcNow();
@@ -91,16 +92,16 @@ internal sealed class InferenceCall
         if (usage is not null)
         {
             var priceNotes = new List<string>();
-            PricingContext context = Runtime.PriceContextFor(Request) with { Today = DateOnly.FromDateTime(now.UtcDateTime) };
+            PricingContext context = new() { ServiceTier = Request.ServiceTier, Today = DateOnly.FromDateTime(now.UtcDateTime) };
             Cost? priced = CostCalculator.Price(_model, usage, context, priceNotes);
             foreach (string note in priceNotes)
             {
-                _warnings.Add(new ResponseWarning("pricing", note));
+                (_warnings ??= []).Add(new ResponseWarning("pricing", note));
             }
 
             if (priced is null)
             {
-                _warnings.Add(new ResponseWarning("pricing", $"The catalog has no price for '{_model.Id}', so this call's cost is not known."));
+                (_warnings ??= []).Add(new ResponseWarning("pricing", $"The catalog has no price for '{_model.Id}', so this call's cost is not known."));
             }
             else
             {
@@ -130,19 +131,22 @@ internal sealed class InferenceCall
             ExtensionData = message.ExtensionData,
         };
 
-        await _runtime.WriteRecordAsync(
-            new Records.InferenceRecord
-            {
-                InstanceId = _scope.Instance.InstanceId,
-                Time = now,
-                MessageId = stamped.Id,
-                Provider = _provider.Name,
-                Usage = usage,
-                Duration = elapsed,
-                FinishReason = finishRaw ?? finish.ToString(),
-            },
-            cancellationToken).ConfigureAwait(false);
-        return (stamped, cost, finish, _warnings);
+        if (!_runtime.Sinks.IsEmpty)
+        {
+            await _runtime.WriteRecordAsync(
+                new Records.InferenceRecord
+                {
+                    InstanceId = _scope.Instance.InstanceId,
+                    Time = now,
+                    MessageId = stamped.Id,
+                    Provider = _provider.Name,
+                    Usage = usage,
+                    Duration = elapsed,
+                    FinishReason = finishRaw ?? finish.ToString(),
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        return (stamped, cost, finish, (IReadOnlyList<ResponseWarning>?)_warnings ?? []);
     }
 
     /// <summary>Releases the reservation and reports the failure.</summary>

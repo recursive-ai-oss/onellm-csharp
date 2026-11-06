@@ -135,6 +135,31 @@ public static class CostCalculator
             }
         }
 
+        // The usual call reports only the four main counters, and no subset rule can touch them: price them straight from the usage, with no
+        // dictionaries (this runs for every model call of every run).
+        if (usage.Counters is not { Count: > 0 } && pricing.SubsetOf is not { Count: > 0 })
+        {
+            List<CostLine>? basic = null;
+            foreach (string counter in BaseCounters)
+            {
+                decimal amount = usage.GetCounter(counter);
+                if (amount == 0m)
+                {
+                    continue;
+                }
+
+                if (FindRate(pricing, counter, ctx.Qualifiers, longContext) is not { } found)
+                {
+                    warnings?.Add(string.Create(CultureInfo.InvariantCulture, $"'{model.Name}' has no price for '{counter}' ({amount}); the cost is incomplete."));
+                    continue;
+                }
+
+                (basic ??= new List<CostLine>(BaseCounters.Length)).Add(MakeLine(pricing, counter, amount, found, factor, longContext, tier));
+            }
+
+            return basic is null ? Cost.Zero : new Cost(basic);
+        }
+
         // Quantities: the four main counters, then every other counter the usage carries.
         // Sized up front: growing a dictionary past its first few slots allocates twice per priced call.
         var quantities = new Dictionary<string, decimal>(BaseCounters.Length + (usage.Counters?.Count ?? 0), StringComparer.Ordinal);
@@ -217,29 +242,33 @@ public static class CostCalculator
                 continue;
             }
 
-            Rate rate = rateValues[rateAt];
-            decimal multiplier = factor;
-            string label = rate.Label ?? DefaultLabel(counter);
-            if (longContext && rate.Flat)
-            {
-                label += " (long context)";
-                if (counter is "cacheCreationInputTokens" or "cacheReadInputTokens" && pricing.InputPerMillion is > 0m)
-                {
-                    multiplier *= pricing.LongContextInputPerMillion!.Value / pricing.InputPerMillion!.Value;
-                }
-            }
-
-            if (tier?.Multipliers is { } tierFactors
-                && (tierFactors.TryGetValue(counter, out decimal tierFactor) || tierFactors.TryGetValue("*", out tierFactor)))
-            {
-                multiplier *= tierFactor;
-                label += " (" + (tier.Label ?? string.Create(CultureInfo.InvariantCulture, $"above {tier.Above}")) + ")";
-            }
-
-            lines.Add(CostLine.Create(counter, quantity, rate.Per, rate.Price, multiplier, label, rate.Source ?? pricing.Source, rate.AsOf ?? pricing.AsOf));
+            lines.Add(MakeLine(pricing, counter, quantity, rateValues[rateAt], factor, longContext, tier));
         }
 
         return lines.Count == 0 ? Cost.Zero : new Cost(lines);
+    }
+
+    private static CostLine MakeLine(PricingSpec pricing, string counter, decimal quantity, Rate rate, decimal factor, bool longContext, PriceTier? tier)
+    {
+        decimal multiplier = factor;
+        string label = rate.Label ?? DefaultLabel(counter);
+        if (longContext && rate.Flat)
+        {
+            label += " (long context)";
+            if (counter is "cacheCreationInputTokens" or "cacheReadInputTokens" && pricing.InputPerMillion is > 0m)
+            {
+                multiplier *= pricing.LongContextInputPerMillion!.Value / pricing.InputPerMillion!.Value;
+            }
+        }
+
+        if (tier?.Multipliers is { } tierFactors
+            && (tierFactors.TryGetValue(counter, out decimal tierFactor) || tierFactors.TryGetValue("*", out tierFactor)))
+        {
+            multiplier *= tierFactor;
+            label += " (" + (tier.Label ?? string.Create(CultureInfo.InvariantCulture, $"above {tier.Above}")) + ")";
+        }
+
+        return CostLine.Create(counter, quantity, rate.Per, rate.Price, multiplier, label, rate.Source ?? pricing.Source, rate.AsOf ?? pricing.AsOf);
     }
 
     /// <summary>Returns the usage with its <see cref="Usage.Cost"/> and <see cref="Usage.CostLines"/> set from a cost.</summary>

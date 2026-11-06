@@ -15,7 +15,8 @@ namespace OneLlm.JavaScript;
 /// <remarks>
 /// <c>prepare</c> receives the caller's inputs and returns the inputs the templates read. <c>decide</c> receives the answers by question id (a
 /// repeated question's answers are a list, in order) and the prepared inputs, and returns the outputs. Returning <c>undefined</c> gives JSON <c>null</c>.
-/// Only JavaScript runs here. A <c>decider.ts</c> must be compiled to <c>decider.js</c> first, because OneEcma does not yet strip TypeScript types.
+/// A <c>.ts</c> file is accepted when it uses only erasable TypeScript (annotations, interfaces, type aliases, <c>as</c>, <c>satisfies</c>,
+/// <c>import type</c>): the types are erased in place before it runs, so errors point at the original lines and columns. Nothing is type-checked.
 /// </remarks>
 public sealed class JsDeciderLogic : IDeciderLogic
 {
@@ -40,12 +41,12 @@ public sealed class JsDeciderLogic : IDeciderLogic
     /// <inheritdoc />
     public bool HasDecide { get; }
 
-    /// <summary>Loads a decider's logic from a <c>.js</c> file.</summary>
+    /// <summary>Loads a decider's logic from a <c>.js</c> file, or from a <c>.ts</c> file with only erasable types.</summary>
     /// <param name="path">The file.</param>
     /// <param name="options">The sandbox limits, or null for the defaults.</param>
     /// <param name="timeProvider">The clock for the sandbox. Default: the system clock.</param>
     /// <returns>The logic.</returns>
-    /// <exception cref="BadDefinitionException">The file cannot be read, does not parse, or exports neither <c>prepare</c> nor <c>decide</c>.</exception>
+    /// <exception cref="BadDefinitionException">The file cannot be read, does not parse, uses TypeScript that cannot be erased (the message names the construct, file, line and column), or exports neither <c>prepare</c> nor <c>decide</c>.</exception>
     public static JsDeciderLogic Load(string path, JsSandboxOptions? options = null, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(path);
@@ -58,6 +59,11 @@ public sealed class JsDeciderLogic : IDeciderLogic
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException)
         {
             throw new BadDefinitionException("cannot read the decider logic: " + e.Message, file, 0, 0, e);
+        }
+
+        if (file.EndsWith(".ts", StringComparison.OrdinalIgnoreCase))
+        {
+            source = JsSandbox.StripTypes(source, file);
         }
 
         TimeProvider time = timeProvider ?? TimeProvider.System;
@@ -78,13 +84,13 @@ public sealed class JsDeciderLogic : IDeciderLogic
     }
 
     /// <summary>
-    /// Loads a decider from a directory: <c>decider.yaml</c> with the logic in <c>decider.js</c> beside it when that file exists.
+    /// Loads a decider from a directory: <c>decider.yaml</c> with the logic in <c>decider.js</c> (or, when there is none, <c>decider.ts</c>) beside it.
     /// </summary>
     /// <param name="directory">The directory.</param>
     /// <param name="options">The sandbox limits, or null for the defaults.</param>
     /// <param name="timeProvider">The clock for the sandbox. Default: the system clock.</param>
     /// <returns>The decider.</returns>
-    /// <exception cref="BadDefinitionException">The directory has only a <c>decider.ts</c> (not supported yet), or a file is invalid.</exception>
+    /// <exception cref="BadDefinitionException">A file is invalid, or the <c>decider.ts</c> uses TypeScript that cannot be erased.</exception>
     public static Decider LoadDecider(string directory, JsSandboxOptions? options = null, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(directory);
@@ -96,7 +102,7 @@ public sealed class JsDeciderLogic : IDeciderLogic
 
         if (File.Exists(Path.Combine(directory, "decider.ts")))
         {
-            throw new BadDefinitionException("decider.ts needs TypeScript type stripping, which OneEcma does not have yet; compile it to decider.js.", "decider.ts");
+            return Decider.Load(directory, Load(Path.Combine(directory, "decider.ts"), options, timeProvider));
         }
 
         return Decider.Load(directory);

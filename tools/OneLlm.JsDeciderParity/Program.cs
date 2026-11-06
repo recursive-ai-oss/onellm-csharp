@@ -14,6 +14,8 @@ using OneLlm.Providers.TypeSafe;
 // Usage: onellm-jsdeciderparity <casesDir> <answerSets> <outDir>
 //   <casesDir>/<case>/decider-dir  the path of a directory holding decider.yaml
 //   <casesDir>/<case>/logic-js     the path of the JavaScript module that holds the decider's logic
+//   <casesDir>/<case>/logic-ts     optional: the path of a TypeScript module to load instead (types erased in place)
+//   A case with no inputs.json is only loaded (counted, not run).
 //   <casesDir>/<case>/inputs.json  the caller's inputs
 // <answerSets> is how many answer sets to try: set k answers every question the engine is asked, from a fixed pattern of values (the first,
 // last and middle choices, the ends and fractions of score levels, probabilities on both sides of the usual thresholds).
@@ -21,11 +23,30 @@ using OneLlm.Providers.TypeSafe;
 // <outDir>/<case>/ours-<k>.json = { "prepared": ..., "outputs": ... }. Exit code 1 when a run fails.
 int failures = 0;
 int runs = 0;
+int loads = 0;
+int loadFailures = 0;
 foreach (string caseDir in Directory.GetDirectories(args[0]).Order(StringComparer.Ordinal))
 {
     string name = Path.GetFileName(caseDir);
     string deciderDir = File.ReadAllText(Path.Combine(caseDir, "decider-dir")).Trim();
-    string logicPath = File.ReadAllText(Path.Combine(caseDir, "logic-js")).Trim();
+    string tsFile = Path.Combine(caseDir, "logic-ts");
+    string logicPath = File.ReadAllText(File.Exists(tsFile) ? tsFile : Path.Combine(caseDir, "logic-js")).Trim();
+    if (!File.Exists(Path.Combine(caseDir, "inputs.json")))
+    {
+        loads++;
+        try
+        {
+            JsDeciderLogic.Load(logicPath);
+        }
+        catch (Exception e)
+        {
+            loadFailures++;
+            Console.WriteLine($"{name,-28} load ERROR {e.GetType().Name}: {e.Message.Split('\n')[0]}");
+        }
+
+        continue;
+    }
+
     using JsonDocument inputs = JsonDocument.Parse(File.ReadAllText(Path.Combine(caseDir, "inputs.json")));
     Directory.CreateDirectory(Path.Combine(args[2], name));
     JsDeciderLogic logic = JsDeciderLogic.Load(logicPath);
@@ -56,8 +77,8 @@ foreach (string caseDir in Directory.GetDirectories(args[0]).Order(StringCompare
     }
 }
 
-Console.WriteLine($"runs {runs}, failing {failures}");
-return failures == 0 ? 0 : 1;
+Console.WriteLine($"runs {runs}, failing {failures}; load-only {loads}, failing {loadFailures}");
+return failures + loadFailures == 0 ? 0 : 1;
 
 // Answers each question the request asks for, and remembers what it said so the reference runner can be given the same answers.
 internal sealed class Stub(int set, JsonObject used) : HttpMessageHandler

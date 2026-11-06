@@ -305,8 +305,49 @@ public class JsDeciderLogicTests
         await Assert.ThrowsAsync<JsSandboxException>(async () => await spin.PrepareAsync(JsonDocument.Parse("{}").RootElement, default));
     }
 
+    private const string Ts = """
+        import type { Answers } from './types';
+        interface Prepared { n: number }
+        type Route = 'a' | 'b';
+        export const prepare = (i: { items?: unknown[] }): Prepared => ({ n: i.items?.length ?? 0 });
+        export const decide = ({ answers, inputs }: { answers: any; inputs: Prepared }) => ({ route: answers.topic.choice as Route, n: inputs.n } satisfies { route: Route; n: number });
+        """;
+
     [Fact]
-    public void A_decider_directory_loads_its_js_logic_and_a_ts_only_one_names_the_gap()
+    public async Task A_ts_decider_runs_with_its_types_erased()
+    {
+        using var dir = new Scratch();
+        JsDeciderLogic logic = JsDeciderLogic.Load(dir.Write("decider.ts", Ts));
+        Assert.True(logic.HasPrepare);
+        JsonElement prepared = await logic.PrepareAsync(JsonDocument.Parse("""{"items":[1,2,3]}""").RootElement, default);
+        JsonElement outputs = await logic.DecideAsync(JsonDocument.Parse("""{"topic":{"choice":"a"}}""").RootElement, prepared, default);
+        Assert.Equal("""{"route":"a","n":3}""", outputs.GetRawText());
+    }
+
+    [Theory]
+    [InlineData("export const decide = () => 1;\nenum Color { Red }\n", "enum", 2, 1)]
+    [InlineData("export class A {\n  constructor(private x: number) {}\n}\nexport const decide = () => 1;\n", "parameter propert", 2, 15)]
+    public void A_ts_construct_that_cannot_be_erased_is_refused_with_its_position(string code, string word, int line, int column)
+    {
+        using var dir = new Scratch();
+        var e = Assert.Throws<BadDefinitionException>(() => JsDeciderLogic.Load(dir.Write("decider.ts", code)));
+        Assert.Contains(word, e.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(line, e.Line);
+        Assert.Equal(column, e.Column);
+    }
+
+    [Fact]
+    public async Task A_runtime_error_in_a_ts_decider_points_into_the_ts_file()
+    {
+        using var dir = new Scratch();
+        JsDeciderLogic logic = JsDeciderLogic.Load(dir.Write("decider.ts", "type T = { a: number };\nexport const decide = (x: { answers: any }): number => x.answers.missing.score;\n"));
+        var e = await Assert.ThrowsAsync<JsSandboxException>(async () => await logic.DecideAsync(JsonDocument.Parse("{}").RootElement, JsonDocument.Parse("{}").RootElement, default));
+        Assert.Equal(2, e.Line);
+        Assert.Equal("decider.ts", e.File);
+    }
+
+    [Fact]
+    public void A_decider_directory_loads_its_js_or_ts_logic()
     {
         using var dir = new Scratch();
         const string yaml = "model: jev-latest\nstate: {}\nquestions:\n  q:\n    type: noul\n    instructions: Is it?\n";
@@ -314,8 +355,8 @@ public class JsDeciderLogicTests
         dir.Write("withjs/decider.js", Logic);
         Assert.NotNull(JsDeciderLogic.LoadDecider(dir.In("withjs")).Logic);
         dir.Write("withts/decider.yaml", yaml);
-        dir.Write("withts/decider.ts", "export const decide = (a: number) => a;");
-        Assert.Contains("TypeScript", Assert.Throws<BadDefinitionException>(() => JsDeciderLogic.LoadDecider(dir.In("withts"))).Message, StringComparison.Ordinal);
+        dir.Write("withts/decider.ts", Ts);
+        Assert.True(JsDeciderLogic.LoadDecider(dir.In("withts")).Logic!.HasDecide);
         dir.Write("plain/decider.yaml", yaml);
         Assert.Null(JsDeciderLogic.LoadDecider(dir.In("plain")).Logic);
     }

@@ -17,6 +17,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- JavaScript sandbox run lifetime and aggregate limits: a run that has ended (returned, cancelled, timed out or abandoned) can no longer write files, add cost, log or send requests, and its pending requests are cancelled; `JsRunLimiter` bounds concurrent runs and total bytes across runs and fails the excess with `JsSandboxFailure.Busy`; per-run quotas for file and response text, written bytes and files, log volume and requests; pipes and other special files are refused instead of hanging a thread; loading a tool, hook or decider file runs under the same time and memory guard as a run; the host memory backstop now measures live heap growth, not allocation churn.
 - Vertex AI Gemini `countTokens` and `embedContent` (Vertex's request bodies; one embedding per call); decider outputs are checked against a declared output schema (`DeciderOutputException`); `SpendLimitReachedException` for an Anthropic account spend limit; strip and adjust notices on `EmbeddingResponse.Warnings`.
 
 - Provider clients for Anthropic Messages, OpenAI (Responses; Chat Completions for compatible servers) and Gemini `generateContent`: chat, streaming, client and hosted tools, structured output, reasoning replay, caching, token counting, batch and embeddings; OpenAI-compatible presets (Ollama, vLLM, LM Studio, OpenRouter, Groq, DeepSeek, xAI, Mistral, Together); TypeSafe Jev. All verified on recorded fixtures.

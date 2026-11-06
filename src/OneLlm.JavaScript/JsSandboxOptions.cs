@@ -20,9 +20,11 @@ public sealed class JsSandboxOptions
     public long MaxAllocatedBytes { get; init; } = 256L * 1024 * 1024;
 
     /// <summary>
-    /// A backstop on what .NET allocates while the script runs, in bytes. The engine's budget does not count the backing storage of arrays, so
-    /// <c>new Array(1e8)</c> would pass it; this counts everything allocated on the running thread and ends the run when it passes the limit.
-    /// It is checked about as often as the time limit, so one very large single allocation can still happen before it fires. Zero turns it off. Default 1 GiB.
+    /// A backstop on the memory a run makes the host hold, in bytes of live growth. The engine's budget does not count the backing storage of arrays, so
+    /// <c>new Array(1e8)</c> would pass it. Every time the thread has allocated a quarter of this limit the host collects the heap and measures how much
+    /// larger it is than when the run started; the run ends when that growth passes the limit. Churn that is freed again (a busy loop that makes short-lived
+    /// strings) is not growth and does not count. The measure is process-wide, so runs that overlap see each other's growth, which errs on the side of
+    /// stopping. It is taken between steps, so one very large single allocation can still happen before it is seen. Zero turns it off. Default 1 GiB.
     /// </summary>
     public long MaxHostAllocatedBytes { get; init; } = 1024L * 1024 * 1024;
 
@@ -40,6 +42,27 @@ public sealed class JsSandboxOptions
 
     /// <summary>The most bytes of a response body <c>ctx.fetch</c> reads; the rest is cut and <c>truncated</c> is true. Default 1 MiB.</summary>
     public int MaxFetchBytes { get; init; } = 1024 * 1024;
+
+    /// <summary>The most bytes of file and response text one run may hold in all: every <c>ctx.readFile</c> result and <c>ctx.fetch</c> body counts, at two bytes a character. Default 32 MiB.</summary>
+    public long MaxHostResultBytes { get; init; } = 32L * 1024 * 1024;
+
+    /// <summary>The most bytes one run may write with <c>ctx.writeFile</c>. Default 8 MiB.</summary>
+    public long MaxWriteBytesPerRun { get; init; } = 8L * 1024 * 1024;
+
+    /// <summary>The most files one run may write with <c>ctx.writeFile</c>. Default 256.</summary>
+    public int MaxWritesPerRun { get; init; } = 256;
+
+    /// <summary>The most requests one run may start with <c>ctx.fetch</c>. Default 16.</summary>
+    public int MaxFetchesPerRun { get; init; } = 16;
+
+    /// <summary>The most characters one run may send to <c>ctx.log</c>. After that one notice is logged and the rest is dropped. Default 64,000.</summary>
+    public long MaxLogChars { get; init; } = 64_000;
+
+    /// <summary>
+    /// The limiter that bounds this sandbox's runs together with every other sandbox that names it: concurrent runs and total memory. Null uses
+    /// <see cref="JsRunLimiter.Shared"/>.
+    /// </summary>
+    public JsRunLimiter? Limiter { get; init; }
 
     /// <summary>The longest JSON text a run may return, in UTF-16 code units. Default 1 million.</summary>
     public int MaxResultChars { get; init; } = 1_000_000;

@@ -77,11 +77,43 @@ public sealed class JsSandbox
     /// </summary>
     internal (JsonNode? Data, HashSet<string> Functions) Inspect(string source, string fileName, string? dataExport, params string[] functions)
     {
-        var host = new SandboxHost(_loadClock, Options, new HostModule(fileName, source), new OutputBuffer(1024));
-        ScriptEngine engine = CreateEngine(host, null, null, Options.TimeLimit);
+        // Loading runs the file's top level, which is script too: it gets the same guard as a run (time limit, fuel and memory limits, and the host
+        // giving up on it when it does not stop), so a file with an infinite loop cannot hang the loader.
+        TimeSpan time = Options.TimeLimit;
+        var scope = new RunScope(Options, null);
+        Task<(JsonNode?, HashSet<string>)> work = Task.Run(() => InspectCore(source, fileName, dataExport, functions, time, scope));
+        bool done;
         try
         {
-            JsValue ns = engine.EvaluateModule(fileName);
+            done = work.Wait(time + AbandonGrace);
+        }
+        catch (AggregateException e) when (e.InnerExceptions.Count == 1)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e.InnerExceptions[0]).Throw();
+            throw;
+        }
+
+        if (!done)
+        {
+            scope.Close();
+            Abandon(work);
+            throw new JsSandboxException(JsSandboxFailure.Time, $"{fileName}: The file's top level ran out of time and did not stop when asked; the host stopped waiting for it.", fileName);
+        }
+
+        return work.Result;
+    }
+
+    private (JsonNode? Data, HashSet<string> Functions) InspectCore(string source, string fileName, string? dataExport, string[] functions, TimeSpan time, RunScope scope)
+    {
+        using var timeout = new CancellationTokenSource(time, _loadClock);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(timeout.Token, scope.Token);
+        scope.RunToken = linked.Token;
+        scope.CancelRun = linked.Cancel;
+        var host = new SandboxHost(_loadClock, Options, new HostModule(fileName, source), new OutputBuffer(1024), scope);
+        ScriptEngine engine = CreateEngine(host, null, null, time);
+        try
+        {
+            JsValue ns = engine.EvaluateModule(fileName, linked.Token);
             JsRealm realm = engine.MainRealm;
             var found = new HashSet<string>(StringComparer.Ordinal);
             foreach (string f in functions)
@@ -107,9 +139,14 @@ public sealed class JsSandbox
             string? json = JsonBridge.Stringify(realm, stringify, value);
             return (json is null ? null : JsonNode.Parse(json), found);
         }
-        catch (Exception e) when (e is JsException or JsLimitException)
+        catch (Exception e) when (e is JsException or JsLimitException or OperationCanceledException)
         {
-            throw Translate(e, fileName, CancellationToken.None);
+            throw MapFailure(e, scope, fileName, CancellationToken.None);
+        }
+        finally
+        {
+            scope.Close();
+            scope.Dispose();
         }
     }
 
@@ -208,33 +245,58 @@ public sealed class JsSandbox
     {
         cancellationToken.ThrowIfCancellationRequested();
         TimeSpan time = EffectiveTime(limit);
-        Task<JsRunResult> core = Task.Run(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, cancellationToken), CancellationToken.None);
 
-        using var raceCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        Task deadline = Task.Delay(time + AbandonGrace, context.TimeProvider, raceCts.Token);
-        if (await Task.WhenAny(core, deadline).ConfigureAwait(false) == core)
+        // Bound the runs together: a free slot within the limiter's wait, or a Busy failure.
+        JsRunLimiter.Lease lease = await (Options.Limiter ?? JsRunLimiter.Shared).EnterAsync(context.TimeProvider, cancellationToken).ConfigureAwait(false);
+        var scope = new RunScope(Options, lease);
+        Task<JsRunResult> core;
+        try
         {
-            await raceCts.CancelAsync().ConfigureAwait(false);
-            return await core.ConfigureAwait(false);
+            core = Task.Run(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, scope, cancellationToken), CancellationToken.None);
+        }
+        catch
+        {
+            scope.Close();
+            lease.Dispose();
+            throw;
         }
 
-        if (cancellationToken.IsCancellationRequested)
+        // Whatever way the run ends for the caller (a result, a failure, cancellation, or the host giving up), it is closed before the caller sees it,
+        // so nothing the script still has pending can act for it afterwards.
+        try
         {
-            // The engine sees the same token at its next step; give it a moment to stop by itself before it is written off.
-            if (await Task.WhenAny(core, Task.Delay(AbandonGrace, context.TimeProvider)).ConfigureAwait(false) == core)
+            using var raceCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            Task deadline = Task.Delay(time + AbandonGrace, context.TimeProvider, raceCts.Token);
+            if (await Task.WhenAny(core, deadline).ConfigureAwait(false) == core)
             {
+                await raceCts.CancelAsync().ConfigureAwait(false);
                 return await core.ConfigureAwait(false);
             }
 
-            Abandon(core);
-            throw new OperationCanceledException(cancellationToken);
-        }
+            if (cancellationToken.IsCancellationRequested)
+            {
+                // The engine sees the same token at its next step; give it a moment to stop by itself before it is written off.
+                if (await Task.WhenAny(core, Task.Delay(AbandonGrace, context.TimeProvider)).ConfigureAwait(false) == core)
+                {
+                    return await core.ConfigureAwait(false);
+                }
 
-        Abandon(core);
-        throw new JsSandboxException(JsSandboxFailure.Time, $"{fileName}: The script ran out of time and did not stop when asked; the host stopped waiting for it.", fileName);
+                scope.Close();
+                Abandon(core);
+                throw new OperationCanceledException(cancellationToken);
+            }
+
+            scope.Close();
+            Abandon(core);
+            throw new JsSandboxException(JsSandboxFailure.Time, $"{fileName}: The script ran out of time and did not stop when asked; the host stopped waiting for it.", fileName);
+        }
+        finally
+        {
+            scope.Close();
+        }
     }
 
-    private static void Abandon(Task<JsRunResult> core)
+    private static void Abandon(Task core)
     {
         Interlocked.Increment(ref s_abandoned);
         Interlocked.Increment(ref s_abandonedRunning);
@@ -281,6 +343,33 @@ public sealed class JsSandbox
         TimeSpan? limit,
         Func<ScriptEngine, CancellationToken, Task<JsValue>> body,
         bool undefinedAsNull,
+        RunScope scope,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await RunCoreInnerAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, scope, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            // The engine's thread is done: close the run (cancels a fetch the script left unawaited), give the slot back and release the source.
+            scope.Close();
+            scope.ReleaseLease();
+            scope.Dispose();
+        }
+    }
+
+    private async Task<JsRunResult> RunCoreInnerAsync(
+        HostModule? module,
+        string fileName,
+        JsonNode? input,
+        bool hasInput,
+        ToolContext context,
+        ToolCapability declared,
+        TimeSpan? limit,
+        Func<ScriptEngine, CancellationToken, Task<JsValue>> body,
+        bool undefinedAsNull,
+        RunScope scope,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -288,11 +377,12 @@ public sealed class JsSandbox
 
         // The time limit is the host's: it also stops a script that is waiting on ctx.fetch, which burns no engine steps.
         using var timeout = new CancellationTokenSource(time, context.TimeProvider);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token, scope.Token);
         var output = new OutputBuffer(Options.MaxOutputChars);
-        var host = new SandboxHost(context.TimeProvider, Options, module, output);
-        host.OnMemoryExceeded = linked.Cancel;
-        var env = new HostEnv(context, declared, Options, output, linked.Token);
+        var host = new SandboxHost(context.TimeProvider, Options, module, output, scope);
+        scope.RunToken = linked.Token;
+        scope.CancelRun = linked.Cancel;
+        var env = new HostEnv(context, declared, Options, output, scope);
         ScriptEngine engine = CreateEngine(host, env, input, time, hasInput);
         JsRealm realm = engine.MainRealm;
 
@@ -321,12 +411,7 @@ public sealed class JsSandbox
         }
         catch (Exception e) when (e is JsException or JsLimitException or OperationCanceledException)
         {
-            if (host.MemoryExceeded && !cancellationToken.IsCancellationRequested)
-            {
-                throw new JsSandboxException(JsSandboxFailure.Memory, $"The script made the host allocate more than {Options.MaxHostAllocatedBytes} bytes.", fileName, 0, 0, e);
-            }
-
-            throw Translate(e, fileName, cancellationToken);
+            throw MapFailure(e, scope, fileName, cancellationToken);
         }
         catch (InvalidOperationException e) when (e.Message.StartsWith("Internal engine error", StringComparison.Ordinal))
         {
@@ -334,6 +419,23 @@ public sealed class JsSandbox
             JsSandboxFailure kind = e.InnerException is OutOfMemoryException ? JsSandboxFailure.Memory : JsSandboxFailure.Script;
             throw new JsSandboxException(kind, $"{fileName}: the engine stopped the script ({e.InnerException?.GetType().Name ?? "internal error"}).", fileName, 0, 0, e);
         }
+    }
+
+    // A failure the host caused (memory growth, the limiter's budget) is reported as such; anything else is the engine's.
+    private JsSandboxException MapFailure(Exception e, RunScope scope, string fileName, CancellationToken caller)
+    {
+        if (!caller.IsCancellationRequested)
+        {
+            switch (scope.Tripped)
+            {
+                case TripReason.Memory:
+                    return new JsSandboxException(JsSandboxFailure.Memory, $"{fileName}: The script made the host hold more than {Options.MaxHostAllocatedBytes} bytes of memory.", fileName, 0, 0, e);
+                case TripReason.Budget:
+                    return new JsSandboxException(JsSandboxFailure.Busy, $"{fileName}: The scripts running together hold more memory than the host allows; this one was stopped.", fileName, 0, 0, e);
+            }
+        }
+
+        return Translate(e, fileName, caller);
     }
 
     private JsSandboxException Translate(Exception e, string fileName, CancellationToken caller)

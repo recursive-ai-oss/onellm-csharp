@@ -19,15 +19,19 @@ internal sealed class HostEnv
     private readonly ToolCapability _declared;
     private readonly JsSandboxOptions _options;
     private readonly OutputBuffer _output;
-    private readonly CancellationToken _token;
+    private readonly RunScope _scope;
 
-    public HostEnv(ToolContext context, ToolCapability declared, JsSandboxOptions options, OutputBuffer output, CancellationToken token)
+    // How long opening a file may take. A pipe or other special file blocks in open until something connects, so an open that takes longer than
+    // this is refused instead of holding a thread for good.
+    private static readonly TimeSpan OpenTimeout = TimeSpan.FromSeconds(2);
+
+    public HostEnv(ToolContext context, ToolCapability declared, JsSandboxOptions options, OutputBuffer output, RunScope scope)
     {
         _context = context;
         _declared = declared;
         _options = options;
         _output = output;
-        _token = token;
+        _scope = scope;
     }
 
     /// <summary>Installs <c>ctx</c> and <c>console</c> as globals and, when given, <c>input</c>. Runs again, on a fresh engine, when the engine replays a failed run to explain it.</summary>
@@ -43,7 +47,18 @@ internal sealed class HostEnv
 
         Define(realm, ctx, "log", 1, (_, args) =>
         {
-            _context.Log(Format(realm, stringify, args));
+            using RunOp op = Enter(realm);
+            string line = Format(realm, stringify, args);
+            switch (_scope.CountLog(line.Length))
+            {
+                case 0:
+                    _context.Log(line);
+                    break;
+                case 1:
+                    _context.Log("[ctx.log: the output limit for this run was reached; later lines are dropped]");
+                    break;
+            }
+
             return JsValue.Undefined;
         });
 
@@ -51,7 +66,8 @@ internal sealed class HostEnv
         {
             string path = Str(realm, args, 0, "readFile", "path");
             Require(ToolCapability.FileRead, "readFile", "fileRead");
-            return JsValue.FromString(ReadText(_context.Capabilities, path, _options.MaxFileBytes));
+            using RunOp op = Enter(realm);
+            return JsValue.FromString(ReadText(realm, path));
         });
 
         Define(realm, ctx, "writeFile", 2, (_, args) =>
@@ -59,7 +75,8 @@ internal sealed class HostEnv
             string path = Str(realm, args, 0, "writeFile", "path");
             string text = Str(realm, args, 1, "writeFile", "text");
             Require(ToolCapability.FileWrite, "writeFile", "fileWrite");
-            WriteText(_context.Capabilities, path, text, _options.MaxFileBytes);
+            using RunOp op = Enter(realm);
+            WriteText(realm, path, text);
             return JsValue.Undefined;
         });
 
@@ -70,6 +87,7 @@ internal sealed class HostEnv
                 throw TypeError(realm, "ctx.addCost: expected an object like { counter, quantity, unitPrice }");
             }
 
+            using RunOp op = Enter(realm);
             _context.AddCost(ReadCost(realm, args[0].AsObject!));
             return JsValue.Undefined;
         });
@@ -110,6 +128,12 @@ internal sealed class HostEnv
             }
 
             Require(ToolCapability.Network, "fetch", "network");
+            using RunOp op = Enter(realm);
+            if (_scope.CountFetch() is { } over)
+            {
+                throw RangeError(realm, "ctx.fetch: " + over);
+            }
+
             // The continuation after this await resumes on the engine's thread (OneEcma routes it), so no ConfigureAwait here.
             return JsMarshal.FromTask(realm, "ctx.fetch", () => FetchAsync(url, method, headers, body), (r, res) => FetchResultToJs(r, res));
         });
@@ -136,6 +160,13 @@ internal sealed class HostEnv
 
     private static void Define(JsRealm realm, JsObject target, string name, int length, HostFunction fn) =>
         realm.DefineData(target, name, JsValue.FromObject(realm.NewFunction(name, length, fn)), JsAttributes.Method);
+
+    private static JsException RangeError(JsRealm realm, string message) => new(realm.NewError("RangeError", message));
+
+    // Every host function that acts starts here. A closed run (finished, cancelled, timed out or abandoned) gets nothing, and Close waits for the
+    // functions that did start, so nothing acts for a run after its result has been handed back.
+    private RunOp Enter(JsRealm realm) =>
+        _scope.TryEnter() ? new RunOp(_scope) : throw new JsException(realm.NewError("Error", "the run has ended"));
 
     private static JsException TypeError(JsRealm realm, string message) => new(realm.NewError("TypeError", message));
 
@@ -189,15 +220,23 @@ internal sealed class HostEnv
         return sb.ToString();
     }
 
-    private static string ReadText(ICapabilities caps, string path, int max)
+    private string ReadText(JsRealm realm, string path)
     {
-        using FileStream stream = GuardedFile.OpenRead(caps, path);
-        if (stream.Length > max)
+        ICapabilities caps = _context.Capabilities;
+        using FileStream stream = OpenRegular(caps, path, write: false);
+        long length = stream.Length;
+        if (length > _options.MaxFileBytes)
         {
-            throw new IOException($"'{path}' is {stream.Length} bytes; ctx.readFile reads at most {max}.");
+            throw new IOException($"'{path}' is {length} bytes; ctx.readFile reads at most {_options.MaxFileBytes}.");
         }
 
-        byte[] bytes = new byte[(int)stream.Length];
+        // A string holds two bytes a character; the file's bytes are an upper bound on its characters.
+        if (_scope.ChargeHost(length * 2) is { } over)
+        {
+            throw RangeError(realm, "ctx.readFile: " + over);
+        }
+
+        byte[] bytes = new byte[(int)length];
         stream.ReadExactly(bytes);
         try
         {
@@ -209,16 +248,91 @@ internal sealed class HostEnv
         }
     }
 
-    private static void WriteText(ICapabilities caps, string path, string text, int max)
+    private void WriteText(JsRealm realm, string path, string text)
     {
         byte[] bytes = new UTF8Encoding(false).GetBytes(text);
-        if (bytes.Length > max)
+        if (bytes.Length > _options.MaxFileBytes)
         {
-            throw new IOException($"ctx.writeFile writes at most {max} bytes; the text is {bytes.Length}.");
+            throw new IOException($"ctx.writeFile writes at most {_options.MaxFileBytes} bytes; the text is {bytes.Length}.");
         }
 
-        using FileStream stream = GuardedFile.OpenWrite(caps, path, append: false);
+        if (_scope.CountWrite(bytes.Length) is { } over)
+        {
+            throw RangeError(realm, "ctx.writeFile: " + over);
+        }
+
+        ICapabilities caps = _context.Capabilities;
+        using FileStream stream = OpenRegular(caps, path, write: true);
         stream.Write(bytes);
+    }
+
+    // Opens a file for the script. Only regular files are allowed: a FIFO or similar blocks in open until a peer appears, which would hold the
+    // thread for good, so the open runs on a helper thread under a time limit. When it does not return in time the path is refused and the blocked
+    // open is released by opening the other end (a reader's open pairs with a writer's), so no thread is left behind. A special file that does
+    // open (a pipe with a peer, a device) is refused because it cannot seek.
+    private FileStream OpenRegular(ICapabilities caps, string path, bool write)
+    {
+        Task<FileStream> open = Task.Factory.StartNew(
+            () => write ? GuardedFile.OpenWrite(caps, path, append: false) : GuardedFile.OpenRead(caps, path),
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+        bool done;
+        try
+        {
+            done = open.Wait(OpenTimeout, _scope.RunToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // The run ended (time limit, cancel) while the open was blocked.
+            done = false;
+        }
+        catch (AggregateException e) when (e.InnerExceptions.Count == 1)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(e.InnerExceptions[0]).Throw();
+            throw;
+        }
+
+        if (!done)
+        {
+            string real = write ? caps.ResolveWrite(path) : caps.ResolveRead(path);
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    using var peer = new FileStream(real, FileMode.Open, write ? FileAccess.Read : FileAccess.Write, FileShare.ReadWrite);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    // Nothing to release after all.
+                }
+            });
+            _ = open.ContinueWith(
+                static t =>
+                {
+                    if (t.IsCompletedSuccessfully)
+                    {
+                        t.Result.Dispose();
+                    }
+                    else
+                    {
+                        _ = t.Exception;
+                    }
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+            throw new IOException($"'{path}' did not open in time. It may be a pipe or another special file; only regular files can be read or written.");
+        }
+
+        FileStream stream = open.Result;
+        if (!stream.CanSeek)
+        {
+            stream.Dispose();
+            throw new IOException($"'{path}' is not a regular file; only regular files can be read or written.");
+        }
+
+        return stream;
     }
 
     private async Task<FetchResult> FetchAsync(string url, string method, List<KeyValuePair<string, string>> headers, string? body)
@@ -228,8 +342,8 @@ internal sealed class HostEnv
             throw new ArgumentException($"'{url}' is not an absolute URL.");
         }
 
-        using HttpResponseMessage response = await EgressClient.SendAsync(_context.Capabilities, new HttpMethod(method), uri, headers, body, _token);
-        (byte[] bytes, bool truncated) = await EgressClient.ReadBodyAsync(response, _options.MaxFetchBytes, _token);
+        using HttpResponseMessage response = await EgressClient.SendAsync(_context.Capabilities, new HttpMethod(method), uri, headers, body, _scope.RunToken);
+        (byte[] bytes, bool truncated) = await EgressClient.ReadBodyAsync(response, _options.MaxFetchBytes, _scope.RunToken);
         var map = new List<KeyValuePair<string, string>>();
         foreach (var h in response.Headers)
         {
@@ -241,7 +355,13 @@ internal sealed class HostEnv
             map.Add(new(h.Key.ToLowerInvariant(), string.Join(", ", h.Value)));
         }
 
-        return new FetchResult((int)response.StatusCode, response.IsSuccessStatusCode, map, new UTF8Encoding(false, false).GetString(bytes), truncated);
+        string text = new UTF8Encoding(false, false).GetString(bytes);
+        if (_scope.ChargeHost((long)text.Length * 2) is { } over)
+        {
+            throw new IOException("ctx.fetch: " + over);
+        }
+
+        return new FetchResult((int)response.StatusCode, response.IsSuccessStatusCode, map, text, truncated);
     }
 
     private static JsValue FetchResultToJs(JsRealm realm, FetchResult res)
@@ -307,4 +427,10 @@ internal sealed class HostEnv
     }
 
     private sealed record FetchResult(int Status, bool Ok, List<KeyValuePair<string, string>> Headers, string Text, bool Truncated);
+}
+
+/// <summary>Marks a host function as under way for its run; disposing it lets the run close.</summary>
+internal readonly struct RunOp(RunScope scope) : IDisposable
+{
+    public void Dispose() => scope.Exit();
 }

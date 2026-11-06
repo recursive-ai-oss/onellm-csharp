@@ -22,6 +22,9 @@ public enum JsSandboxFailure
 
     /// <summary>The script returned something that cannot become JSON, or too much of it.</summary>
     Result = 5,
+
+    /// <summary>The host refused or ended the run to protect itself: too many scripts were running (<see cref="JsRunLimiter"/>), or the scripts together held too much memory.</summary>
+    Busy = 6,
 }
 
 /// <summary>

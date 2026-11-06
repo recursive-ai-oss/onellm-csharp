@@ -12,7 +12,7 @@ var store = new EfInstanceStore(() => factory.CreateDbContext());
 var sink  = new EfRecordSink(() => factory.CreateDbContext());
 ```
 
-Instances are kept as their readable YAML beside header columns, so they can be queried; one runner holds an instance at a time through an expiring lease row. See [stores](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.0/docs/stores.md). Tested on SQLite; other providers use the same relational mapping.
+Instances are kept as their readable YAML beside header columns, so they can be queried; one runner holds an instance at a time through an expiring lease row. See [stores](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.1/docs/stores.md). Tested on SQLite; other providers use the same relational mapping.
 
 Requires `RecursiveAI.OneLlm` and Entity Framework Core. Source and issues: https://github.com/recursive-ai-oss/onellm-csharp
 

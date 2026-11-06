@@ -10,7 +10,7 @@ var runtime = new Runtime { Capabilities = Capabilities.Network("docs.example.co
 runtime.Tools.Add(new FetchWebpageMarkdownTool());
 ```
 
-The tool needs the network grant: the host chooses which hosts a model may reach, and a definition cannot grant it. Every redirect hop is checked against the grant before it is requested. See [capabilities](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.0/docs/capabilities.md).
+The tool needs the network grant: the host chooses which hosts a model may reach, and a definition cannot grant it. Every redirect hop is checked against the grant before it is requested. See [capabilities](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.1/docs/capabilities.md).
 
 Requires `RecursiveAI.OneLlm`. Source and issues: https://github.com/recursive-ai-oss/onellm-csharp
 

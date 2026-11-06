@@ -12,7 +12,7 @@ onellm instances list
 onellm cost --since 7d
 ```
 
-Files under the working directory are always available to the agent. Shell and network access are granted only by flags (`--allow-shell[=programs]`, `--allow-net[=hosts]`); a definition cannot grant them, and one that references a tool you did not grant does not load. Keys are read from the environment only. Exit codes and every option are in the [command-line guide](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.0/docs/cli.md).
+Files under the working directory are always available to the agent. Shell and network access are granted only by flags (`--allow-shell[=programs]`, `--allow-net[=hosts]`); a definition cannot grant them, and one that references a tool you did not grant does not load. Keys are read from the environment only. Exit codes and every option are in the [command-line guide](https://github.com/recursive-ai-oss/onellm-csharp/blob/v1.0.1/docs/cli.md).
 
 It hosts the core package, `RecursiveAI.OneLlm.Web` and `RecursiveAI.OneLlm.JavaScript`. Source and issues: https://github.com/recursive-ai-oss/onellm-csharp
 

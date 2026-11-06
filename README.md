@@ -6,9 +6,7 @@ NuGet: `RecursiveAI.OneLlm` (namespace `OneLlm`). Requires .NET 10.
 
 > OneLLM is unaffiliated with the `onellm` package on PyPI and with the OneLLM research model.
 
-> **Known issues in 1.0.0, fixed in 1.0.1:**
-> - Hooks registered on `Runtime.Hooks` (including `OnCost`, `BeforeInference` and `AfterInference`) run only in agent runs. They do not fire for `Llm.AskAsync`, streaming, chat or scripted runs.
-> - `Runtime.SpendCap` is read the first time the runtime makes a call; changing it afterwards has no effect. Set it before the first call. `InstanceSpendCap` and `MaxCostPerCall` are not affected.
+> **Upgrade from 1.0.0 to 1.0.1:** in 1.0.0, hooks on `Runtime.Hooks` ran only in agent runs (not for `Llm.AskAsync`, streaming, chat or scripted runs), and `Runtime.SpendCap` was read once, at the first call. Both are fixed in 1.0.1; see the [changelog](CHANGELOG.md).
 
 ## What it is
 

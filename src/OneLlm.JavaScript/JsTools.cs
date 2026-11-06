@@ -55,7 +55,7 @@ public static class JsTools
         }
         catch (JsSandboxException e)
         {
-            throw new BadDefinitionException(e.Message, file, e.Line, e.Column, e);
+            throw new BadDefinitionException(JsSandboxException.WithoutFilePrefix(e.Message, file), file, e.Line, e.Column, e);
         }
 
         string yamlPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path)) ?? ".", Path.GetFileNameWithoutExtension(path) + ".tool.yaml");

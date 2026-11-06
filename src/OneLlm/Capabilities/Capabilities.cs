@@ -126,11 +126,11 @@ public sealed class Capabilities : ICapabilities
     {
         ArgumentNullException.ThrowIfNull(directory);
         string real = ResolveRead(Path.IsPathFullyQualified(directory) ? directory : Path.Join(WorkingDirectory, directory));
-        return new(_readRoots, _writeRoots, real, ShellAccess, _hosts, AnyPublicNetwork, _protected, AllowRepoControlWrites);
+        return new(_readRoots, _writeRoots, real, ShellAccess, _hosts, AnyPublicNetwork, _protected, AllowRepoControlWrites) { GitCeiling = GitCeiling };
     }
 
     /// <summary>The same grants with another shell policy. Used to rebuild saved grants.</summary>
-    internal Capabilities WithShell(ShellPolicy shell) => new(_readRoots, _writeRoots, WorkingDirectory, shell, _hosts, AnyPublicNetwork);
+    internal Capabilities WithShell(ShellPolicy shell) => new(_readRoots, _writeRoots, WorkingDirectory, shell, _hosts, AnyPublicNetwork, _protected, AllowRepoControlWrites) { GitCeiling = GitCeiling };
 
     /// <summary>Adds one set of grants to another: roots and hosts are unioned and the more permissive shell policy that one policy can express wins.</summary>
     /// <param name="left">The first grants.</param>
@@ -157,7 +157,7 @@ public sealed class Capabilities : ICapabilities
             [.. _hosts.Union(other._hosts)],
             AnyPublicNetwork || other.AnyPublicNetwork,
             [.. _protected.Union(other._protected, StringComparer.Ordinal)],
-            AllowRepoControlWrites || other.AllowRepoControlWrites);
+            AllowRepoControlWrites || other.AllowRepoControlWrites) { GitCeiling = GitCeiling || other.GitCeiling };
     }
 
     /// <summary>
@@ -192,7 +192,7 @@ public sealed class Capabilities : ICapabilities
         string? wd = new[] { WorkingDirectory, other.WorkingDirectory }.FirstOrDefault(d => d is not null && read.Any(r => PathGuard.IsUnder(d, r))) ?? read.FirstOrDefault();
         return new(read, write, wd, ShellAccess.Intersect(other.ShellAccess), hosts, anyPublic,
             [.. _protected.Union(other._protected, StringComparer.Ordinal)],
-            AllowRepoControlWrites && other.AllowRepoControlWrites);
+            AllowRepoControlWrites && other.AllowRepoControlWrites) { GitCeiling = GitCeiling || other.GitCeiling };
     }
 
     /// <inheritdoc />
@@ -264,7 +264,7 @@ public sealed class Capabilities : ICapabilities
     public string ResolveWrite(string path)
     {
         string real = PathGuard.Resolve(_writeRoots, WorkingDirectory, path, write: true);
-        PathGuard.CheckWriteProtection(_writeRoots, real, _protected, AllowRepoControlWrites, path, gitListed: PathGuard.GitListed(ShellAccess));
+        PathGuard.CheckWriteProtection(_writeRoots, real, _protected, AllowRepoControlWrites, path, gitListed: GitCeiling || PathGuard.GitListed(ShellAccess));
         return real;
     }
 
@@ -273,6 +273,17 @@ public sealed class Capabilities : ICapabilities
 
     /// <inheritdoc />
     public bool AllowRepoControlWrites { get; }
+
+    /// <inheritdoc />
+    public bool GitCeiling { get; private init; }
+
+    /// <summary>
+    /// The same grants, marked as belonging to a runtime whose shell allow-list names git. The mark is carried through <c>+</c> and
+    /// <see cref="Intersect"/> (either side having it is enough), so a writer that has no git of its own, or a child whose intersection
+    /// dropped git, still cannot plant the config or hook files a git-listed agent would later run.
+    /// </summary>
+    /// <returns>The marked grants.</returns>
+    public Capabilities WithGitCeiling() => GitCeiling ? this : new(_readRoots, _writeRoots, WorkingDirectory, ShellAccess, _hosts, AnyPublicNetwork, _protected, AllowRepoControlWrites) { GitCeiling = true };
 
     /// <summary>
     /// The same grants, with more directories the file tools may neither read nor write even though a root contains them. Use it for
@@ -286,7 +297,7 @@ public sealed class Capabilities : ICapabilities
     {
         ArgumentNullException.ThrowIfNull(directories);
         string[] all = [.. _protected.Union(directories.Select(Full), StringComparer.Ordinal)];
-        return all.Length == _protected.Length ? this : new(_readRoots, _writeRoots, WorkingDirectory, ShellAccess, _hosts, AnyPublicNetwork, all, AllowRepoControlWrites);
+        return all.Length == _protected.Length ? this : new(_readRoots, _writeRoots, WorkingDirectory, ShellAccess, _hosts, AnyPublicNetwork, all, AllowRepoControlWrites) { GitCeiling = GitCeiling };
     }
 
     /// <summary>
@@ -296,7 +307,7 @@ public sealed class Capabilities : ICapabilities
     /// </summary>
     /// <returns>The new grants.</returns>
     public Capabilities WithRepoControlWrites() =>
-        AllowRepoControlWrites ? this : new(_readRoots, _writeRoots, WorkingDirectory, ShellAccess, _hosts, AnyPublicNetwork, _protected, true);
+        AllowRepoControlWrites ? this : new(_readRoots, _writeRoots, WorkingDirectory, ShellAccess, _hosts, AnyPublicNetwork, _protected, true) { GitCeiling = GitCeiling };
 
     /// <summary>A short description of the grants for logs and error messages. It names no secrets.</summary>
     /// <returns>For example <c>files(rw: /work) shell(off) network(off)</c>.</returns>

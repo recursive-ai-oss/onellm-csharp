@@ -581,4 +581,62 @@ public class ToolBoundaryTests
         Assert.Equal(OperatingSystem.IsLinux() ? false : true, PathGuard.NameEquals(".fslc\u212Aout", ".fslckout"));
         Assert.Equal(OperatingSystem.IsLinux() ? false : true, PathGuard.NameEquals(".g\u0131t", ".git"));
     }
+
+    // ---- the git role rule cannot be sidestepped by naming, by who writes, or by .gitconfig
+
+    [Fact]
+    public async Task A_symlink_to_git_and_the_git_helpers_arm_the_rule()
+    {
+        UnixOnly();
+        string? git = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(':').Select(d => Path.Combine(d, "git")).FirstOrDefault(File.Exists);
+        Assert.SkipUnless(git is not null, "git is not installed.");
+        using var s = new Scratch();
+        string link = s.In("bin/mygit");
+        Directory.CreateDirectory(s.In("bin"));
+        File.CreateSymbolicLink(link, git!);
+        foreach (string entry in new[] { link + " status", "git-upload-pack", "/usr/lib/git-core/git-receive-pack", "Git" })
+        {
+            Capabilities caps = Capabilities.Files(s.Root) + Capabilities.ShellCommands(entry);
+            Assert.True((await Kit.Run("write_file", WriteArgs("gd/config"), caps)).IsError, entry);
+        }
+
+        // Not git: still writable.
+        Assert.False((await Kit.Run("write_file", WriteArgs("gd/config"), Capabilities.Files(s.Root) + Capabilities.ShellCommands("ls"))).IsError);
+    }
+
+    [Fact]
+    public async Task A_writer_without_git_of_its_own_still_follows_the_runtimes_git_ceiling()
+    {
+        using var s = new Scratch();
+        Capabilities runtime = (Capabilities.Files(s.Root) + Capabilities.ShellCommands("git status")).WithGitCeiling();
+        // A child that asks for files only, and one that asks for ls: the intersections drop git from their own lists.
+        foreach (Capabilities asked in new[] { Capabilities.Files(s.Root), Capabilities.Files(s.Root) + Capabilities.ShellCommands("ls") })
+        {
+            ICapabilities child = CapabilityIntersection.Of(asked, runtime);
+            Assert.False(PathGuard.GitListed(child.ShellAccess));
+            Assert.True((await Kit.Run("write_file", WriteArgs("gd/config"), child)).IsError);
+            Assert.True((await Kit.Run("write_file", WriteArgs("gd/hooks/pre-commit"), runtime.Intersect(Capabilities.Files(s.Root)))).IsError);
+        }
+
+        // A runtime assigns the mark itself when its own list names git.
+        var rt = new Runtime { Capabilities = Capabilities.Files(s.Root) + Capabilities.ShellCommands("git status") };
+        ICapabilities viaRuntime = CapabilityIntersection.Of(Capabilities.Files(s.Root), rt.Capabilities);
+        Assert.True((await Kit.Run("write_file", WriteArgs("gd/config"), viaRuntime)).IsError);
+        // And a runtime without git leaves such files writable.
+        var plain = new Runtime { Capabilities = Capabilities.Files(s.Root) };
+        Assert.False((await Kit.Run("write_file", WriteArgs("app/config"), plain.Capabilities)).IsError);
+    }
+
+    [Fact]
+    public async Task A_planted_gitconfig_is_refused_when_git_is_listed()
+    {
+        using var s = new Scratch();
+        Capabilities git = Capabilities.Files(s.Root) + Capabilities.ShellCommands("git status");
+        foreach (string path in new[] { ".gitconfig", "home/.gitconfig", ".config/git/config" })
+        {
+            Assert.True((await Kit.Run("write_file", WriteArgs(path), git)).IsError, path);
+        }
+
+        Assert.False((await Kit.Run("write_file", WriteArgs(".gitconfig"), Capabilities.Files(s.Root))).IsError);
+    }
 }

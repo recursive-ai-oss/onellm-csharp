@@ -150,16 +150,66 @@ internal static class PathGuard
         }
     }
 
-    private static readonly string[] s_gitRoleFiles = ["config", "config.worktree", "commondir", "gitdir"];
+    private static readonly string[] s_gitRoleFiles = ["config", "config.worktree", "commondir", "gitdir", ".gitconfig"];
 
-    /// <summary>Whether the shell policy lists git, so that its configuration and hook files are executable content.</summary>
+    /// <summary>
+    /// Whether the shell policy lists git, so that its configuration and hook files are executable content. An entry counts when its program
+    /// is git or a git-* helper by name, or when the program it resolves to is: the entry is looked up on the host's PATH and its links are
+    /// followed to the final target, so a symlink called mygit that points at git is git.
+    /// </summary>
     internal static bool GitListed(ShellPolicy policy) =>
-        policy.Enabled && policy.Commands is { } cmds && cmds.Any(c =>
+        policy.Enabled && policy.Commands is { } cmds && cmds.Any(static c => IsGitProgram(c.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? ""));
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> s_gitPrograms = new(StringComparer.Ordinal);
+
+    private static bool IsGitProgram(string program) => program.Length > 0 && s_gitPrograms.GetOrAdd(program, static p =>
+    {
+        if (GitName(p))
         {
-            string first = c.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-            string stem = Path.GetFileNameWithoutExtension(first.Replace('\\', '/').Split('/')[^1]);
-            return stem.Equals("git", StringComparison.OrdinalIgnoreCase);
-        });
+            return true;
+        }
+
+        try
+        {
+            string? file = null;
+            if (p.AsSpan().IndexOfAny('/', '\\') >= 0)
+            {
+                file = p;
+            }
+            else
+            {
+                foreach (string dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string candidate = Path.Join(dir, p);
+                    if (Path.IsPathFullyQualified(dir) && File.Exists(candidate))
+                    {
+                        file = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (file is null)
+            {
+                return false;
+            }
+
+            FileSystemInfo? target = new FileInfo(file).ResolveLinkTarget(returnFinalTarget: true);
+            return target is not null && GitName(target.Name);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            // An entry that cannot be looked up is judged by its name alone.
+            return false;
+        }
+    });
+
+    // git, git.exe and the git-* programs (git-upload-pack, git-receive-pack, ...), by file name.
+    private static bool GitName(string program)
+    {
+        string stem = Path.GetFileNameWithoutExtension(program.Replace('\\', '/').Split('/')[^1]);
+        return stem.Equals("git", StringComparison.OrdinalIgnoreCase) || stem.StartsWith("git-", StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Whether two names are the same file name for protection purposes: always case-insensitive (a false match only over-refuses). On Windows and macOS, where U+017F (long s) and U+212A (Kelvin sign) are

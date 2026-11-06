@@ -81,7 +81,9 @@ public sealed class JsSandbox
         // giving up on it when it does not stop), so a file with an infinite loop cannot hang the loader.
         TimeSpan time = Options.TimeLimit;
         var scope = new RunScope(Options, null);
-        Task<(JsonNode?, HashSet<string>)> work = Task.Run(() => InspectCore(source, fileName, dataExport, functions, time, scope));
+        // A script spins on the thread that runs it, so it gets a thread of its own: on the thread pool, a handful of busy scripts would hold every pool
+        // thread (the pool adds one every half second or so) and starve the host's other work, including the hooks and deciders the limiter keeps slots for.
+        Task<(JsonNode?, HashSet<string>)> work = Task.Factory.StartNew(() => InspectCore(source, fileName, dataExport, functions, time, scope), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         bool done;
         try
         {
@@ -261,7 +263,8 @@ public sealed class JsSandbox
         Task<JsRunResult> core;
         try
         {
-            core = Task.Run(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, scope, cancellationToken), CancellationToken.None);
+            // Dedicated thread for the synchronous part (everything until the script first waits), for the reason given at Inspect.
+            core = Task.Factory.StartNew(() => RunCoreAsync(module, fileName, input, hasInput, context, declared, limit, body, undefinedAsNull, scope, cancellationToken), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
         }
         catch
         {

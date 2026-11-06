@@ -7,6 +7,8 @@ using OneLlm.Tools.Builtins;
 namespace OneLlm.JavaScript.Tests;
 
 /// <summary>One caller cannot hold every slot, and hooks and deciders keep slots of their own.</summary>
+// Spinning scripts load the CPU, so these run alone, as the memory tests do.
+[Collection("MemoryBombs")]
 public class FairnessTests
 {
     private static ToolContext As(string instance) => new(instance, "call", TimeProvider.System);

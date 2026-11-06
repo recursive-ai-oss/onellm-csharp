@@ -144,7 +144,16 @@ public class InstanceTests : IDisposable
         string before = File.ReadAllText(store.PathOf("inst1"));
 
         i.Messages.Add(Message.FromAssistant("a new turn", "m9"));
-        AtomicFile.FaultAfterPartialWrite = _ => throw new IOException("killed");
+        // The hook is a process-wide static and tests run in parallel, so it fires only for files in this test's own directory;
+        // otherwise any other test saving an instance in the same instant would fail with "killed".
+        string ownDir = Path.GetFullPath(_dir);
+        AtomicFile.FaultAfterPartialWrite = fs =>
+        {
+            if (Path.GetFullPath(fs.Name).StartsWith(ownDir, StringComparison.Ordinal))
+            {
+                throw new IOException("killed");
+            }
+        };
         await Assert.ThrowsAsync<IOException>(async () => await store.SaveAsync(i));
         AtomicFile.FaultAfterPartialWrite = null;
 

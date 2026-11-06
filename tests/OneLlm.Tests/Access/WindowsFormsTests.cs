@@ -652,13 +652,13 @@ public class WindowsFormsTests
         WindowsOnly();
         using var s = new Scratch();
         s.Write("t.ps1", "param($a) Write-Output \"got $a\"");
-        Capabilities pinned = Capabilities.Files(s.Root) + Capabilities.ShellCommands("powershell -NoProfile -File t.ps1");
+        Capabilities pinned = Capabilities.Files(s.Root) + Capabilities.ShellCommands("powershell -NoProfile -NonInteractive -File t.ps1");
         foreach (string arg in new[] { ";calc", "$env:X", "a`b", "{ }" })
         {
-            Assert.True((await Kit.Run("execute_terminal_command", Exec("powershell", ["-NoProfile", "-File", "t.ps1", arg]), pinned)).IsError, arg);
+            Assert.True((await Kit.Run("execute_terminal_command", Exec("powershell", ["-NoProfile", "-NonInteractive", "-File", "t.ps1", arg]), pinned)).IsError, arg);
         }
 
-        ToolResult ok = await Kit.Run("execute_terminal_command", Exec("powershell", ["-NoProfile", "-File", "t.ps1", "hello world"]), pinned);
+        ToolResult ok = await Kit.Run("execute_terminal_command", Exec("powershell", ["-NoProfile", "-NonInteractive", "-File", "t.ps1", "hello world"], timeout: 150), pinned);
         Assert.False(ok.IsError, Kit.Text(ok));
         Assert.Contains("got hello world", Kit.Text(ok), StringComparison.Ordinal);
 

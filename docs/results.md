@@ -95,7 +95,7 @@ The reference corpus of definitions and instances is a private collection kept o
 |---|---|
 | Loop scenarios (termination, parallel calls in call order, approvals across a restart, steering, sub-agents, monitors, compaction pairing, cache-prefix stability), on the scripted provider and a fake clock | 93 agent tests, all passed |
 | Capability-model review | 28 findings (CAP-1 to CAP-28), all closed; documented residue: detached children after a timeout with an open shell, hard links, an allow-list entry is not a sandbox, the cost of the git role rule |
-| Sandbox review | 16 findings (JS-1 to JS-16) closed; two availability findings (JS-17, JS-18) being fixed |
+| Sandbox review | 18 findings: 17 closed; one low (a burst of parallel hook-file loads across many definitions) bounded per owner and per definition, documented |
 | NativeAOT publish of the sample apps (core: `Ask`, `Ask<T>`, an agent with generated tools, a file store; JavaScript; OneLite; the Microsoft.Extensions.AI bridge) | 0 warnings; all four run; the same samples also build and run in CI on Windows x64, Linux x64, Linux arm64 and macOS arm64 |
 | Fuzz targets | Event-stream reader: 600 s, 47.4 million inputs, 0 findings. Template parser: 3.19 million inputs, 0 findings; the template differential above adds 12.86 million generated templates |
 

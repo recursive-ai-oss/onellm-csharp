@@ -20,6 +20,10 @@ internal sealed class HostEnv
     private readonly JsSandboxOptions _options;
     private readonly OutputBuffer _output;
     private readonly RunScope _scope;
+    private int _costLines;
+
+    // The longest counter, label, source or asOf text of one cost line.
+    private const int MaxCostText = 256;
 
     // How long opening a file may take. A pipe or other special file blocks in open until something connects, so an open that takes longer than
     // this is refused instead of holding a thread for good.
@@ -135,7 +139,7 @@ internal sealed class HostEnv
             }
 
             // The continuation after this await resumes on the engine's thread (OneEcma routes it), so no ConfigureAwait here.
-            return JsMarshal.FromTask(realm, "ctx.fetch", () => FetchAsync(url, method, headers, body), (r, res) => FetchResultToJs(r, res));
+            return JsMarshal.FromTask(realm, "ctx.fetch", () => FetchAsync(realm, url, method, headers, body), (r, res) => FetchResultToJs(r, res));
         });
 
         realm.DefineData(realm.Global, "ctx", JsValue.FromObject(ctx), JsAttributes.Method);
@@ -159,7 +163,39 @@ internal sealed class HostEnv
     }
 
     private static void Define(JsRealm realm, JsObject target, string name, int length, HostFunction fn) =>
-        realm.DefineData(target, name, JsValue.FromObject(realm.NewFunction(name, length, fn)), JsAttributes.Method);
+        realm.DefineData(target, name, JsValue.FromObject(realm.NewFunction(name, length, (thisValue, args) => Guarded(realm, name, thisValue, args, fn))), JsAttributes.Method);
+
+    /// <summary>
+    /// Runs a host function and turns any host failure into a plain script error with a short message: no host stack frames, no absolute paths, no
+    /// .NET type names. A script can catch the error and a model can read it, so neither may learn the layout of the machine. Errors the engine or
+    /// this class raise on purpose (script errors, limits, cancellation, our own messages) pass through.
+    /// </summary>
+    private static JsValue Guarded(JsRealm realm, string name, JsValue thisValue, ReadOnlySpan<JsValue> args, HostFunction fn)
+    {
+        try
+        {
+            return fn(thisValue, args);
+        }
+        catch (Exception e) when (e is not (JsException or JsLimitException or OperationCanceledException))
+        {
+            throw new JsException(realm.NewError("Error", PlainMessage(e, "ctx." + name)));
+        }
+    }
+
+    private static string PlainMessage(Exception e, string fn) => e switch
+    {
+        HostMessage or CapabilityMissingException => e.Message,
+        FileNotFoundException or DirectoryNotFoundException => fn + ": no such file",
+        UnauthorizedAccessException => fn + ": access denied",
+        System.Net.Http.HttpRequestException => fn + ": the request failed",
+        TaskCanceledException => fn + ": the request was cancelled or timed out",
+        ArgumentException or FormatException or OverflowException or UriFormatException => fn + ": an argument is not valid",
+        IOException => fn + ": the file could not be read or written",
+        _ => fn + ": the host could not do that",
+    };
+
+    // A message we wrote ourselves, safe to show a script: it names only what the script passed in.
+    private sealed class HostMessage(string message) : Exception(message);
 
     private static JsException RangeError(JsRealm realm, string message) => new(realm.NewError("RangeError", message));
 
@@ -227,7 +263,7 @@ internal sealed class HostEnv
         long length = stream.Length;
         if (length > _options.MaxFileBytes)
         {
-            throw new IOException($"'{path}' is {length} bytes; ctx.readFile reads at most {_options.MaxFileBytes}.");
+            throw new HostMessage($"'{path}' is {length} bytes; ctx.readFile reads at most {_options.MaxFileBytes}.");
         }
 
         // A string holds two bytes a character; the file's bytes are an upper bound on its characters.
@@ -244,7 +280,7 @@ internal sealed class HostEnv
         }
         catch (DecoderFallbackException)
         {
-            throw new IOException($"'{path}' is not UTF-8 text.");
+            throw new HostMessage($"'{path}' is not UTF-8 text.");
         }
     }
 
@@ -253,7 +289,7 @@ internal sealed class HostEnv
         byte[] bytes = new UTF8Encoding(false).GetBytes(text);
         if (bytes.Length > _options.MaxFileBytes)
         {
-            throw new IOException($"ctx.writeFile writes at most {_options.MaxFileBytes} bytes; the text is {bytes.Length}.");
+            throw new HostMessage($"ctx.writeFile writes at most {_options.MaxFileBytes} bytes; the text is {bytes.Length}.");
         }
 
         if (_scope.CountWrite(bytes.Length) is { } over)
@@ -322,24 +358,38 @@ internal sealed class HostEnv
                 CancellationToken.None,
                 TaskContinuationOptions.ExecuteSynchronously,
                 TaskScheduler.Default);
-            throw new IOException($"'{path}' did not open in time. It may be a pipe or another special file; only regular files can be read or written.");
+            throw new HostMessage($"'{path}' did not open in time. It may be a pipe or another special file; only regular files can be read or written.");
         }
 
         FileStream stream = open.Result;
         if (!stream.CanSeek)
         {
             stream.Dispose();
-            throw new IOException($"'{path}' is not a regular file; only regular files can be read or written.");
+            throw new HostMessage($"'{path}' is not a regular file; only regular files can be read or written.");
         }
 
         return stream;
     }
 
-    private async Task<FetchResult> FetchAsync(string url, string method, List<KeyValuePair<string, string>> headers, string? body)
+    private async Task<FetchResult> FetchAsync(JsRealm realm, string url, string method, List<KeyValuePair<string, string>> headers, string? body)
+    {
+        try
+        {
+            return await FetchCoreAsync(url, method, headers, body);
+        }
+        catch (Exception e) when (e is not (JsException or JsLimitException or OperationCanceledException))
+        {
+            // The engine would otherwise build the rejection from the host exception: its type name and host stack frames.
+            // This continuation runs on the engine's thread, so the error can be made here.
+            throw new JsException(realm.NewError("Error", PlainMessage(e, "ctx.fetch")));
+        }
+    }
+
+    private async Task<FetchResult> FetchCoreAsync(string url, string method, List<KeyValuePair<string, string>> headers, string? body)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri))
         {
-            throw new ArgumentException($"'{url}' is not an absolute URL.");
+            throw new HostMessage($"ctx.fetch: '{url}' is not an absolute URL.");
         }
 
         using HttpResponseMessage response = await EgressClient.SendAsync(_context.Capabilities, new HttpMethod(method), uri, headers, body, _scope.RunToken);
@@ -358,7 +408,7 @@ internal sealed class HostEnv
         string text = new UTF8Encoding(false, false).GetString(bytes);
         if (_scope.ChargeHost((long)text.Length * 2) is { } over)
         {
-            throw new IOException("ctx.fetch: " + over);
+            throw new HostMessage("ctx.fetch: " + over);
         }
 
         return new FetchResult((int)response.StatusCode, response.IsSuccessStatusCode, map, text, truncated);
@@ -382,8 +432,15 @@ internal sealed class HostEnv
     }
 
     // Money is decimal: numbers arrive as JavaScript doubles, so they are read through their shortest round-trip text; a string is exact.
-    private static CostLine ReadCost(JsRealm realm, JsObject o)
+    // A script chooses these numbers, so they are checked: nothing negative (a negative line would lower the call's, the instance's and its
+    // parents' totals), nothing that overflows a decimal, and bounded text and count.
+    private CostLine ReadCost(JsRealm realm, JsObject o)
     {
+        if (++_costLines > _options.MaxCostLines)
+        {
+            throw TypeError(realm, $"ctx.addCost: at most {_options.MaxCostLines} cost lines per call");
+        }
+
         string counter = RequiredText(realm, o, "counter");
         decimal quantity = Dec(realm, o, "quantity", 1m);
         decimal per = Dec(realm, o, "per", 1m);
@@ -394,20 +451,35 @@ internal sealed class HostEnv
             throw TypeError(realm, "ctx.addCost: 'per' must be positive");
         }
 
-        return CostLine.Create(counter, quantity, per, unit, mult, OptionalText(realm, o, "label"), OptionalText(realm, o, "source"), OptionalText(realm, o, "asOf"));
+        if (quantity < 0m || unit < 0m || mult < 0m)
+        {
+            throw TypeError(realm, "ctx.addCost: 'quantity', 'unitPrice' and 'multiplier' must not be negative");
+        }
+
+        try
+        {
+            return CostLine.Create(counter, quantity, per, unit, mult, OptionalText(realm, o, "label"), OptionalText(realm, o, "source"), OptionalText(realm, o, "asOf"));
+        }
+        catch (OverflowException)
+        {
+            throw TypeError(realm, "ctx.addCost: the amount is too large");
+        }
     }
 
     private static string RequiredText(JsRealm realm, JsObject o, string key)
     {
         JsValue v = realm.Get(o, key);
-        return v.IsString && v.AsString.Length > 0 ? v.AsString : throw TypeError(realm, $"ctx.addCost: '{key}' must be a non-empty string");
+        return v.IsString && v.AsString.Length > 0 ? Bounded(realm, key, v.AsString) : throw TypeError(realm, $"ctx.addCost: '{key}' must be a non-empty string");
     }
 
     private static string? OptionalText(JsRealm realm, JsObject o, string key)
     {
         JsValue v = realm.Get(o, key);
-        return v.IsString ? v.AsString : null;
+        return v.IsString ? Bounded(realm, key, v.AsString) : null;
     }
+
+    private static string Bounded(JsRealm realm, string key, string text) =>
+        text.Length <= MaxCostText ? text : throw TypeError(realm, $"ctx.addCost: '{key}' is longer than {MaxCostText} characters");
 
     private static decimal Dec(JsRealm realm, JsObject o, string key, decimal fallback)
     {

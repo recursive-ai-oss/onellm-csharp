@@ -137,7 +137,14 @@ public sealed class JsSandbox
 
             JsValue stringify = realm.Get(realm.Get(realm.Global, "JSON").AsObject!, "stringify");
             string? json = JsonBridge.Stringify(realm, stringify, value);
-            return (json is null ? null : JsonNode.Parse(json), found);
+            try
+            {
+                return (json is null ? null : JsonNode.Parse(json), found);
+            }
+            catch (JsonException)
+            {
+                throw new JsSandboxException(JsSandboxFailure.Result, $"{fileName}: the exported value is nested more than 64 levels deep.", fileName);
+            }
         }
         catch (Exception e) when (e is JsException or JsLimitException or OperationCanceledException)
         {
@@ -407,7 +414,18 @@ public sealed class JsSandbox
                 throw new JsSandboxException(JsSandboxFailure.Result, $"The result is {json.Length} characters of JSON; the limit is {Options.MaxResultChars}.", fileName);
             }
 
-            return new JsRunResult(JsonNode.Parse(json), true, output.ToString());
+            JsonNode? parsed;
+            try
+            {
+                parsed = JsonNode.Parse(json);
+            }
+            catch (JsonException)
+            {
+                // System.Text.Json refuses nesting past 64 levels.
+                throw new JsSandboxException(JsSandboxFailure.Result, $"{fileName}: the result is nested more than 64 levels deep.", fileName);
+            }
+
+            return new JsRunResult(parsed, true, output.ToString());
         }
         catch (Exception e) when (e is JsException or JsLimitException or OperationCanceledException)
         {
@@ -417,7 +435,7 @@ public sealed class JsSandbox
         {
             // The engine reports a host failure inside a run, such as running out of memory, this way.
             JsSandboxFailure kind = e.InnerException is OutOfMemoryException ? JsSandboxFailure.Memory : JsSandboxFailure.Script;
-            throw new JsSandboxException(kind, $"{fileName}: the engine stopped the script ({e.InnerException?.GetType().Name ?? "internal error"}).", fileName, 0, 0, e);
+            throw new JsSandboxException(kind, $"{fileName}: the engine stopped the script ({(e.InnerException is OutOfMemoryException ? "out of memory" : "internal error")}).", fileName, 0, 0, e);
         }
     }
 

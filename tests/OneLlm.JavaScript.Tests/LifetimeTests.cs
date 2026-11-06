@@ -107,17 +107,17 @@ public class RunLifetimeTests
     [Fact]
     public async Task A_run_cancelled_by_the_caller_stops_acting_too()
     {
-        using var dir = new Scratch();
-        var context = new ToolContext("inst", "call", TimeProvider.System) { Capabilities = Capabilities.Files(dir.Root) };
+        var log = new CollectingLog();
+        var context = new ToolContext("inst", "call", TimeProvider.System) { LogSink = log };
         using var cts = new CancellationTokenSource();
-        var options = new JsSandboxOptions { Fuel = 100_000_000_000, TimeLimit = TimeSpan.FromSeconds(30), MaxWritesPerRun = 1_000_000 };
-        Task<JsRunResult> run = new JsSandbox(options).RunSnippetAsync("for (let i = 0; ; i++) { ctx.addCost({counter:'t', quantity:1, unitPrice:'0.001'}); }", null, context, Js.All, "snippet.js", cts.Token);
+        var options = new JsSandboxOptions { Fuel = 100_000_000_000, TimeLimit = TimeSpan.FromSeconds(30), MaxLogChars = long.MaxValue };
+        Task<JsRunResult> run = new JsSandbox(options).RunSnippetAsync("for (let i = 0; ; i++) { ctx.log('t'); }", null, context, Js.All, "snippet.js", cts.Token);
         await Task.Delay(200);
         await cts.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await run);
-        int cost = context.CostLines.Count;
+        int lines = log.Lines.Count;
         await Task.Delay(500);
-        Assert.Equal(cost, context.CostLines.Count);
+        Assert.Equal(lines, log.Lines.Count);
     }
 
     [Fact]

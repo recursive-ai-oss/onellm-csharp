@@ -143,7 +143,8 @@ public class SandboxRefusalTests
         foreach (string attempt in new[] { secret, "../outside/secret.txt", dir.Root + "/../outside/secret.txt", "/etc/hostname" })
         {
             JsSandboxException e = await Assert.ThrowsAsync<JsSandboxException>(async () => await Js.Run($"return ctx.readFile({System.Text.Json.JsonSerializer.Serialize(attempt)});", caps));
-            Assert.Contains("CapabilityMissingException", e.Message, StringComparison.Ordinal);
+            Assert.Contains("not available", e.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("Exception", e.Message, StringComparison.Ordinal);
             Assert.DoesNotContain("hidden", e.Message, StringComparison.Ordinal);
         }
 

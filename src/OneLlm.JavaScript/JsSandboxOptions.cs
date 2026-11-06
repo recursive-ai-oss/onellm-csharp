@@ -28,6 +28,9 @@ public sealed class JsSandboxOptions
     /// </summary>
     public long MaxHostAllocatedBytes { get; init; } = 1024L * 1024 * 1024;
 
+    /// <summary>The most cost lines one run may add with <c>ctx.addCost</c>; the next call throws a <c>TypeError</c>. Default 100.</summary>
+    public int MaxCostLines { get; init; } = 100;
+
     /// <summary>How long one run may take, on the runtime's clock. A tool's own <c>timeout</c> shortens it. Default 10 seconds.</summary>
     public TimeSpan TimeLimit { get; init; } = TimeSpan.FromSeconds(10);
 

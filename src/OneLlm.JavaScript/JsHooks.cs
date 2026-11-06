@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using OneLlm.Access;
 using OneLlm.Definitions;
 using OneLlm.Hooks;
 using OneLlm.Messages;
@@ -42,6 +43,8 @@ public sealed class JsHookSource : IDefinitionHookSource
         ("onCost", HookPoints.OnCost),
     ];
 
+    private const int MaxHookFileBytes = 1024 * 1024;
+
     private readonly JsSandbox _sandbox;
     private readonly TimeProvider _time;
     private readonly string? _baseDirectory;
@@ -75,8 +78,15 @@ public sealed class JsHookSource : IDefinitionHookSource
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException)
         {
-            throw new BadDefinitionException("cannot read the hook file: " + e.Message, file, 0, 0, e);
+            // The reason stays in the inner exception; the message is for whoever wrote the definition, which may be a model.
+            throw new BadDefinitionException("cannot read the hook file.", file, 0, 0, e);
         }
+
+        return LoadSource(source, file, points, capabilities);
+    }
+
+    private JsHook LoadSource(string source, string file, HookPoints points, ICapabilities capabilities)
+    {
 
         JsonNode? meta;
         HashSet<string> exported;
@@ -122,7 +132,28 @@ public sealed class JsHookSource : IDefinitionHookSource
         foreach (HookReference reference in definition.Hooks)
         {
             string path = Path.GetFullPath(Path.Combine(baseDir, reference.File));
-            hooks.Add(LoadFile(path, ParsePoints(reference, path), capabilities));
+            // A definition names the file, and a definition can be written by a model, so the file is read through the run's read grants (roots,
+            // symlinks, protected names), not as the host. LoadFile stays the host's own entry point for files the host chose.
+            string file = Path.GetFileName(path);
+            string source;
+            try
+            {
+                using FileStream stream = GuardedFile.OpenRead(capabilities, path);
+                byte[] bytes = new byte[checked((int)Math.Min(stream.Length, MaxHookFileBytes + 1))];
+                stream.ReadExactly(bytes);
+                if (bytes.Length > MaxHookFileBytes)
+                {
+                    throw new BadDefinitionException("the hook file is too large.", file);
+                }
+
+                source = new UTF8Encoding(false, true).GetString(bytes);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or DecoderFallbackException)
+            {
+                throw new BadDefinitionException("cannot read the hook file.", file, 0, 0, e);
+            }
+
+            hooks.Add(LoadSource(source, file, ParsePoints(reference, path), capabilities));
         }
 
         return hooks;

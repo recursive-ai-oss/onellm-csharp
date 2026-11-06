@@ -20,7 +20,7 @@ Every call builds a fresh engine, so nothing a script leaves behind (globals, pr
 | `ctx.readFile(path)` | `fileRead` | Reads UTF-8 text (at most `MaxFileBytes`). |
 | `ctx.writeFile(path, text)` | `fileWrite` | Writes UTF-8 text, creating folders. |
 | `ctx.fetch(url, { method, headers, body })` | `network` | Resolves to `{ status, ok, headers, text, truncated }`. |
-| `ctx.addCost({ counter, quantity, unitPrice, per?, multiplier?, label?, source? })` | – | Adds a cost line to the call. Pass prices as strings for exact decimals; a number is read through its shortest text. |
+| `ctx.addCost({ counter, quantity, unitPrice, per?, multiplier?, label?, source? })` | – | Adds a cost line to the call. Pass prices as strings for exact decimals; a number is read through its shortest text. Quantity, unit price and multiplier must not be negative or non-finite, text fields are at most 256 characters, and one run adds at most `MaxCostLines` (100) lines; anything else throws a `TypeError`. |
 
 Each function checks twice: the tool must have **declared** the capability (`requires`), and the host must have **granted** it. File paths go through the same guard as the built-in file tools (symlinks resolved, re-checked after the open); `fetch` goes through the egress policy (hosts checked before sending, every redirect hop re-checked, loopback and private addresses refused unless granted). An undeclared capability fails with `'fileRead' in the tool's requires list`; an ungranted one fails with the usual "is not available" message. Nothing a definition says grants anything.
 
@@ -43,6 +43,7 @@ All are in `JsSandboxOptions`; a limit ends the run with a `JsSandboxException` 
 | `MaxLogChars` (`ctx.log`; one notice, then dropped) | 64,000 | – |
 | `Limiter` (see below) | shared: 8 runs, 2 GiB | `Busy` |
 | `MaxResultChars` (JSON returned) | 1 million | `Result` |
+| `MaxCostLines` (`ctx.addCost` calls per run) | 100 | script `TypeError` |
 | `MaxOutputChars` (console output; head and tail kept) | 10,240 | – |
 
 **Memory is a budget, not a ceiling.** The engine charges growth a script controls to `MaxAllocatedBytes` before allocating: array storage, typed arrays and buffers, joined and stringified text, property storage, closures, errors, promises, environments, collection entries, the symbol registry and queued jobs (a queue entry is given back when it runs). The array, buffer, string, `Map`, `Set`, `Symbol.for` and promise-queue bombs we test (40 patterns) all end in a `Memory` limit, a `RangeError`, or a `Fuel` limit from the engine alone. The budget counts bytes requested over the run, not bytes alive, so live memory can pass it: in our runs the largest peak was about twice the 256 MiB budget (object property storage and `Map`/`Set` growth), and OneEcma documents about 1.1x on x64 and under 2x on macOS arm64 for its own accounting. Size the process, not just the option, for that. The host backstop reads how much larger the .NET heap is than when the run started and ends the run when that growth passes `MaxHostAllocatedBytes` (default 1 GiB, about four budgets). It looks every time the thread has allocated a sixteenth of the limit, and only when the collector has run since the last look, so a loop that allocates gigabytes of short-lived objects and keeps none (a busy-wait on `Date.now()`, say) is not counted: churn is not memory. A growth over the limit is confirmed after a full collection before the run is ended. The heap is the whole process's, so scripts that overlap see each other's growth, and so does any other work the host does while they run; that errs on the side of stopping. It is taken between steps, so one very large single allocation can still happen before it is seen, and the engine does not charge some built-ins at all (OneEcma's part: the sort keys `localeCompare` builds on a long string take about 150 bytes a character inside one step, which neither budget sees; six parallel 15-million-character comparisons peaked near 12 GB in our probe, and only a smaller concurrency limit reduces that until the engine charges them). A script that holds memory without allocating more is not bounded by either.
@@ -109,7 +110,9 @@ Modules cannot import other files; a tool is one file. Shell commands are not av
 
 ## Hooks
 
-Set `Runtime.DefinitionHooks` to a `JsHookSource`. A definition's `hooks: [{ file, points? }]` entries (paths relative to the definition) load as hooks that run under the host's hooks (see `docs/agents.md` for ordering and failure rules). A hook file exports one function per point it handles: `beforeInference`, `afterInference`, `beforeToolCall`, `afterToolCall`, `beforeCompaction`, `onMessage`, `onStateChange`, `onCost`. Each gets a JSON snapshot and `ctx`.
+Set `Runtime.DefinitionHooks` to a `JsHookSource`. A definition's `hooks: [{ file, points? }]` entries (paths relative to the definition) are read **through the run's read grants** (the same roots, symlink resolution and protected names as `read_file`), so a definition cannot load a hook from outside the directories the host granted; a refused file is a `CapabilityMissingException` that names the path the definition gave and never shows any of the file. They load as hooks that run under the host's hooks (see `docs/agents.md` for ordering and failure rules). A hook file exports one function per point it handles: `beforeInference`, `afterInference`, `beforeToolCall`, `afterToolCall`, `beforeCompaction`, `onMessage`, `onStateChange`, `onCost`. Each gets a JSON snapshot and `ctx`.
+
+**Resuming without a hook source fails closed.** A saved instance whose definition lists hooks resumes only in a runtime that can run them. Without `Runtime.DefinitionHooks` it throws `CapabilityMissingException` naming the package, whether the instance is new or resumed. The one exception is a definition whose hooks all name observer points (`onMessage`, `onStateChange`, `onCost`) and a lenient load, which skips them with a warning. `JsHookSource.LoadFile`, `JsTools.Load` and `JsDeciderLogic.Load` take a path the host chose and read it as the host.
 
 An interceptor returns nothing (continue) or `{ action, reason?, … }`:
 
@@ -132,3 +135,7 @@ An interceptor returns nothing (continue) or `{ action, reason?, … }`:
 ## Trimming and NativeAOT
 
 The package is annotated trim- and AOT-compatible: OneEcma is, and nothing here uses reflection, `Reflection.Emit` or runtime code generation (JSON goes through the core package's source-generated metadata and OneYaml). `samples/JavaScriptAotSmoke` loads a tool file, runs it and `run_javascript`, and hits a limit; it publishes with zero warnings and runs.
+
+## What errors reveal
+
+A host function that fails (a missing file, a refused request, a bad argument) reaches the script as a plain `Error` with a short message such as `ctx.readFile: no such file`: no host stack frames, no absolute paths, no .NET exception type names. The model and the records see the same text. A result nested deeper than 64 levels is a `JsSandboxException` of kind `Result`. An instance whose recorded cost total is negative resumes with the total counted as zero.

@@ -2,7 +2,15 @@ name: ci
 
 on:
   push:
+    branches: ['ci-check/**']
   pull_request:
+  workflow_dispatch:
+    inputs:
+      os:
+        description: Runner to build and test on (all runs the full matrix)
+        type: choice
+        default: all
+        options: [all, windows-latest, ubuntu-latest, ubuntu-24.04-arm, macos-latest]
 
 permissions:
   contents: read
@@ -12,13 +20,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { os: windows-latest, rid: win-x64 }
-          - { os: ubuntu-latest, rid: linux-x64 }
-          - { os: ubuntu-24.04-arm, rid: linux-arm64 }
-          - { os: macos-latest, rid: osx-arm64 }
+        os: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.os != 'all') && format('["{0}"]', inputs.os) || '["windows-latest","ubuntu-latest","ubuntu-24.04-arm","macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Runtime identifier
+        shell: bash
+        run: |
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Windows-X64) rid=win-x64 ;;
+            Linux-X64) rid=linux-x64 ;;
+            Linux-ARM64) rid=linux-arm64 ;;
+            macOS-ARM64) rid=osx-arm64 ;;
+            *) echo "unexpected runner $RUNNER_OS-$RUNNER_ARCH"; exit 1 ;;
+          esac
+          echo "RID=$rid" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -37,13 +52,14 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends clang zlib1g-dev
       - name: Publish AOT smoke app (warnings are errors)
-        run: dotnet publish samples/AotSmoke -c Release -r ${{ matrix.rid }} -o ${{ runner.temp }}/smoke -warnaserror
+        run: dotnet publish samples/AotSmoke -c Release -r ${{ env.RID }} -o ${{ runner.temp }}/smoke -warnaserror
       - name: Run AOT smoke app
         shell: bash
         run: '"$RUNNER_TEMP/smoke/AotSmoke"'
 
   pack:
     # Builds the packages as an artifact only; nothing is pushed anywhere.
+    if: github.event_name != 'workflow_dispatch' || inputs.os == 'all'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

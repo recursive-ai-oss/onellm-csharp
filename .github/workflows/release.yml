@@ -49,8 +49,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Only a push run covers the full matrix; a single-runner manual run does not count.
           passed=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&per_page=100" \
-            --jq '[.workflow_runs[] | select(.conclusion == "success")] | length')
+            --jq '[.workflow_runs[] | select(.conclusion == "success" and .event == "push")] | length')
           if [ "$passed" -lt 1 ]; then
             echo "::error::no successful ci run for $GITHUB_SHA; wait for CI on this commit and push the tag again"
             exit 1

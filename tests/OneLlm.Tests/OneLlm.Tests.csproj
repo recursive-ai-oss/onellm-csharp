@@ -33,6 +33,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
     <ProjectReference Include="../OneLlm.Conformance/OneLlm.Conformance.csproj" />
+    <ProjectReference Include="../../tools/OneLlm.LiveSmoke/OneLlm.LiveSmoke.csproj" />
     <!-- The tool generator runs over the test sources, as it does for a package user. -->
     <ProjectReference Include="../../src/OneLlm.Generators/OneLlm.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

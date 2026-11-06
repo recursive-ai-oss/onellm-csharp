@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [1.0.0] - TBD
+
+The first public release. The date is set when it is published.
+
 ### Security
 
 - With `git` on the shell allow-list, git configuration and hook files (`config`, `config.worktree`, `commondir`, `gitdir`, `hooks/`, `info/`) are refused to the file tools in any directory; roots below a control directory are protected; extended-length (`\\?\`) roots work on Windows; `COM0`/`LPT0` are reserved names; names are folded for U+0131, U+017F and U+212A on Windows and macOS.
@@ -20,6 +24,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- JavaScript sandbox run lifetime and aggregate limits: a run that has ended (returned, cancelled, timed out or abandoned) can no longer write files, add cost, log or send requests, and its pending requests are cancelled; `JsRunLimiter` bounds concurrent runs and total bytes across runs and fails the excess with `JsSandboxFailure.Busy`; per-run quotas for file and response text, written bytes and files, log volume and requests; pipes and other special files are refused instead of hanging a thread; loading a tool, hook or decider file runs under the same time and memory guard as a run; the host memory backstop now measures live heap growth, not allocation churn.
 - Vertex AI Gemini `countTokens` and `embedContent` (Vertex's request bodies; one embedding per call); decider outputs are checked against a declared output schema (`DeciderOutputException`); `SpendLimitReachedException` for an Anthropic account spend limit; strip and adjust notices on `EmbeddingResponse.Warnings`.
 
 - Provider clients for Anthropic Messages, OpenAI (Responses; Chat Completions for compatible servers) and Gemini `generateContent`: chat, streaming, client and hosted tools, structured output, reasoning replay, caching, token counting, batch and embeddings; OpenAI-compatible presets (Ollama, vLLM, LM Studio, OpenRouter, Groq, DeepSeek, xAI, Mistral, Together); TypeSafe Jev. All verified on recorded fixtures.
@@ -37,5 +42,5 @@ All notable changes to this project are documented in this file. The format foll
 - `RecursiveAI.OneLlm.Web`: `fetch_webpage_markdown` on OneHtml.
 - `RecursiveAI.OneLlm.EntityFrameworkCore` and `RecursiveAI.OneLlm.OneLite`: an instance store and a record sink each.
 - `RecursiveAI.OneLlm.Extensions.AI`: the Microsoft.Extensions.AI bridge. OneLLM models as `IChatClient`, `IEmbeddingGenerator`, `ISpeechToTextClient`, `ITextToSpeechClient` and `IImageGenerator` (usage and cost in `AdditionalProperties`); any `IChatClient` or embedding generator as a OneLLM provider; `AIFunction` and `ITool` in both directions.
-- Documentation: getting started, the "reads like" tables (`docs/reads-like.md`), per-package readmes, and `samples/DocSnippets`, which compiles the documentation's C# snippets.
+- Documentation: a results page (`docs/results.md`) with the speed, conformance, parity, AOT and live-run results and their method; getting started, the "reads like" tables (`docs/reads-like.md`), per-package readmes, and `samples/DocSnippets`, which compiles the documentation's C# snippets.
 - Repository skeleton: solution, core package, generator project, test, benchmark and sample projects.

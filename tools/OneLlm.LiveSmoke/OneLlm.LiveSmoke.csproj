@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The release-check smoke console: a few tiny real calls per keyed provider (chat, stream, a tool round trip, structured output, a
+       reasoning model, embeddings, token counting, Decisions) under hard spend caps. It can also run against the local mock server, which
+       is how it is rehearsed without a key. Not shipped. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>$(LibName).LiveSmoke</RootNamespace>
+    <AssemblyName>onellm-livesmoke</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System" />
+    <Using Include="System.Collections.Generic" />
+    <Using Include="System.IO" />
+    <Using Include="System.Linq" />
+    <Using Include="System.Threading" />
+    <Using Include="System.Threading.Tasks" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/OneLlm/OneLlm.csproj" />
+  </ItemGroup>
+
+</Project>

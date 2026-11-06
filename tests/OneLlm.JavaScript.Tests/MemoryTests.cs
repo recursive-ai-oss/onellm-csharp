@@ -52,8 +52,22 @@ internal static class MemoryCases
     public static string Code(string name) => All.First(c => c.Name == name).Code;
 }
 
+// Memory bombs run alone: no other test class runs beside them, and their budgets are small so a run peaks well under 600 MiB
+// (safe on a 7 GB CI runner).
+[CollectionDefinition("MemoryBombs", DisableParallelization = true)]
+public class MemoryBombsDefinition;
+
+[Collection("MemoryBombs")]
 public class MemoryTests
 {
+    private static JsSandboxOptions Options(bool backstop) => new()
+    {
+        TimeLimit = TimeSpan.FromSeconds(30),
+        Fuel = 5_000_000_000,
+        MaxAllocatedBytes = 64L * 1024 * 1024,
+        MaxHostAllocatedBytes = backstop ? 256L * 1024 * 1024 : 0,
+    };
+
     // Too slow for a regression run: they end at the 30 s time limit (or run past it, see below). They stay in the probe list.
     private static readonly HashSet<string> Slow = ["array-unshift-loop", "bigint-squaring", "bigint-squaring-26"];
 
@@ -69,7 +83,7 @@ public class MemoryTests
     [MemberData(nameof(Names))]
     public async Task Every_memory_pattern_ends_in_a_limit_report(string name)
     {
-        var options = new JsSandboxOptions { TimeLimit = TimeSpan.FromSeconds(30), Fuel = 5_000_000_000 };
+        var options = Options(true);
         JsSandboxException e = await Assert.ThrowsAsync<JsSandboxException>(async () => await Js.Run(MemoryCases.Code(name), options: options));
         Assert.True(e.Kind is JsSandboxFailure.Memory or JsSandboxFailure.Script, $"{name}: {e.Kind}");
     }
@@ -79,7 +93,7 @@ public class MemoryTests
     [MemberData(nameof(EngineStopsNames))]
     public async Task The_engine_alone_stops_these_patterns(string name)
     {
-        var options = new JsSandboxOptions { TimeLimit = TimeSpan.FromSeconds(30), Fuel = 5_000_000_000, MaxHostAllocatedBytes = 0 };
+        var options = Options(false);
         JsSandboxException e = await Assert.ThrowsAsync<JsSandboxException>(async () => await Js.Run(MemoryCases.Code(name), options: options));
         Assert.True(e.Kind is JsSandboxFailure.Memory or JsSandboxFailure.Script, $"{name}: {e.Kind}");
     }
@@ -97,12 +111,7 @@ public class MemoryTests
         }
 
         bool off = Environment.GetEnvironmentVariable("ONELLM_JS_BACKSTOP") == "off";
-        var options = new JsSandboxOptions
-        {
-            TimeLimit = TimeSpan.FromSeconds(30),
-            Fuel = 5_000_000_000,
-            MaxHostAllocatedBytes = off ? 0 : 1024L * 1024 * 1024,
-        };
+        JsSandboxOptions options = Options(!off);
         using var self = Process.GetCurrentProcess();
         self.Refresh();
         long before = self.PeakWorkingSet64;
@@ -122,5 +131,39 @@ public class MemoryTests
         self.Refresh();
         long ms = (long)Stopwatch.GetElapsedTime(start).TotalMilliseconds;
         File.AppendAllText(log, $"{name}\t{(off ? "budget-only" : "with-backstop")}\t{outcome}\t{ms} ms\tpeak {(self.PeakWorkingSet64 - before) >> 20} MiB over start\n");
+    }
+}
+
+[Collection("MemoryBombs")]
+public class UnstoppableScriptTests
+{
+    // Squaring a BigInt in a loop reaches single operations that take minutes, so the engine never gets to check its clock. The host stops
+    // waiting at the time limit and counts the engine it left behind. Run on a machine you can spare a core on: the thread keeps working.
+    [Fact]
+    public async Task A_script_the_engine_cannot_interrupt_still_ends_at_the_time_limit()
+    {
+        var options = new JsSandboxOptions { TimeLimit = TimeSpan.FromSeconds(1), Fuel = 5_000_000_000, MaxAllocatedBytes = 1L << 40, MaxHostAllocatedBytes = 0 };
+        long before = JsSandbox.AbandonedRuns;
+        long start = Stopwatch.GetTimestamp();
+        JsSandboxException e = await Assert.ThrowsAsync<JsSandboxException>(async () =>
+            await Js.Run("let b = 3n; while (true) b = b * b;", options: options));
+        TimeSpan took = Stopwatch.GetElapsedTime(start);
+        Assert.Equal(JsSandboxFailure.Time, e.Kind);
+        Assert.True(took < TimeSpan.FromSeconds(3), $"took {took}");
+        Assert.Equal(before + 1, JsSandbox.AbandonedRuns);
+        Assert.True(JsSandbox.AbandonedRunsStillRunning >= 1);
+    }
+
+    [Fact]
+    public async Task A_caller_that_cancels_does_not_wait_for_an_engine_that_cannot_stop()
+    {
+        using var cts = new CancellationTokenSource();
+        var options = new JsSandboxOptions { TimeLimit = TimeSpan.FromSeconds(60), Fuel = 5_000_000_000, MaxAllocatedBytes = 1L << 40, MaxHostAllocatedBytes = 0 };
+        Task<JsRunResult> run = new JsSandbox(options).RunSnippetAsync("let b = 3n; while (true) b = b * b;", null, Js.Context(), Js.All, "snippet.js", cts.Token);
+        await Task.Delay(300);
+        long start = Stopwatch.GetTimestamp();
+        await cts.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await run);
+        Assert.True(Stopwatch.GetElapsedTime(start) < TimeSpan.FromSeconds(3));
     }
 }

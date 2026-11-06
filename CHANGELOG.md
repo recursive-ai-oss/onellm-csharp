@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Changed
 
-- `RecursiveAI.OneLlm.JavaScript` now builds on OneEcma 1.0.1, whose allocation budget covers array, buffer, string and collection growth; the sandbox creates engines with `ExplainErrors = false` until OneEcma bounds the error-explanation replay (1.1.0), and keeps the host allocation backstop as defence in depth. More memory patterns are tested with the backstop on and off.
+- `RecursiveAI.OneLlm.JavaScript` now builds on OneEcma 1.0.1, whose allocation budget covers array, buffer, string and collection growth; the sandbox creates engines with `ExplainErrors = false` until OneEcma bounds the error-explanation replay (1.1.0), and keeps the host allocation backstop as defence in depth. More memory patterns are tested with the backstop on and off. A sandboxed run now ends at its time limit even when the engine cannot be interrupted (a huge BigInt multiplication): the caller gets the `Time` failure, the engine thread is abandoned and counted (`JsSandbox.AbandonedRuns`, `JsSandbox.AbandonedRunsStillRunning`).
 
 ### Added
 

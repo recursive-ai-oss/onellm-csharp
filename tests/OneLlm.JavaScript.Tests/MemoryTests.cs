@@ -166,15 +166,16 @@ public class UnstoppableScriptTests
     public async Task A_bigint_multiplication_loop_ends_at_the_time_limit()
     {
         var options = new JsSandboxOptions { TimeLimit = TimeSpan.FromSeconds(1), Fuel = 5_000_000_000, MaxAllocatedBytes = 1L << 40, MaxHostAllocatedBytes = 0 };
-        long before = JsSandbox.AbandonedRuns;
         long start = Stopwatch.GetTimestamp();
         JsSandboxException e = await Assert.ThrowsAsync<JsSandboxException>(async () =>
             await Js.Run("let b = 3n; while (true) b = b * b;", options: options));
         TimeSpan took = Stopwatch.GetElapsedTime(start);
         Assert.Equal(JsSandboxFailure.Time, e.Kind);
         Assert.True(took < TimeSpan.FromSeconds(3), $"took {took}");
-        // Since OneEcma 1.1.0 the engine polls the clock inside BigInt multiplication, so it stops by itself within the grace and nothing is abandoned.
-        Assert.Equal(before, JsSandbox.AbandonedRuns);
+        // The engine polls the clock inside BigInt multiplication, but only between chunks of work. Once the code is warm, a late multiply can run
+        // a few hundred milliseconds past the limit (observed 1.27 s for a 1 s limit; 1.00 s in a cold process), which is longer than the host's
+        // grace, so the host may abandon the run. Either outcome is correct: the caller got Time promptly. The abandon counter is process-wide, so
+        // it is not asserted here.
     }
 
     [Fact]

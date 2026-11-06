@@ -117,6 +117,7 @@ public class ToolBoundaryTests
     public async Task The_git_config_route_to_running_a_command_is_closed()
     {
         UnixOnly();
+        Assert.SkipUnless((Environment.GetEnvironmentVariable("PATH") ?? "").Split(':').Any(d => File.Exists(Path.Combine(d, "git"))), "git is not installed.");
         using var s = new Scratch();
         Capabilities caps = Capabilities.Files(s.Root) + Capabilities.ShellCommands("git status");
         string pwn = s.In("PWNED");

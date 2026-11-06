@@ -82,22 +82,32 @@ public class AgentBench
     }
 
     [Benchmark, BenchmarkCategory("agent-loop")]
-    public Task<AgentResult> Ours_Agent() => _plain.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
+    public Task<AgentResult> Ours_Agent() => RunReleased(_plain);
 
     [Benchmark, BenchmarkCategory("agent-loop")]
     public Task<string> Ref_AgentFramework() => _framework.Run();
 
     [Benchmark, BenchmarkCategory("agent-hooks")]
-    public Task<AgentResult> Own_NoHook() => _plain.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
+    public Task<AgentResult> Own_NoHook() => RunReleased(_plain);
 
     [Benchmark, BenchmarkCategory("agent-hooks")]
-    public Task<AgentResult> Own_OneObserver() => _observed.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
+    public Task<AgentResult> Own_OneObserver() => RunReleased(_observed);
 
     [Benchmark, BenchmarkCategory("agent-store")]
     public Task<AgentResult> Own_FileStore() => _file.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
 
     [Benchmark, BenchmarkCategory("agent-store")]
-    public Task<AgentResult> Own_MemoryStore() => _plain.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
+    public Task<AgentResult> Own_MemoryStoreRetained() => _plain.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" });
+
+    // The compared rows take the instance out of the store when the run is over, as the reference's session becomes garbage when its run
+    // returns. Without it the default store keeps every finished run, the heap grows with the iteration count, and the timings measure
+    // the collector working through that growth; Own_MemoryStoreRetained shows that case.
+    private async Task<AgentResult> RunReleased(Runtime runtime)
+    {
+        AgentResult result = await runtime.RunAgentAsync(_definition, null, new AgentStartOptions { Prompt = "go" }).ConfigureAwait(false);
+        await runtime.Store.DeleteAsync(result.Instance.InstanceId).ConfigureAwait(false);
+        return result;
+    }
 
     /// <summary>
     /// A chat provider that answers from memory with no I/O, like the reference's stub client: it asks for the no-op tool until the

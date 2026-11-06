@@ -286,19 +286,32 @@ internal sealed partial class LiveAgent
     /// <summary>Sets up a fresh agent. Returns the stop reason when an injected call holds the run (approval or ask_user), otherwise null.</summary>
     private async Task<AgentStopReason?> ProcessInitialAsync(CancellationToken token)
     {
-        Dictionary<string, object?> inputs = Instance.Inputs ?? [];
-        var turns = new List<object?>();
-        Dictionary<string, object?> scope = TemplateScope.Build(Runtime, Instance, inputs, Instance.CallerInstanceId, turns);
-        if (Options.SwarmUri is { } swarm && scope["swarm"] is Dictionary<string, object?> swarmMap)
-        {
-            swarmMap["uri"] = swarm;
-        }
-
-        TemplateRenderOptions render = Runtime.RenderOptions(Instance, token);
+        // The scope and render options are built on the first text that has an action in it: a prompt that is plain text renders to itself
+        // (Go templates copy text outside {{ }} unchanged), and most definitions' prompts are.
+        Dictionary<string, object?>? scope = null;
+        TemplateRenderOptions? render = null;
         string sourceName = Instance.DefinitionPath ?? Instance.Name;
 
-        string Render(string text, string where) =>
-            Template.Render(text, scope, new TemplateParseOptions { Name = sourceName + ":" + where, Functions = Runtime.Functions }, render);
+        string Render(string text, string where)
+        {
+            if (!text.Contains("{{", StringComparison.Ordinal))
+            {
+                return text;
+            }
+
+            if (scope is null)
+            {
+                scope = TemplateScope.Build(Runtime, Instance, Instance.Inputs ?? [], Instance.CallerInstanceId, new List<object?>());
+                if (Options.SwarmUri is { } swarm && scope["swarm"] is Dictionary<string, object?> swarmMap)
+                {
+                    swarmMap["uri"] = swarm;
+                }
+
+                render = Runtime.RenderOptions(Instance, token);
+            }
+
+            return Template.Render(text, scope, new TemplateParseOptions { Name = sourceName + ":" + where, Functions = Runtime.Functions }, render!);
+        }
 
         Instance.RenderedSystemPrompt = Render(Instance.SystemPrompt, "systemPrompt");
         await Runtime.Store.SaveAsync(Instance, token).ConfigureAwait(false);

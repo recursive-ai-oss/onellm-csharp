@@ -46,7 +46,7 @@ internal sealed partial class LiveAgent
 
     private readonly object _gate = new();
     private readonly ConcurrentQueue<Message> _inbox = new();
-    private readonly List<AgentEvent> _history = [];
+    private readonly List<AgentEvent> _history = new(32);
     private readonly List<Channel<AgentEvent>> _subscribers = [];
     private TaskCompletionSource<AgentResult>? _segment;
     private TaskCompletionSource _signal = new(TaskCreationOptions.RunContinuationsAsynchronously);

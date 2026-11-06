@@ -248,9 +248,12 @@ public sealed class MemoryInstanceStore : IInstanceStore
     {
         ArgumentNullException.ThrowIfNull(instance);
         InstanceIds.Validate(instance.InstanceId);
-        object content = instance.OriginalText is not null ? instance.ToYaml() : InstanceWriter.Capture(instance);
+        // A loaded instance that was not changed keeps its text; any other is captured, extending the snapshot of its last save in place
+        // (which needs the lock: only the snapshot the store holds may be extended).
+        string? text = instance.OriginalText is not null ? instance.ToYaml() : null;
         lock (_gate)
         {
+            object content = (object?)text ?? InstanceWriter.Capture(instance, _items.TryGetValue(instance.InstanceId, out var held) ? held.Content as InstanceSnapshot : null);
             _items[instance.InstanceId] = (content, _time.GetUtcNow());
         }
 

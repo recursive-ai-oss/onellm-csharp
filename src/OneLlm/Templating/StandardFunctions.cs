@@ -400,7 +400,7 @@ internal static class StandardFunctions
         {
             // Linear-time matching, so a hostile pattern or input cannot stall a render. It supports the same pattern
             // language family as Go's regexp (no backreferences or lookaround); (?P<name>) is the Go spelling of a named group.
-            re = new Regex(pattern.Replace("(?P<", "(?<", StringComparison.Ordinal), RegexOptions.NonBacktracking | RegexOptions.CultureInvariant);
+            re = new Regex(ToDotNetPattern(pattern), RegexOptions.NonBacktracking | RegexOptions.CultureInvariant);
         }
         catch (ArgumentException ex)
         {
@@ -414,6 +414,66 @@ internal static class StandardFunctions
 
         RegexCache[pattern] = re;
         return re;
+    }
+
+    // Go's regexp syntax (observed from Go 1.26) differs from .NET's in three small ways that matter for the same pattern text:
+    // (?P<name>) names a group; an empty flag group (?) is accepted and does nothing; and without the m flag $ matches only at the very end of
+    // the text, where .NET also matches before a final newline. Only $ outside brackets and not escaped is rewritten, and only while the
+    // multi-line flag is off.
+    private static string ToDotNetPattern(string pattern)
+    {
+        pattern = pattern.Replace("(?P<", "(?<", StringComparison.Ordinal).Replace("(?)", "(?:)", StringComparison.Ordinal);
+        if (pattern.IndexOf('$', StringComparison.Ordinal) < 0)
+        {
+            return pattern;
+        }
+
+        // A flag group that sets m turns on line mode, where $ also matches before a newline; leave such patterns alone.
+        if (Regex.IsMatch(pattern, @"\(\?[a-zA-Z]*m[a-zA-Z-]*[:)]", RegexOptions.CultureInvariant))
+        {
+            return pattern;
+        }
+
+        var sb = new StringBuilder(pattern.Length + 4);
+        bool inClass = false;
+        for (int i = 0; i < pattern.Length; i++)
+        {
+            char c = pattern[i];
+            if (c == '\\' && i + 1 < pattern.Length)
+            {
+                sb.Append(c).Append(pattern[++i]);
+                continue;
+            }
+
+            if (inClass)
+            {
+                inClass = c != ']';
+                sb.Append(c);
+                continue;
+            }
+
+            if (c == '[')
+            {
+                inClass = true;
+                sb.Append(c);
+                // A ] right after [ or [^ is a literal member.
+                if (i + 1 < pattern.Length && pattern[i + 1] == '^')
+                {
+                    sb.Append(pattern[++i]);
+                }
+
+                if (i + 1 < pattern.Length && pattern[i + 1] == ']')
+                {
+                    sb.Append(pattern[++i]);
+                }
+
+                continue;
+            }
+
+            sb.Append(c == '$' ? "\\z" : c.ToString());
+        }
+
+        return sb.ToString();
     }
 
     private static string RegexReplace(string pattern, string repl, string input)

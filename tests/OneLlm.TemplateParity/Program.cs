@@ -509,6 +509,8 @@ internal static partial class Program
         var render = new TemplateRenderOptions { EmbedSources = src is null ? null : new IEmbedSource[] { src } };
 
         string got = "";
+        string best = "";
+        int bestPrefix = -1;
         TemplateException? failure = null;
         foreach (int lag in lags)
         {
@@ -530,6 +532,21 @@ internal static partial class Program
                 ours = got;
             }
 
+            // With a clock to search, the closest candidate (longest shared prefix) is the one a mismatch is reported against,
+            // so the first differing offset points past the timestamp at the real difference.
+            int common = 0;
+            int limit = Math.Min(got.Length, c.Rendered.Length);
+            while (common < limit && got[common] == c.Rendered[common])
+            {
+                common++;
+            }
+
+            if (common > bestPrefix)
+            {
+                bestPrefix = common;
+                best = got;
+            }
+
             if (string.Equals(got, c.Rendered, StringComparison.Ordinal))
             {
                 if (usesTime && lags.Length > 1)
@@ -547,7 +564,7 @@ internal static partial class Program
             }
         }
 
-        got = ours ?? got;
+        got = lags.Length > 1 && failure is null ? best : ours ?? got;
         if (usesTime && c.StartedAt is not null && Environment.GetEnvironmentVariable("ONELLM_PARITY_SHAPE") == "1")
         {
             Match tm = Regex.Match(c.Rendered, @"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(Z|[-+]\d\d:\d\d)");
@@ -641,9 +658,11 @@ internal static partial class Program
         int start = Math.Max(0, ch - 15);
         string w = s.Substring(start, Math.Min(40, s.Length - start));
         var sb = new StringBuilder();
+        // ONELLM_PARITY_DIGITS=1 keeps digits, to compare timestamps and numbers; letters stay masked.
+        bool keepDigits = Environment.GetEnvironmentVariable("ONELLM_PARITY_DIGITS") == "1";
         foreach (char x in w)
         {
-            sb.Append(char.IsLetterOrDigit(x) ? 'x' : x == '\n' ? '↵' : x);
+            sb.Append(char.IsAsciiDigit(x) && keepDigits ? x : char.IsLetterOrDigit(x) ? 'x' : x == '\n' ? '↵' : x);
         }
 
         return sb.ToString();

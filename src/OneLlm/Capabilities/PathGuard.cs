@@ -75,22 +75,9 @@ internal static class PathGuard
     /// </summary>
     internal static void CheckWriteProtection(IReadOnlyList<string> roots, string real, IReadOnlyList<string> protectedPaths, bool allowRepoControl, string original)
     {
-        foreach (string p in protectedPaths)
+        if (IsInProtected(real, protectedPaths))
         {
-            string realProtected;
-            try
-            {
-                realProtected = RealPath(MakeAbsolute(p, p), p);
-            }
-            catch (CapabilityMissingException)
-            {
-                realProtected = p;
-            }
-
-            if (IsUnder(real, realProtected))
-            {
-                throw Refused(original, "it is inside the runtime's own state, which tools may read but not change");
-            }
+            throw Refused(original, "it is inside the runtime's own state, which tools may not read or change");
         }
 
         if (allowRepoControl)
@@ -122,13 +109,75 @@ internal static class PathGuard
             return;
         }
 
-        foreach (string part in Path.GetRelativePath(best, real).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar))
+        string[] parts = Path.GetRelativePath(best, real).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        foreach (string part in parts)
         {
             string name = part.TrimEnd(' ', '.');
             if (s_repoControlNames.Contains(name, StringComparer.OrdinalIgnoreCase))
             {
                 throw Refused(original, "repository control files can change what a program on the shell allow-list runs");
             }
+        }
+
+        // A git directory is recognised by what it holds, not by its name: a repository made with a separate git dir (the working tree's
+        // .git is a file pointing at it) or a bare repository has no ".git" in its path, yet a planted config or hook in it runs
+        // commands for an allow-listed git. A directory is one when it has HEAD, objects and refs. The check counts the file being
+        // written, so the write that would complete the set is refused too, whatever order the pieces arrive in.
+        string dir = best;
+        for (int i = 0; i < parts.Length - 1; i++)
+        {
+            dir = Path.Join(dir, parts[i]);
+            string first = parts[i + 1];
+            bool head = string.Equals(first, "HEAD", PathComparison) || File.Exists(Path.Join(dir, "HEAD"));
+            bool objects = string.Equals(first, "objects", PathComparison) || Directory.Exists(Path.Join(dir, "objects"));
+            bool refs = string.Equals(first, "refs", PathComparison) || Directory.Exists(Path.Join(dir, "refs"));
+            if (head && objects && refs)
+            {
+                throw Refused(original, "it is inside a git directory (HEAD, objects and refs), whose config and hooks can make an allow-listed git run commands");
+            }
+        }
+    }
+
+    /// <summary>Whether a real path lies under any protected directory.</summary>
+    internal static bool IsInProtected(string real, IReadOnlyList<string> protectedPaths)
+    {
+        foreach (string realProtected in RealProtected(protectedPaths))
+        {
+            if (IsUnder(real, realProtected))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>The protected directories as real paths (links resolved), so a link to the state directory is caught too.</summary>
+    internal static string[] RealProtected(IReadOnlyList<string> protectedPaths)
+    {
+        var result = new string[protectedPaths.Count];
+        for (int i = 0; i < result.Length; i++)
+        {
+            string p = protectedPaths[i];
+            try
+            {
+                result[i] = RealPath(MakeAbsolute(p, p), p);
+            }
+            catch (CapabilityMissingException)
+            {
+                result[i] = p;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Refuses a read inside a protected directory: the runtime's saved instances and records hold other agents' transcripts.</summary>
+    internal static void CheckReadProtection(string real, IReadOnlyList<string> protectedPaths, string original)
+    {
+        if (protectedPaths.Count > 0 && IsInProtected(real, protectedPaths))
+        {
+            throw Denied(original, "it is inside the runtime's own state, which tools may not read or change");
         }
     }
 

@@ -12,6 +12,49 @@ internal static class GrantSummary
 {
     internal const string Key = "capabilities";
 
+    /// <summary>
+    /// Written beside <see cref="Key"/> by every agent start. It tells an instance whose grants were recorded and then lost or damaged
+    /// (the entry is missing, or is not a valid summary) from a file written before grants were recorded, which has neither entry.
+    /// The first fails closed; the second keeps the runtime's grants. It is not a signature: someone who can rewrite the file can remove
+    /// both entries, so the instance store itself must be out of the model's reach (the runtime protects its file store directory).
+    /// </summary>
+    internal const string RecordedKey = "capabilitiesRecorded";
+
+    /// <summary>What an instance file says about its grants.</summary>
+    internal enum Kind
+    {
+        /// <summary>A file from before grants were recorded: no entry and no marker. The runtime's grants apply.</summary>
+        Legacy,
+
+        /// <summary>A valid summary.</summary>
+        Valid,
+
+        /// <summary>Recorded, but the entry is missing or malformed. The instance gets no grants and does not run.</summary>
+        Invalid,
+    }
+
+    /// <summary>Reads the grants out of an instance's extension data.</summary>
+    /// <param name="extension">The instance's extension data, or null.</param>
+    /// <param name="caps">The restored grants when the result is <see cref="Kind.Valid"/>.</param>
+    /// <returns>Which of the three cases the file is.</returns>
+    public static Kind Evaluate(IDictionary<string, object?>? extension, out ICapabilities? caps)
+    {
+        caps = null;
+        bool hasEntry = extension is not null && extension.TryGetValue(Key, out _);
+        bool recorded = extension is not null && extension.ContainsKey(RecordedKey);
+        if (!hasEntry)
+        {
+            return recorded ? Kind.Invalid : Kind.Legacy;
+        }
+
+        caps = Restore(extension![Key]);
+        return caps is null ? Kind.Invalid : Kind.Valid;
+    }
+
+    /// <summary>The error for an instance whose recorded grants cannot be read.</summary>
+    public static BadDefinitionException Unreadable(string instanceId) =>
+        new($"Instance {instanceId} cannot run: the grants it was started with are missing or damaged in its saved file, so it gets none. Start it again, or restore its file.", "instance " + instanceId);
+
     /// <summary>Describes <paramref name="caps"/> as plain values for the instance file.</summary>
     public static Dictionary<string, object?> Of(ICapabilities caps)
     {
@@ -53,14 +96,58 @@ internal static class GrantSummary
     public static IReadOnlySet<string>? SavedToolCeiling(object? saved) =>
         saved is IDictionary<string, object?> map && map.ContainsKey("tools") ? new HashSet<string>(Strings(map, "tools"), StringComparer.Ordinal) : null;
 
-    /// <summary>Rebuilds the grants a summary describes, or null when <paramref name="saved"/> is not a summary (an older instance file).</summary>
+    /// <summary>Rebuilds the grants a summary describes, or null when <paramref name="saved"/> is not a well-formed summary.</summary>
     public static ICapabilities? Restore(object? saved)
     {
-        if (saved is not IDictionary<string, object?> map)
+        if (saved is not IDictionary<string, object?> map || !WellFormed(map))
         {
             return null;
         }
 
+        try
+        {
+            return Build(map);
+        }
+        catch (ArgumentException)
+        {
+            // A root or host entry that cannot be parsed.
+            return null;
+        }
+    }
+
+    // Of() always writes readRoots, writeRoots, shell and network; a summary missing one, or with a value of the wrong type, was not
+    // written by this library and is not trusted.
+    private static bool WellFormed(IDictionary<string, object?> map)
+    {
+        if (!StringList(map, "readRoots") || !StringList(map, "writeRoots"))
+        {
+            return false;
+        }
+
+        if (!(map.TryGetValue("shell", out object? s) && s is IDictionary<string, object?> shell
+            && shell.TryGetValue("enabled", out object? e) && e is bool
+            && (!shell.TryGetValue("approval", out object? a) || a is bool)
+            && (!shell.ContainsKey("commands") || StringList(shell, "commands"))))
+        {
+            return false;
+        }
+
+        if (!(map.TryGetValue("network", out object? n) && n is IDictionary<string, object?> net
+            && net.TryGetValue("anyPublic", out object? any) && any is bool
+            && StringList(net, "hosts")))
+        {
+            return false;
+        }
+
+        return (!map.ContainsKey("tools") || StringList(map, "tools"))
+            && (!map.TryGetValue("workingDirectory", out object? wd) || wd is string);
+    }
+
+    private static bool StringList(IDictionary<string, object?> map, string key) =>
+        map.TryGetValue(key, out object? v) && v is IEnumerable<object?> list && list.All(static i => i is string);
+
+    private static Capabilities Build(IDictionary<string, object?> map)
+    {
         Capabilities caps = Capabilities.None;
         foreach (string root in Strings(map, "readRoots"))
         {

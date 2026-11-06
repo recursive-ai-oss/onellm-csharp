@@ -66,7 +66,7 @@ public sealed class CapabilityIntersection : ICapabilities
     public bool ShellEnabled => ShellAccess.Enabled;
 
     /// <inheritdoc />
-    public IReadOnlyList<string> WriteProtectedPaths => [.. _a.WriteProtectedPaths.Union(_b.WriteProtectedPaths, StringComparer.Ordinal)];
+    public IReadOnlyList<string> ProtectedPaths => [.. _a.ProtectedPaths.Union(_b.ProtectedPaths, StringComparer.Ordinal)];
 
     /// <inheritdoc />
     public bool AllowRepoControlWrites => _a.AllowRepoControlWrites && _b.AllowRepoControlWrites;

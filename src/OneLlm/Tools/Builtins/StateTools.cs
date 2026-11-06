@@ -14,13 +14,13 @@ internal static class StateFiles
 
     internal static async Task<string?> ReadAsync(ICapabilities caps, string path, CancellationToken ct)
     {
-        string real = caps.ResolveRead(path);
+        string real = PathGuard.Resolve(caps.ReadRoots, caps.WorkingDirectory, path, write: false);
         if (!File.Exists(real))
         {
             return null;
         }
 
-        await using FileStream s = GuardedFile.OpenRead(caps, path);
+        await using FileStream s = GuardedFile.OpenRead(caps, path, state: true);
         using var reader = new StreamReader(s, Encoding.UTF8);
         return await reader.ReadToEndAsync(ct).ConfigureAwait(false);
     }

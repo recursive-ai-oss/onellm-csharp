@@ -9,9 +9,13 @@ internal static class GuardedFile
     /// <summary>Test seam: runs between the first resolution and the open. Null in production.</summary>
     internal static Action<string>? BeforeOpen { get; set; }
 
-    internal static FileStream OpenRead(ICapabilities caps, string path)
+    internal static FileStream OpenRead(ICapabilities caps, string path, bool state = false)
     {
-        string real = caps.ResolveRead(path);
+        // The todo and memory tools read their own files in the protected state directory; they skip only the protected-path check.
+        Func<string> resolve = state
+            ? () => PathGuard.Resolve(caps.ReadRoots, caps.WorkingDirectory, path, write: false)
+            : () => caps.ResolveRead(path);
+        string real = resolve();
         BeforeOpen?.Invoke(real);
         var stream = new FileStream(real, new FileStreamOptions
         {
@@ -22,7 +26,7 @@ internal static class GuardedFile
         });
         try
         {
-            Recheck(real, caps.ResolveRead(path), path);
+            Recheck(real, resolve(), path);
             return stream;
         }
         catch

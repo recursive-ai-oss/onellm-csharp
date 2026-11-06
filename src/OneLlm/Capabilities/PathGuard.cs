@@ -158,7 +158,19 @@ internal static class PathGuard
     /// followed to the final target, so a symlink called mygit that points at git is git.
     /// </summary>
     internal static bool GitListed(ShellPolicy policy) =>
-        policy.Enabled && policy.Commands is { } cmds && cmds.Any(static c => IsGitProgram(c.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? ""));
+        policy.Enabled && policy.Commands is { } cmds && cmds.Any(static c => c.Split(' ', StringSplitOptions.RemoveEmptyEntries) is { Length: > 0 } tokens
+            && (IsGitDriver(tokens[0]) || tokens.Any(IsGitProgram)));
+
+    // Programs that start other programs, or drive git themselves. An entry naming one of them is treated as listing git: refusing more is
+    // the safe reading, because a bare launcher entry (env, nice, timeout) runs anything, git included, and a git front end runs git.
+    private static readonly string[] s_gitDrivers =
+    [
+        "env", "nice", "ionice", "timeout", "nohup", "xargs", "stdbuf", "time", "command", "exec", "setsid", "chroot", "sudo", "doas", "watch", "parallel",
+        "gh", "hub", "gitk", "tig", "lazygit", "make", "gmake", "npm", "npx", "yarn", "pnpm", "cargo", "pip", "go", "dotnet", "find",
+    ];
+
+    private static bool IsGitDriver(string program) =>
+        s_gitDrivers.Contains(Path.GetFileNameWithoutExtension(program.Replace('\\', '/').Split('/')[^1]), StringComparer.OrdinalIgnoreCase);
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> s_gitPrograms = new(StringComparer.Ordinal);
 

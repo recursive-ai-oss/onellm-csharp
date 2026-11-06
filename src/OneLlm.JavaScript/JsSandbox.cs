@@ -163,6 +163,9 @@ public sealed class JsSandbox
                 MaxStringLength = Options.MaxStringLength,
             },
             Configure = engine => env?.Install(engine, input, hasInput),
+            // Off on purpose: explaining a failed run replays it with tracing, and that replay is not yet bounded by the engine's limits, so a
+            // hostile script could turn its own failure into unbounded work. The engine budgets the replay from OneEcma 1.1.0; turn this on then.
+            ExplainErrors = false,
         });
     }
 

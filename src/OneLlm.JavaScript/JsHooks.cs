@@ -49,6 +49,9 @@ public sealed class JsHookSource : IDefinitionHookSource
     private readonly TimeProvider _time;
     private readonly string? _baseDirectory;
 
+    /// <summary>The most hook files one definition may name. Each is run once when the definition loads, so an unbounded list is an unbounded load.</summary>
+    public const int MaxHooksPerDefinition = 16;
+
     /// <summary>Creates the source.</summary>
     /// <param name="options">The sandbox limits for hook calls, or null for the defaults.</param>
     /// <param name="timeProvider">The clock for hook calls; pass the runtime's. Default: the system clock.</param>
@@ -82,17 +85,16 @@ public sealed class JsHookSource : IDefinitionHookSource
             throw new BadDefinitionException("cannot read the hook file.", file, 0, 0, e);
         }
 
-        return LoadSource(source, file, points, capabilities);
+        return LoadSource(source, file, points, capabilities, path);
     }
 
-    private JsHook LoadSource(string source, string file, HookPoints points, ICapabilities capabilities)
+    private JsHook LoadSource(string source, string file, HookPoints points, ICapabilities capabilities, string owner)
     {
-
         JsonNode? meta;
         HashSet<string> exported;
         try
         {
-            (meta, exported) = _sandbox.Inspect(source, file, "hook", [.. s_points.Select(p => p.Function)]);
+            (meta, exported) = _sandbox.InspectOwned(source, file, owner, "hook", [.. s_points.Select(p => p.Function)]);
         }
         catch (JsSandboxException e)
         {
@@ -127,6 +129,11 @@ public sealed class JsHookSource : IDefinitionHookSource
     public IReadOnlyList<IHook> Load(AgentDefinition definition, ICapabilities capabilities)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        if (definition.Hooks.Count > MaxHooksPerDefinition)
+        {
+            throw new BadDefinitionException($"a definition may name at most {MaxHooksPerDefinition} hook files; this one names {definition.Hooks.Count}.", definition.SourceName);
+        }
+
         var hooks = new List<IHook>(definition.Hooks.Count);
         string baseDir = ResolveBase(definition);
         foreach (HookReference reference in definition.Hooks)
@@ -153,7 +160,7 @@ public sealed class JsHookSource : IDefinitionHookSource
                 throw new BadDefinitionException("cannot read the hook file.", file, 0, 0, e);
             }
 
-            hooks.Add(LoadSource(source, file, ParsePoints(reference, path), capabilities));
+            hooks.Add(LoadSource(source, file, ParsePoints(reference, path), capabilities, definition.SourceName ?? path));
         }
 
         return hooks;
@@ -224,7 +231,7 @@ internal sealed class JsHook : IHook
         snap["temperature"] = c.Request.Temperature;
         snap["messages"] = HookJson.MessagesToJson(c.Request.Messages);
         snap["tools"] = new JsonArray([.. c.Request.Tools.Select(t => (JsonNode?)new JsonObject { ["name"] = t.Name, ["description"] = t.Description })]);
-        JsonObject? d = await RunAsync("beforeInference", snap, c.InstanceId, ct);
+        JsonObject? d = await RunAsync("beforeInference", snap, c.Instance, ct);
         return Decide(d, HookPoints.BeforeInference, (action, o) => action switch
         {
             "modify" => HookDecision.ModifyRequest(HookJson.ApplyRequest(c.Request, o), Reason(o)),
@@ -238,7 +245,7 @@ internal sealed class JsHook : IHook
         JsonObject snap = Snapshot(c);
         snap["message"] = HookJson.MessageToJson(c.Message);
         snap["cost"] = c.Cost.Total.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        JsonObject? d = await RunAsync("afterInference", snap, c.InstanceId, ct);
+        JsonObject? d = await RunAsync("afterInference", snap, c.Instance, ct);
         return Decide(d, HookPoints.AfterInference, (action, o) => action == "modify" ? HookDecision.ModifyMessage(HookJson.MessageFrom(o), Reason(o)) : null);
     }
 
@@ -248,7 +255,7 @@ internal sealed class JsHook : IHook
         snap["call"] = HookJson.Call(c.Call);
         snap["tool"] = c.Tool is null ? null : new JsonObject { ["name"] = c.Tool.Name, ["description"] = c.Tool.Description };
         snap["inputs"] = c.Inputs.DeepClone();
-        JsonObject? d = await RunAsync("beforeToolCall", snap, c.InstanceId, ct);
+        JsonObject? d = await RunAsync("beforeToolCall", snap, c.Instance, ct);
         return Decide(d, HookPoints.BeforeToolCall, (action, o) => action switch
         {
             "modify" => HookDecision.ModifyInputs(o["inputs"] as JsonObject ?? throw new InvalidOperationException("a modify decision at beforeToolCall needs an 'inputs' object."), Reason(o)),
@@ -264,7 +271,7 @@ internal sealed class JsHook : IHook
         snap["call"] = HookJson.Call(c.Call);
         snap["tool"] = c.Tool is null ? null : new JsonObject { ["name"] = c.Tool.Name };
         snap["result"] = HookJson.Result(c.Result);
-        JsonObject? d = await RunAsync("afterToolCall", snap, c.InstanceId, ct);
+        JsonObject? d = await RunAsync("afterToolCall", snap, c.Instance, ct);
         return Decide(d, HookPoints.AfterToolCall, (action, o) => action == "modify" ? HookDecision.ModifyResult(HookJson.ResultFrom(o), Reason(o)) : null);
     }
 
@@ -273,7 +280,7 @@ internal sealed class JsHook : IHook
         JsonObject snap = Snapshot(c);
         snap["strategy"] = c.Strategy;
         snap["messageIds"] = new JsonArray([.. c.MessageIds.Select(i => (JsonNode?)i)]);
-        JsonObject? d = await RunAsync("beforeCompaction", snap, c.InstanceId, ct);
+        JsonObject? d = await RunAsync("beforeCompaction", snap, c.Instance, ct);
         return Decide(d, HookPoints.BeforeCompaction, (_, _) => null);
     }
 
@@ -281,7 +288,7 @@ internal sealed class JsHook : IHook
     {
         JsonObject snap = Snapshot(c);
         snap["message"] = HookJson.MessageToJson(c.Message);
-        await RunAsync("onMessage", snap, c.InstanceId, ct);
+        await RunAsync("onMessage", snap, c.Instance, ct);
     }
 
     public async ValueTask OnStateChangeAsync(StateChangeHookContext c, CancellationToken ct)
@@ -289,7 +296,7 @@ internal sealed class JsHook : IHook
         JsonObject snap = Snapshot(c);
         snap["from"] = c.From;
         snap["to"] = c.To;
-        await RunAsync("onStateChange", snap, c.InstanceId, ct);
+        await RunAsync("onStateChange", snap, c.Instance, ct);
     }
 
     public async ValueTask OnCostAsync(CostHookContext c, CancellationToken ct)
@@ -297,7 +304,7 @@ internal sealed class JsHook : IHook
         JsonObject snap = Snapshot(c);
         snap["source"] = c.Source;
         snap["total"] = c.Cost.Total.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await RunAsync("onCost", snap, c.InstanceId, ct);
+        await RunAsync("onCost", snap, c.Instance, ct);
     }
 
     private static JsonObject Snapshot(HookContext c) => new()
@@ -307,11 +314,12 @@ internal sealed class JsHook : IHook
         ["iteration"] = c.Iteration,
     };
 
-    private async Task<JsonObject?> RunAsync(string function, JsonObject snapshot, string instanceId, CancellationToken ct)
+    private async Task<JsonObject?> RunAsync(string function, JsonObject snapshot, Instances.Instance instance, CancellationToken ct)
     {
-        var context = new ToolContext(instanceId, "hook:" + _file, _time) { Capabilities = _capabilities };
+        // The spawner is how the limiter finds the tree a sub-agent belongs to.
+        var context = new ToolContext(instance.InstanceId, "hook:" + _file, _time) { Capabilities = _capabilities, CallerInstanceId = instance.CallerInstanceId ?? instance.SpawnerInstanceId };
         // A JsSandboxException here is the interceptor's failure: the hook set blocks the step (interceptors) or records it (observers).
-        JsRunResult run = await _sandbox.CallAsync(_source, _file, function, [snapshot], passCtx: true, context, _declared, null, ct, interceptor: true);
+        JsRunResult run = await _sandbox.CallAsync(_source, _file, function, [snapshot], passCtx: true, context, _declared, null, ct, runClass: RunClass.Hook);
         return run.Value as JsonObject ?? (run.HasValue && run.Value is not null ? throw new InvalidOperationException($"{function} must return nothing or a decision object.") : null);
     }
 

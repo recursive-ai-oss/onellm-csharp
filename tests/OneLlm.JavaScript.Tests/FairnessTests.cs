@@ -61,11 +61,151 @@ public class FairnessTests
         string path = dir.Write("gate.js", "export function beforeToolCall(s) { return { action: 'block', reason: 'no' }; }");
         IHook hook = new JsHookSource(options).LoadFile(path, HookPoints.None, Capabilities.None);
         Assert.Equal(HookPoints.BeforeToolCall, hook.Points);
-        JsRunResult r = await sb.CallAsync("export function f() { return 7; }", "f.js", "f", [], passCtx: false, As("hook"), ToolCapability.None, null, default, interceptor: true);
+        JsRunResult r = await sb.CallAsync("export function f() { return 7; }", "f.js", "f", [], passCtx: false, As("hook"), ToolCapability.None, null, default, runClass: RunClass.Hook);
         Assert.Equal("7", r.Value!.ToJsonString());
 
         await stop.CancelAsync();
         await Task.WhenAll(hogs);
+    }
+
+    private static ToolContext Child(string id, string parent) => new(id, "call", TimeProvider.System) { CallerInstanceId = parent };
+
+    private const string Spin = "for (;;) {}";
+
+    [Fact]
+    public async Task Sub_agents_share_their_trees_cap_and_a_third_tree_still_runs()
+    {
+        var limiter = new JsRunLimiter(maxConcurrentRuns: 10, maxWait: TimeSpan.Zero, reservedForInterceptors: 2, maxRunsPerCaller: 3);
+        var sb = new JsSandbox(new JsSandboxOptions { Limiter = limiter, TimeLimit = TimeSpan.FromSeconds(60), Fuel = 100_000_000_000 });
+        using var stop = new CancellationTokenSource();
+        // The parent and six children all belong to tree "root"; together they get three slots.
+        List<Task> tree = [Swallow(sb.RunSnippetAsync(Spin, null, As("root"), Js.All, "snippet.js", stop.Token))];
+        for (int i = 0; i < 6; i++)
+        {
+            tree.Add(Swallow(sb.RunSnippetAsync(Spin, null, Child("kid" + i, "root"), Js.All, "snippet.js", stop.Token)));
+        }
+
+        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+        while (limiter.ActiveRuns < 3 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        await Task.Delay(300);
+        Assert.Equal(3, limiter.ActiveRuns);
+        Assert.Equal("1", (await sb.RunSnippetAsync("return 1;", null, As("other-tree"), Js.All)).Value!.ToJsonString());
+        await stop.CancelAsync();
+        await Task.WhenAll(tree);
+    }
+
+    [Fact]
+    public async Task One_trees_spinning_deciders_cannot_make_another_trees_hook_fail_busy()
+    {
+        var limiter = new JsRunLimiter(maxConcurrentRuns: 8, maxWait: TimeSpan.Zero, reservedForInterceptors: 2, maxRunsPerCaller: 3, maxInterceptorsPerOwner: 2);
+        var options = new JsSandboxOptions { Limiter = limiter, TimeLimit = TimeSpan.FromSeconds(60), Fuel = 100_000_000_000 };
+        using var stop = new CancellationTokenSource();
+        using var dir = new Scratch();
+        string path = dir.Write("spin.js", "export function prepare() { for (;;) {} }");
+        // Eight different decider files, one call each, as a model that writes its own deciders would start them.
+        List<Task> hogs = [];
+        for (int i = 0; i < 8; i++)
+        {
+            JsDeciderLogic logic = JsDeciderLogic.Load(path, options);
+            hogs.Add(SwallowAny(logic.PrepareAsync(System.Text.Json.JsonDocument.Parse("{}").RootElement, stop.Token).AsTask()));
+        }
+
+        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+        while (limiter.ActiveRuns < 4 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        await Task.Delay(300);
+        Assert.Equal(4, limiter.ActiveRuns);
+
+        // A hook of another tree still gets in, and so do two more, up to its own cap.
+        var sb = new JsSandbox(options);
+        JsRunResult r = await sb.CallAsync("export function f() { return 7; }", "f.js", "f", [], passCtx: false, As("victim"), ToolCapability.None, null, default, runClass: RunClass.Hook);
+        Assert.Equal("7", r.Value!.ToJsonString());
+        await stop.CancelAsync();
+        await Task.WhenAll(hogs);
+    }
+
+    [Fact]
+    public async Task A_hook_owner_is_capped_so_one_tree_cannot_fill_the_reserve()
+    {
+        var limiter = new JsRunLimiter(maxConcurrentRuns: 8, maxWait: TimeSpan.Zero, reservedForInterceptors: 2, maxRunsPerCaller: 3, maxInterceptorsPerOwner: 2);
+        var sb = new JsSandbox(new JsSandboxOptions { Limiter = limiter, TimeLimit = TimeSpan.FromSeconds(60), Fuel = 100_000_000_000 });
+        using var stop = new CancellationTokenSource();
+        List<Task> hooks = [];
+        for (int i = 0; i < 5; i++)
+        {
+            hooks.Add(Swallow(sb.CallAsync("export function f() { for (;;) {} }", "f.js", "f", [], passCtx: false, Child("kid" + i, "root"), ToolCapability.None, null, stop.Token, runClass: RunClass.Hook)));
+        }
+
+        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+        while (limiter.ActiveRuns < 2 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        await Task.Delay(300);
+        Assert.Equal(2, limiter.ActiveRuns);
+        JsRunResult r = await sb.CallAsync("export function f() { return 7; }", "f.js", "f", [], passCtx: false, As("victim"), ToolCapability.None, null, default, runClass: RunClass.Hook);
+        Assert.Equal("7", r.Value!.ToJsonString());
+        await stop.CancelAsync();
+        await Task.WhenAll(hooks);
+    }
+
+    [Fact]
+    public async Task Loading_a_file_takes_a_slot_like_a_run()
+    {
+        var limiter = new JsRunLimiter(maxConcurrentRuns: 8, maxWait: TimeSpan.Zero, maxInterceptorsPerOwner: 1);
+        var sb = new JsSandbox(new JsSandboxOptions { Limiter = limiter, TimeLimit = TimeSpan.FromSeconds(1.5), Fuel = 100_000_000_000 });
+        Task<JsSandboxException?> first = Task.Run(() =>
+        {
+            try
+            {
+                sb.InspectOwned("for (;;) {}", "a.js", "owner", null);
+                return null;
+            }
+            catch (JsSandboxException e)
+            {
+                return e;
+            }
+        });
+        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+        while (limiter.ActiveRuns < 1 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        JsSandboxException busy = Assert.Throws<JsSandboxException>(() => sb.InspectOwned("export const x = 1;", "b.js", "owner", null));
+        Assert.Equal(JsSandboxFailure.Busy, busy.Kind);
+        // Another owner still loads.
+        sb.InspectOwned("export const x = 1;", "c.js", "someone-else", null);
+        Assert.NotNull(await first);
+        Assert.True(SpinWait.SpinUntil(() => limiter.ActiveRuns == 0, 5000));
+    }
+
+    [Fact]
+    public void A_definition_may_not_name_a_flood_of_hook_files()
+    {
+        var def = OneLlm.Definitions.AgentDefinition.Parse("name: a\nmodel: demo\nsystemPrompt: s\nhooks:\n" + string.Concat(Enumerable.Range(0, JsHookSource.MaxHooksPerDefinition + 1).Select(i => $"  - file: h{i}.js\n")) + "references: []\n", "a.yaml");
+        BadDefinitionException e = Assert.Throws<BadDefinitionException>(() => new JsHookSource().Load(def, Capabilities.None));
+        Assert.Contains("at most 16 hook files", e.Message, StringComparison.Ordinal);
+    }
+
+    private static async Task SwallowAny(Task run)
+    {
+        try
+        {
+            await run;
+        }
+        catch (Exception e) when (e is JsSandboxException or OperationCanceledException)
+        {
+            // Refused as busy or cancelled at the end of the test.
+        }
     }
 
     private static async Task Swallow(Task<JsRunResult> run)

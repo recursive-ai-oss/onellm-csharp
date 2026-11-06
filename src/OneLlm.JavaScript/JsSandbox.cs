@@ -75,12 +75,30 @@ public sealed class JsSandbox
     /// Runs a module's top level once and reads what it exports: which of <paramref name="functions"/> are functions, and the value of the
     /// export called <paramref name="dataExport"/> as JSON (null when absent). Used when a tool, hook or decider file is loaded.
     /// </summary>
-    internal (JsonNode? Data, HashSet<string> Functions) Inspect(string source, string fileName, string? dataExport, params string[] functions)
+    internal (JsonNode? Data, HashSet<string> Functions) Inspect(string source, string fileName, string? dataExport, params string[] functions) =>
+        InspectOwned(source, fileName, null, dataExport, functions);
+
+    /// <summary>As above, owned by <paramref name="owner"/> (whoever asked for the load) for the limiter: a load takes a general slot like a run.</summary>
+    internal (JsonNode? Data, HashSet<string> Functions) InspectOwned(string source, string fileName, string? owner, string? dataExport, params string[] functions)
+    {
+        JsRunLimiter.Lease lease = (Options.Limiter ?? JsRunLimiter.Shared).EnterAsync(_loadClock, "load:" + (owner ?? fileName), null, RunClass.Load, CancellationToken.None).GetAwaiter().GetResult();
+        try
+        {
+            return InspectLeased(source, fileName, dataExport, functions, lease);
+        }
+        catch
+        {
+            lease.Dispose();
+            throw;
+        }
+    }
+
+    private (JsonNode? Data, HashSet<string> Functions) InspectLeased(string source, string fileName, string? dataExport, string[] functions, JsRunLimiter.Lease lease)
     {
         // Loading runs the file's top level, which is script too: it gets the same guard as a run (time limit, fuel and memory limits, and the host
         // giving up on it when it does not stop), so a file with an infinite loop cannot hang the loader.
         TimeSpan time = Options.TimeLimit;
-        var scope = new RunScope(Options, null);
+        var scope = new RunScope(Options, lease);
         // A script spins on the thread that runs it, so it gets a thread of its own: on the thread pool, a handful of busy scripts would hold every pool
         // thread (the pool adds one every half second or so) and starve the host's other work, including the hooks and deciders the limiter keeps slots for.
         Task<(JsonNode?, HashSet<string>)> work = Task.Factory.StartNew(() => InspectCore(source, fileName, dataExport, functions, time, scope), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -155,12 +173,13 @@ public sealed class JsSandbox
         finally
         {
             scope.Close();
+            scope.ReleaseLease();
             scope.Dispose();
         }
     }
 
     /// <summary>Calls an exported function of a module with JSON arguments (and, when asked, <c>ctx</c> as the last one) and returns what it returned.</summary>
-    internal Task<JsRunResult> CallAsync(string source, string fileName, string function, IReadOnlyList<JsonNode?> args, bool passCtx, ToolContext context, ToolCapability declared, TimeSpan? limit, CancellationToken cancellationToken, bool undefinedAsNull = false, bool interceptor = false) =>
+    internal Task<JsRunResult> CallAsync(string source, string fileName, string function, IReadOnlyList<JsonNode?> args, bool passCtx, ToolContext context, ToolCapability declared, TimeSpan? limit, CancellationToken cancellationToken, bool undefinedAsNull = false, RunClass runClass = RunClass.General) =>
         RunAsync(
             new HostModule(fileName, source),
             fileName,
@@ -195,7 +214,7 @@ public sealed class JsSandbox
             },
             cancellationToken,
             undefinedAsNull,
-            interceptor);
+            runClass);
 
     private ScriptEngine CreateEngine(SandboxHost host, HostEnv? env, JsonNode? input, TimeSpan limit, bool hasInput = false)
     {
@@ -252,13 +271,13 @@ public sealed class JsSandbox
         Func<ScriptEngine, CancellationToken, Task<JsValue>> body,
         CancellationToken cancellationToken,
         bool undefinedAsNull = false,
-        bool interceptor = false)
+        RunClass runClass = RunClass.General)
     {
         cancellationToken.ThrowIfCancellationRequested();
         TimeSpan time = EffectiveTime(limit);
 
         // Bound the runs together: a free slot within the limiter's wait, or a Busy failure.
-        JsRunLimiter.Lease lease = await (Options.Limiter ?? JsRunLimiter.Shared).EnterAsync(context.TimeProvider, context.InstanceId, interceptor, cancellationToken).ConfigureAwait(false);
+        JsRunLimiter.Lease lease = await (Options.Limiter ?? JsRunLimiter.Shared).EnterAsync(context.TimeProvider, context.InstanceId, context.CallerInstanceId, runClass, cancellationToken).ConfigureAwait(false);
         var scope = new RunScope(Options, lease);
         Task<JsRunResult> core;
         try

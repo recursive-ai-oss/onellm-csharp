@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+## [1.0.0] - TBD
+
+The first public release. The date is set when it is published.
+
 ### Security
 
 - JavaScript sandbox: `ctx.addCost` refuses negative, non-finite and overflowing amounts, bounds text length, and takes at most `MaxCostLines` lines per run; a negative recorded total no longer stops an instance from resuming. Hook files named by a definition are read through the run's read grants, and a refused file is never echoed. Resuming an instance whose definition has interceptor hooks in a runtime without a hook source fails with `CapabilityMissingException` instead of running without them. Host failures reach scripts, models and records as short plain errors, with no stack frames, absolute paths or .NET type names. A result nested past 64 levels is a `JsSandboxException` of kind `Result`.
@@ -36,5 +40,5 @@ All notable changes to this project are documented in this file. The format foll
 - `RecursiveAI.OneLlm.Web`: `fetch_webpage_markdown` on OneHtml.
 - `RecursiveAI.OneLlm.EntityFrameworkCore` and `RecursiveAI.OneLlm.OneLite`: an instance store and a record sink each.
 - `RecursiveAI.OneLlm.Extensions.AI`: the Microsoft.Extensions.AI bridge. OneLLM models as `IChatClient`, `IEmbeddingGenerator`, `ISpeechToTextClient`, `ITextToSpeechClient` and `IImageGenerator` (usage and cost in `AdditionalProperties`); any `IChatClient` or embedding generator as a OneLLM provider; `AIFunction` and `ITool` in both directions.
-- Documentation: getting started, the "reads like" tables (`docs/reads-like.md`), per-package readmes, and `samples/DocSnippets`, which compiles the documentation's C# snippets.
+- Documentation: a results page (`docs/results.md`) with the speed, conformance, parity, AOT and live-run results and their method; getting started, the "reads like" tables (`docs/reads-like.md`), per-package readmes, and `samples/DocSnippets`, which compiles the documentation's C# snippets.
 - Repository skeleton: solution, core package, generator project, test, benchmark and sample projects.

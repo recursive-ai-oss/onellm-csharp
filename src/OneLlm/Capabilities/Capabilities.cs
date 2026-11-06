@@ -264,7 +264,7 @@ public sealed class Capabilities : ICapabilities
     public string ResolveWrite(string path)
     {
         string real = PathGuard.Resolve(_writeRoots, WorkingDirectory, path, write: true);
-        PathGuard.CheckWriteProtection(_writeRoots, real, _protected, AllowRepoControlWrites, path);
+        PathGuard.CheckWriteProtection(_writeRoots, real, _protected, AllowRepoControlWrites, path, gitListed: PathGuard.GitListed(ShellAccess));
         return real;
     }
 
@@ -310,7 +310,22 @@ public sealed class Capabilities : ICapabilities
     private static string Full(string root)
     {
         ArgumentException.ThrowIfNullOrEmpty(root);
-        return Path.GetFullPath(root);
+        string full = Path.GetFullPath(root);
+        if (OperatingSystem.IsWindows())
+        {
+            // The extended-length spelling names the same directory, and the guard works on ordinary paths: \\?\C:\work is C:\work and
+            // \\?\UNC\server\share is \\server\share.
+            if (full.StartsWith(@"\\?\UNC\", StringComparison.OrdinalIgnoreCase))
+            {
+                full = @"\\" + full[8..];
+            }
+            else if (full.StartsWith(@"\\?\", StringComparison.Ordinal) && full.Length >= 6 && full[5] == ':')
+            {
+                full = full[4..];
+            }
+        }
+
+        return full;
     }
 
     // A root of one side that lies inside a root of the other survives; the narrower of each pair is kept.

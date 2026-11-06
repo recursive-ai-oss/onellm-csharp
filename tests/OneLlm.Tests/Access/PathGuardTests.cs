@@ -238,6 +238,8 @@ public class PathGuardTests
     [InlineData("lpt9.log")]
     [InlineData("file.txt:stream")]
     [InlineData("AUX.")]
+    [InlineData("COM0")]
+    [InlineData("lpt0.txt")]
     public void Windows_device_names_and_streams_are_refused(string part)
     {
         // The rule is applied to every component on Windows; it is exercised directly here so Linux runs cover it.

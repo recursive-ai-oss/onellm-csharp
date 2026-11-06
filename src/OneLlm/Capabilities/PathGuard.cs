@@ -25,7 +25,7 @@ internal static class PathGuard
         "CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$",
         "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
         "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
-        "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³",
+        "COM¹", "COM²", "COM³", "LPT¹", "LPT²", "LPT³", "COM0", "LPT0",
     };
 
     /// <summary>Resolves <paramref name="path"/> and checks it lies under one of <paramref name="roots"/>.</summary>
@@ -85,7 +85,7 @@ internal static class PathGuard
     /// <summary>
     /// After a write path resolved under a root: refuses repository control paths unless allowed, and anything under a protected directory.
     /// </summary>
-    internal static void CheckWriteProtection(IReadOnlyList<string> roots, string real, IReadOnlyList<string> protectedPaths, bool allowRepoControl, string original, IReadOnlySet<string>? pending = null)
+    internal static void CheckWriteProtection(IReadOnlyList<string> roots, string real, IReadOnlyList<string> protectedPaths, bool allowRepoControl, string original, IReadOnlySet<string>? pending = null, bool gitListed = false)
     {
         if (IsInProtected(real, protectedPaths))
         {
@@ -97,37 +97,29 @@ internal static class PathGuard
             return;
         }
 
-        string? best = null;
-        foreach (string root in roots)
-        {
-            string realRoot;
-            try
-            {
-                realRoot = RealPath(MakeAbsolute(root, root), root);
-            }
-            catch (CapabilityMissingException)
-            {
-                continue;
-            }
-
-            if (IsUnder(real, realRoot) && (best is null || realRoot.Length > best.Length))
-            {
-                best = realRoot;
-            }
-        }
-
-        if (best is null)
-        {
-            return;
-        }
-
-        string[] parts = RelativeBelow(best, real).Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        // Every component of the path counts, the root's own and the ones above it included: a root that is a control directory, or
+        // lies below one (.git/hooks, a bare repository's hooks or refs/heads), is not exempt. A host that wants one passes
+        // WithRepoControlWrites().
+        string top = Path.GetPathRoot(real) ?? "";
+        string[] parts = real[top.Length..].Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
         foreach (string part in parts)
         {
-            string name = part.TrimEnd(' ', '.');
-            if (s_repoControlNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+            if (s_repoControlNames.Any(n => NameEquals(part.TrimEnd(' ', '.'), n)))
             {
                 throw Refused(original, "repository control files can change what a program on the shell allow-list runs");
+            }
+        }
+
+        // By role: with git on the shell allow-list, the files git reads its configuration from and the directories it runs hooks from
+        // are refused wherever they are. The content rule below cannot see a directory that is still empty, and a listed program
+        // (git init --separate-git-dir, mkdir) can complete it around a planted config. Files of these names stay writable when
+        // git is not listed, because nothing then executes them.
+        if (gitListed)
+        {
+            string last = parts.Length > 0 ? parts[^1] : "";
+            if (s_gitRoleFiles.Any(n => NameEquals(last, n)) || parts.Take(parts.Length - 1).Any(p => NameEquals(p, "hooks") || NameEquals(p, "info")))
+            {
+                throw Refused(original, "git is on the shell allow-list, and git runs the commands a file of this kind names (config, hooks)");
             }
         }
 
@@ -135,14 +127,7 @@ internal static class PathGuard
         // .git is a file pointing at it) or a bare repository has no ".git" in its path, yet a planted config or hook in it runs
         // commands for an allow-listed git. A directory is one when it has HEAD, objects and refs. The check counts the file being
         // written, so the write that would complete the set is refused too, whatever order the pieces arrive in.
-        // The root itself is checked too: a root that is a repository control directory, or a git directory, is not exempt. A host that
-        // wants one passes WithRepoControlWrites().
-        if (s_repoControlNames.Contains(Path.GetFileName(best.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)).TrimEnd(' ', '.'), StringComparer.OrdinalIgnoreCase))
-        {
-            throw Refused(original, "the root is a repository control directory");
-        }
-
-        string dir = best;
+        string dir = top;
         for (int i = -1; i < parts.Length - 1; i++)
         {
             if (i >= 0)
@@ -155,15 +140,36 @@ internal static class PathGuard
             bool Pending(string name, bool tree) => pending is not null && pending.Any(p => tree
                 ? IsUnder(p, Path.Join(dir, name)) && !string.Equals(p, Path.Join(dir, name), PathComparison)
                 : string.Equals(p, Path.Join(dir, name), PathComparison));
-            bool head = string.Equals(first, "HEAD", PathComparison) || File.Exists(Path.Join(dir, "HEAD")) || Pending("HEAD", false);
-            bool objects = string.Equals(first, "objects", PathComparison) || Directory.Exists(Path.Join(dir, "objects")) || Pending("objects", true);
-            bool refs = string.Equals(first, "refs", PathComparison) || Directory.Exists(Path.Join(dir, "refs")) || Pending("refs", true);
+            bool head = NameEquals(first, "HEAD") || File.Exists(Path.Join(dir, "HEAD")) || Pending("HEAD", false);
+            bool objects = NameEquals(first, "objects") || Directory.Exists(Path.Join(dir, "objects")) || Pending("objects", true);
+            bool refs = NameEquals(first, "refs") || Directory.Exists(Path.Join(dir, "refs")) || Pending("refs", true);
             if (head && objects && refs)
             {
                 throw Refused(original, "it is inside a git directory (HEAD, objects and refs), whose config and hooks can make an allow-listed git run commands");
             }
         }
     }
+
+    private static readonly string[] s_gitRoleFiles = ["config", "config.worktree", "commondir", "gitdir"];
+
+    /// <summary>Whether the shell policy lists git, so that its configuration and hook files are executable content.</summary>
+    internal static bool GitListed(ShellPolicy policy) =>
+        policy.Enabled && policy.Commands is { } cmds && cmds.Any(c =>
+        {
+            string first = c.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
+            string stem = Path.GetFileNameWithoutExtension(first.Replace('\\', '/').Split('/')[^1]);
+            return stem.Equals("git", StringComparison.OrdinalIgnoreCase);
+        });
+
+    /// <summary>
+    /// Whether two names are the same file name for protection purposes: always case-insensitive (a false match only over-refuses). On Windows and macOS, where U+017F (long s) and U+212A (Kelvin sign) are
+    /// folded by the file system's own tables or may be, and U+0131 (dotless i) might be; folding all three over-refuses at worst.
+    /// </summary>
+    internal static bool NameEquals(string a, string b) =>
+        string.Equals(OperatingSystem.IsLinux() ? a : Fold(a), OperatingSystem.IsLinux() ? b : Fold(b), StringComparison.OrdinalIgnoreCase);
+
+    internal static string Fold(string s) =>
+        s.AsSpan().IndexOfAny('ı', 'ſ', 'K') < 0 ? s : s.Replace('ı', 'i').Replace('ſ', 's').Replace('K', 'k');
 
     /// <summary>Whether a real path lies under any protected directory.</summary>
     internal static bool IsInProtected(string real, IReadOnlyList<string> protectedPaths)
@@ -216,6 +222,12 @@ internal static class PathGuard
 
     internal static bool IsUnder(string path, string root, StringComparison cmp)
     {
+        if (cmp != StringComparison.Ordinal)
+        {
+            path = Fold(path);
+            root = Fold(root);
+        }
+
         string r = root.Length > 1 ? root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : root;
         if (string.Equals(path, r, cmp))
         {

@@ -480,4 +480,241 @@ public class WindowsFormsTests
         Assert.True(asked);
         Assert.False(File.Exists(marker));
     }
+
+    // ---- third review round (numbers follow the reviewer's list of CI checks)
+
+    private static void WindowsOrMac() => Assert.SkipUnless(OperatingSystem.IsWindows() || OperatingSystem.IsMacOS(), "These cases are about case-insensitive file systems.");
+
+    [Fact]
+    public async Task A_root_written_in_extended_length_form_works_like_the_ordinary_one()
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        s.Write("ok.txt", "fine");
+        Capabilities caps = Capabilities.Files(@"\\?\" + s.Root);
+        Assert.Equal("fine", Kit.Text(await Kit.Run("read_file", One("path", "ok.txt"), caps)).TrimEnd());
+        Assert.False((await Kit.Run("write_file", Args("new.txt"), caps)).IsError);
+        Assert.True((await Kit.Run("read_file", One("path", s.In("..\\outside\\x.txt")), caps)).IsError);
+        Assert.True((await Kit.Run("write_file", Args(".git\\config"), caps)).IsError);
+    }
+
+    [Fact]
+    public void Extended_and_network_spellings_of_the_same_drive_are_refused_without_a_connection()
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        s.Write("ok.txt", "fine");
+        Capabilities caps = Capabilities.Files(s.Root);
+        string drive = s.Root[..1];
+        string rest = s.Root[3..];
+        var watch = Stopwatch.StartNew();
+        foreach (string path in new[]
+        {
+            "//?/" + s.Root.Replace('\\', '/') + "/ok.txt",
+            "//./" + s.Root.Replace('\\', '/') + "/ok.txt",
+            @"\\localhost\" + drive + "$\\" + rest + @"\ok.txt",
+            @"\\?\UNC\localhost\" + drive + "$\\" + rest + @"\ok.txt",
+        })
+        {
+            Assert.Throws<CapabilityMissingException>(() => caps.ResolveRead(path));
+        }
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), watch.Elapsed.ToString());
+    }
+
+    [Theory]
+    [InlineData("COM0.txt", true)]
+    [InlineData("LPT0", true)]
+    [InlineData("com0", true)]
+    [InlineData("CONIN$", true)]
+    [InlineData("CONOUT$", true)]
+    [InlineData("NUL.tar.gz", true)]
+    [InlineData("AUX .txt", true)]
+    [InlineData("COM¹", true)]
+    [InlineData("COM².log", true)]
+    [InlineData("LPT³", true)]
+    [InlineData("COMA.txt", false)]
+    [InlineData("COM10.txt", false)]
+    public async Task Device_names_are_refused_as_written_files_and_lookalikes_are_not(string name, bool refused)
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        ToolResult r = await Kit.Run("write_file", Args(name), Capabilities.Files(s.Root));
+        Assert.Equal(refused, r.IsError);
+    }
+
+    [Fact]
+    public async Task Names_the_file_system_folds_to_a_control_name_are_refused()
+    {
+        WindowsOrMac();
+        using var s = new Scratch();
+        Capabilities caps = Capabilities.Files(s.Root);
+        // Record what this file system does with the folded spellings (visible in the failure message), then require the refusal for each
+        // spelling whether or not it folds: refusing a name that is merely different costs nothing.
+        var report = new List<string>();
+        foreach ((string real, string folded) in new[] { (".svn", ".\u017Fvn"), (".git", ".g\u0131t"), ("_darcs", "_darc\u017F"), (".fslckout", ".fslc\u212Aout"), ("CVS", "CV\u017F") })
+        {
+            Directory.CreateDirectory(s.In(real));
+            report.Add($"{real}~{folded}={Directory.Exists(s.In(folded))}");
+            ToolResult r = await Kit.Run("write_file", Args(folded + "/x"), caps);
+            Assert.True(r.IsError, string.Join("; ", report));
+            Assert.False(File.Exists(s.In(real + "/x")), string.Join("; ", report));
+        }
+    }
+
+    [Fact]
+    public async Task Short_names_of_every_protected_kind_are_refused_and_real_tilde_names_work()
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        foreach (string d in new[] { ".git", ".onellm\\instances", ".fslckout", "sub\\.git" })
+        {
+            Directory.CreateDirectory(s.In(d));
+        }
+
+        File.WriteAllText(s.In(".gitmodules"), "");
+        File.WriteAllText(s.In(".onellm\\instances\\i.yaml"), "TRANSCRIPT");
+        Capabilities caps = Capabilities.Files(s.Root);
+        string[] aliases = ["GIT~1\\config", "GITMOD~1", "ONELLM~1\\instances\\x", "FSLCKO~1", ".\\GIT~1\\config", "sub\\..\\GIT~1\\config", "sub\\GIT~1\\config"];
+        bool shortNamesOn = !string.IsNullOrEmpty(Path.GetFileName(ShortPath(s, s.In(".git")))) && Path.GetFileName(ShortPath(s, s.In(".git"))).Contains('~', StringComparison.Ordinal);
+        if (shortNamesOn)
+        {
+            foreach (string a in aliases)
+            {
+                Assert.True((await Kit.Run("write_file", Args(a), caps)).IsError, a);
+            }
+
+            Assert.True((await Kit.Run("read_file", One("path", "ONELLM~1\\instances\\i.yaml"), caps)).IsError);
+        }
+
+        // A file really named with a tilde, and one that does not exist yet, are ordinary.
+        Assert.False((await Kit.Run("write_file", Args("report~1.txt"), caps)).IsError);
+        Assert.False((await Kit.Run("write_file", Args("NEWFIL~1.txt"), caps)).IsError);
+        Assert.False(File.Exists(s.In(".git\\config")));
+    }
+
+    [Theory]
+    [InlineData(".git::$INDEX_ALLOCATION\\config")]
+    [InlineData("ok.txt:stream")]
+    [InlineData(".git:foo")]
+    [InlineData("dir::$DATA")]
+    public async Task Stream_spellings_of_directories_and_files_are_refused(string path)
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        Directory.CreateDirectory(s.In(".git"));
+        Assert.True((await Kit.Run("write_file", Args(path), Capabilities.Files(s.Root))).IsError);
+        Assert.False(File.Exists(s.In(".git\\config")));
+    }
+
+    [Fact]
+    public async Task A_junction_to_a_control_directory_does_not_hide_it()
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        Directory.CreateDirectory(s.In(".git"));
+        Junction(s.In("gl"), s.In(".git"));
+        Capabilities caps = Capabilities.Files(s.Root);
+        Assert.True((await Kit.Run("write_file", Args("gl\\config"), caps)).IsError);
+        Assert.False(File.Exists(s.In(".git\\config")));
+        foreach (string target in new[] { @"\\?\GLOBALROOT\Device\HarddiskVolume1", "C:\\Windows" })
+        {
+            Run("cmd.exe", "/c", "mklink", "/J", s.In("vol" + Math.Abs(target.GetHashCode())), target);
+        }
+
+        foreach (string dir in Directory.GetDirectories(s.Root, "vol*"))
+        {
+            string name = Path.GetFileName(dir);
+            Assert.True((await Kit.Run("read_file", One("path", name + "\\win.ini"), caps)).IsError, name);
+            Assert.True((await Kit.Run("write_file", Args(name + "\\x.txt"), caps)).IsError, name);
+            Assert.True((await Kit.Run("list_files", One("directory", name), caps)).IsError, name);
+        }
+    }
+
+    [Fact]
+    public async Task More_trailing_dot_and_space_spellings_are_refused()
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        Capabilities caps = Capabilities.Files(s.Root);
+        foreach (string path in new[] { ".git.\\config", ".git \\config", ".git. .\\config", ".onellm.\\instances\\x", "a\\..\\.git \\config" })
+        {
+            Assert.True((await Kit.Run("write_file", Args(path), caps)).IsError, path);
+        }
+
+        Assert.True((await Kit.Run("write_file", Args(".. \\x"), caps)).IsError);
+        Assert.False(File.Exists(s.In("x")));
+    }
+
+    [Fact]
+    public async Task A_powershell_entry_that_pins_a_script_refuses_chaining_and_a_bare_interpreter_entry_is_arbitrary_execution()
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        s.Write("t.ps1", "param($a) Write-Output \"got $a\"");
+        Capabilities pinned = Capabilities.Files(s.Root) + Capabilities.ShellCommands("powershell -NoProfile -NonInteractive -File t.ps1");
+        foreach (string arg in new[] { ";calc", "$env:X", "a`b", "{ }" })
+        {
+            Assert.True((await Kit.Run("execute_terminal_command", Exec("powershell", ["-NoProfile", "-NonInteractive", "-File", "t.ps1", arg]), pinned)).IsError, arg);
+        }
+
+        ToolResult ok = await Kit.Run("execute_terminal_command", Exec("powershell", ["-NoProfile", "-NonInteractive", "-File", "t.ps1", "hello world"], timeout: 150), pinned);
+        Assert.False(ok.IsError, Kit.Text(ok));
+        Assert.Contains("got hello world", Kit.Text(ok), StringComparison.Ordinal);
+
+        // Documented behaviour (docs/capabilities.md): a bare interpreter entry runs whatever it is told.
+        Capabilities bare = Capabilities.Files(s.Root) + Capabilities.ShellCommands("cmd");
+        ToolResult any = await Kit.Run("execute_terminal_command", Exec("cmd", ["/c", "echo", "anything"]), bare);
+        Assert.False(any.IsError, Kit.Text(any));
+    }
+
+    [Fact]
+    public async Task A_batch_entry_by_full_path_receives_a_spaced_argument_as_one_argument()
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        string bat = s.Write("count.bat", "@echo off\r\nset n=0\r\nfor %%a in (%*) do set /a n+=1\r\necho n=%n%\r\n");
+        ToolResult r = await Kit.Run("execute_terminal_command", Exec(bat, ["a b"]), Capabilities.Files(s.Root) + Capabilities.ShellCommands(bat));
+        Assert.False(r.IsError, Kit.Text(r));
+        Assert.Contains("n=1", Kit.Text(r), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Path_entries_that_are_not_fully_qualified_are_not_searched()
+    {
+        WindowsOnly();
+        using var s = new Scratch();
+        string exe = Path.Combine(s.Root, "tool.exe");
+        File.Copy(Path.Combine(Environment.SystemDirectory, "hostname.exe"), exe);
+        Directory.CreateDirectory(s.In("bin"));
+        File.Copy(exe, s.In("bin\\tool.exe"));
+        string saved = Environment.GetEnvironmentVariable("PATH") ?? "";
+        string cwd = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.SetCurrentDirectory(s.Root);
+            Environment.SetEnvironmentVariable("PATH", string.Join(';', ".", "bin", "C:bin", "\\bin", "\"" + s.In("bin") + "\""));
+            Capabilities caps = Capabilities.Files(s.Root) + Capabilities.ShellCommands("tool");
+            Assert.True((await Kit.Run("execute_terminal_command", Exec("tool"), caps)).IsError);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(cwd);
+            Environment.SetEnvironmentVariable("PATH", saved);
+        }
+    }
+
+    [Fact]
+    public async Task A_planted_git_config_does_not_run_after_git_init_completes_the_directory()
+    {
+        WindowsOnly();
+        Assert.SkipUnless((Environment.GetEnvironmentVariable("PATH") ?? "").Split(';').Any(d => File.Exists(Path.Combine(d, "git.exe"))), "git is not installed.");
+        using var s = new Scratch();
+        string pwn = s.In("PWNED");
+        Capabilities caps = Capabilities.Files(s.Root) + Capabilities.ShellCommands("git status", "git init");
+        Assert.True((await Kit.Run("write_file", Args("gd\\config", "[core]\n\tfsmonitor = echo x> " + pwn.Replace('\\', '/') + "\n"), caps)).IsError);
+        _ = await Kit.Run("execute_terminal_command", Exec("git", ["init", "-q", "--separate-git-dir=" + s.In("gd"), s.In("wt")]), caps);
+        _ = await Kit.Run("execute_terminal_command", new JsonObject { ["command"] = "git", ["args"] = new JsonArray("status"), ["working_dir"] = "wt" }.ToJsonString(), caps);
+        Assert.False(File.Exists(pwn));
+    }
 }

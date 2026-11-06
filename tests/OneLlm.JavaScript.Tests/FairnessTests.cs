@@ -35,16 +35,24 @@ public class FairnessTests
     public async Task Eight_hogs_then_a_hook_still_runs()
     {
         // Eight tool-style runs from eight callers fill every slot a tool may use; the slots kept for interceptors stay free.
+        // The hogs spin until the test cancels them, so the count is checked while they are all certainly still running.
         var limiter = new JsRunLimiter(maxConcurrentRuns: 8, maxWait: TimeSpan.Zero, reservedForInterceptors: 2, maxRunsPerCaller: 3);
-        var options = new JsSandboxOptions { Limiter = limiter, TimeLimit = TimeSpan.FromSeconds(5), Fuel = 100_000_000_000 };
+        var options = new JsSandboxOptions { Limiter = limiter, TimeLimit = TimeSpan.FromSeconds(60), Fuel = 100_000_000_000 };
         var sb = new JsSandbox(options);
+        using var stop = new CancellationTokenSource();
         List<Task> hogs = [];
         for (int i = 0; i < 8; i++)
         {
-            hogs.Add(Swallow(sb.RunSnippetAsync(Hog, null, As("c" + i), Js.All)));
+            hogs.Add(Swallow(sb.RunSnippetAsync("for (;;) {}", null, As("c" + i), Js.All, "snippet.js", stop.Token)));
         }
 
-        await Task.Delay(300);
+        // Six get a slot; the other two are refused at once (no wait), so the count settles at six and stays there.
+        DateTime deadline = DateTime.UtcNow.AddSeconds(30);
+        while (limiter.ActiveRuns != 6 && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
         Assert.Equal(6, limiter.ActiveRuns);
 
         using var dir = new Scratch();
@@ -53,6 +61,8 @@ public class FairnessTests
         Assert.Equal(HookPoints.BeforeToolCall, hook.Points);
         JsRunResult r = await sb.CallAsync("export function f() { return 7; }", "f.js", "f", [], passCtx: false, As("hook"), ToolCapability.None, null, default, interceptor: true);
         Assert.Equal("7", r.Value!.ToJsonString());
+
+        await stop.CancelAsync();
         await Task.WhenAll(hogs);
     }
 
@@ -64,7 +74,11 @@ public class FairnessTests
         }
         catch (JsSandboxException)
         {
-            // The extra callers are refused as busy; the six that got a slot finish.
+            // The extra callers are refused as busy.
+        }
+        catch (OperationCanceledException)
+        {
+            // The six that got a slot are cancelled at the end of the test.
         }
     }
 }

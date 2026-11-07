@@ -11,8 +11,13 @@ namespace OneLlm.Providers.OpenAI;
 /// same content, so a <see cref="MessageAccumulator"/> builds equal messages from either (the output item shapes and the event list are in the
 /// Responses API reference).
 /// </summary>
-internal sealed class ResponsesDecoder(string provider)
+internal sealed class ResponsesDecoder(string provider, Func<string, string>? scrub = null)
 {
+    private ProviderException StreamError(string providerName, string? code, string? message, string? errorType) =>
+        OpenAIErrors.FromStreamError(providerName, Clean(code), Clean(message), Clean(errorType));
+
+    private string? Clean(string? text) => text is null ? null : scrub is null ? text : scrub(text);
+
     // Each output item owns a block of 64 stream indexes; its content parts or summary parts take the slots inside it.
     private const int SlotsPerItem = 64;
 
@@ -122,9 +127,9 @@ internal sealed class ResponsesDecoder(string provider)
                 break;
             case "response.failed":
                 JsonObject? failed = (root["response"] as JsonObject)?["error"] as JsonObject;
-                throw OpenAIErrors.FromStreamError(_provider, Str(failed?["code"]), Str(failed?["message"]) ?? "the response failed.", null);
+                throw StreamError(_provider, Str(failed?["code"]), Str(failed?["message"]) ?? "the response failed.", null);
             case "error":
-                throw OpenAIErrors.FromStreamError(_provider, Str(root["code"]) ?? Str((root["error"] as JsonObject)?["code"]), Str(root["message"]) ?? Str((root["error"] as JsonObject)?["message"]), Str(root["error_type"]));
+                throw StreamError(_provider, Str(root["code"]) ?? Str((root["error"] as JsonObject)?["code"]), Str(root["message"]) ?? Str((root["error"] as JsonObject)?["message"]), Str(root["error_type"]));
             default:
                 // Progress events for tools (searching, interpreting, ...) and anything newer are not needed to build the message:
                 // the finished output item carries the result.
@@ -175,7 +180,7 @@ internal sealed class ResponsesDecoder(string provider)
         if (status == "failed")
         {
             JsonObject? error = root["error"] as JsonObject;
-            throw OpenAIErrors.FromStreamError(_provider, Str(error?["code"]), Str(error?["message"]) ?? "the response failed.", null);
+            throw StreamError(_provider, Str(error?["code"]), Str(error?["message"]) ?? "the response failed.", null);
         }
 
         _events.Add(StreamEvent.MessageStart(Str(root["id"]), Str(root["model"])));

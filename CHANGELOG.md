@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in Claude Code and Codex subscription chat providers, with explicit account directories, OAuth refresh and atomic CLI credential persistence, streaming, tool replay, usage reporting and zero per-token catalog prices. See [subscription providers](docs/subscriptions.md) for endpoint limitations, refresh coordination and terms.
+
 ### Fixed
 
 - Changelog correction for 1.0.1: every spend limit picks up a new value, not only `Runtime.SpendCap`. `SpendCap` is read at each model call; `MaxCostPerCall` and `InstanceSpendCap` are read when each run starts, which for `Ask`, `Stream` and each `Chat` turn is each call. Decider runs also fire `OnMessage` and `OnStateChange`, not only `OnCost`.

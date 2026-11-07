@@ -22,11 +22,13 @@ internal sealed class OpenAIWire
 {
     private const int MaxBodyBytes = 256 * 1024 * 1024;
 
+    private readonly bool _scrubStreamErrors;
     private readonly OpenAIOptions _options;
     private readonly ModelCatalog? _catalog;
 
-    public OpenAIWire(string provider, string catalogScope, OpenAIProtocol protocol, ChatDialect dialect, OpenAIEndpoint endpoint, OpenAIOptions options, TimeProvider time)
+    public OpenAIWire(string provider, string catalogScope, OpenAIProtocol protocol, ChatDialect dialect, OpenAIEndpoint endpoint, OpenAIOptions options, TimeProvider time, bool scrubStreamErrors = false)
     {
+        _scrubStreamErrors = scrubStreamErrors;
         Provider = provider;
         CatalogScope = catalogScope;
         Protocol = protocol;
@@ -87,8 +89,8 @@ internal sealed class OpenAIWire
             using var sse = new SseReader(stream, Provider);
             if (Protocol == OpenAIProtocol.Responses)
             {
-                var decoder = new ResponsesDecoder(Provider);
-                while (await sse.ReadEventAsync(cancellationToken).ConfigureAwait(false))
+                var decoder = new ResponsesDecoder(Provider, _scrubStreamErrors ? Http.Scrub : null);
+                while (await ReadEventAsync(sse, cancellationToken).ConfigureAwait(false))
                 {
                     decoder.ProcessEvent(sse.Data);
                     foreach (StreamEvent e in decoder.Events)
@@ -106,7 +108,7 @@ internal sealed class OpenAIWire
             }
 
             var chat = new ChatCompletionsDecoder(Provider);
-            while (await sse.ReadEventAsync(cancellationToken).ConfigureAwait(false))
+            while (await ReadEventAsync(sse, cancellationToken).ConfigureAwait(false))
             {
                 // Chat Completions ends the stream with a data line that is not JSON: [DONE].
                 if (sse.Data.Span.SequenceEqual("[DONE]"u8))
@@ -129,12 +131,24 @@ internal sealed class OpenAIWire
         }
     }
 
+    private async ValueTask<bool> ReadEventAsync(SseReader sse, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await sse.ReadEventAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e) when (_scrubStreamErrors && e is IOException or HttpRequestException)
+        {
+            throw new TransportException(Provider, Http.Scrub("the stream broke: " + e.Message));
+        }
+    }
+
     public ChatResponse DecodeChat(ReadOnlyMemory<byte> body, string requestedModel)
     {
         var acc = new MessageAccumulator();
         if (Protocol == OpenAIProtocol.Responses)
         {
-            var decoder = new ResponsesDecoder(Provider);
+            var decoder = new ResponsesDecoder(Provider, _scrubStreamErrors ? Http.Scrub : null);
             decoder.ProcessResponse(body);
             foreach (StreamEvent e in decoder.Events)
             {
@@ -166,7 +180,7 @@ internal sealed class OpenAIWire
         var acc = new MessageAccumulator();
         if (Protocol == OpenAIProtocol.Responses)
         {
-            var decoder = new ResponsesDecoder(Provider);
+            var decoder = new ResponsesDecoder(Provider, _scrubStreamErrors ? Http.Scrub : null);
             decoder.ProcessResponseObject(response);
             foreach (StreamEvent e in decoder.Events)
             {

@@ -80,3 +80,29 @@ See `contextStrategy` in `spec/definitions.md`: `clearToolResults`, `compact`, `
 Hooks run in registration order; host hooks wrap hooks a definition names (those come with the `.JavaScript` package). **Interceptors fail closed:** one that throws blocks the step. **Observers fail open:** one that throws is recorded and the run goes on. Every Modify, Block, Respond and RequireApproval is written as a `hook` record. With no hooks registered a run builds no hook context and allocates nothing for them.
 
 **Every run kind.** The same hook points fire with the same decisions on every run that makes inference calls: `Ask`, `Generate` and `Stream` calls, `Chat` turns, scripted `.flow` runs, and agents. In a streamed call, `Respond` yields no events: the answer is in the result and the instance. A `StreamEvent` hook sees the events of streaming calls; a non-streaming call, whether in an agent or not, streams under the hood while one is registered. Tool points (`BeforeToolCall`, `AfterToolCall`, `BeforeCompaction`) exist only where there are tools, that is in agent runs. `OnCost` reports each priced model call with source `inference`, once, with the total the result reports. Decider runs on a chat model or a decisions engine report `OnCost` the same way, and fire `OnMessage` and `OnStateChange` as their instance changes. Hooks a `.flow` names in `hooks:` follow the agent rules: they need a hook source such as `.JavaScript`, and a flow whose hooks include an interceptor fails to start without one. Embeddings make no instance, so they fire no hook; they are recorded, priced and counted against `Runtime.SpendCap` only.
+
+## Trusted-host policy and changing tools
+
+Three runtime switches default to `false`; existing policy and startup behaviour are unchanged unless enabled:
+
+- `IndependentSubAgentPolicy`: a newly spawned child uses the runtime's grants, not its parent's intersection, and resolves tools from its own definition without a parent tool ceiling. This applies to file and registered definitions. Explicit host `AgentStartOptions.Capabilities` can still narrow a start. Saved grants still bound a resumed instance; switching policy does not widen an older instance. File access to load a child definition and the separate instance-reach policy are unchanged. Use only for trusted hosts that manage their own policy.
+- `RefreshAgentToolsOnRegistryChange`: at the next inference turn boundary after `Runtime.Tools` or `ToolRegistry.Version` changes, re-resolve the definition's references. New tools in a referenced routine become available, removed tools disappear, and replacements take effect. This does **not** expose every tool in the registry: references, capabilities, and saved parent ceilings still apply. Missing tools are stripped with warnings on refresh (as on resume). Explicit start-option tools are retained and take precedence. The unchanged-registry path compares only the registry reference and an atomic version read; an in-flight turn keeps its snapshot.
+- `ResumeInterruptedAgents`: enables the explicit startup call below; setting it alone starts nothing.
+
+`ToolRegistry.Add`, `AddRoutine`, `UseBuiltins`, and successful `Remove(name)` calls advance `Version`. A missing removal returns `false` without changing the version. Routine mappings survive tool removal so re-adding the name restores its resolution. Mutations may overlap turns; a change overlapping resolution is picked up no later than the following boundary. Tools must be thread-safe if shared by concurrent runs.
+
+## Startup recovery
+
+After configuring the same store, providers, tool registry, capabilities and definition-hook source:
+
+```csharp
+runtime.ResumeInterruptedAgents = true;
+IReadOnlyList<AgentRun> recovered = await runtime.ResumeInterruptedAgentsAsync(cancellationToken);
+// Keep the handles; observe AwaitAsync() failures and cancel them on shutdown.
+```
+
+The API discovers `running` agents marked `agentRecovery: true` (written when agents are started by this version), starting children before their parents. It acquires each store lease **before** rechecking saved state or launching work; a live lease is skipped, not stolen. File locks release on process exit. Database leases expire after their configured duration (OneLite defaults to 60 seconds); invoke recovery again after expiry if the first startup pass skipped crashed leases. Ordinary store/provider/load failures propagate; already returned or started runs are not cancelled by discovery cancellation.
+
+Recovery continues the conversation from its last saved boundary without adding a new prompt or rerunning initial prompts. An interrupted inference is called again. An interrupted tool turn may be called again, so external side effects must tolerate replay: this is not exactly-once execution. Running children are discovered independently; `await_agent` can wait for them again. A child still leased by another process is not adopted as a cross-process live handle.
+
+`waiting` is ordinary rest, not an interrupted run: replies/messages already resume those agents through `MessageAgentAsync`. `waiting_for_approval` stays held until the existing approve/deny API is used. Monitor registrations, pending monitor waits and undrained in-memory messages are **not persisted**; the host must re-arm monitors and redeliver external events after restart. Recovery does not select older instances without the recovery marker, or simple/scripted/decider instances. Configure the host before calling recovery, and use a single startup recovery caller per runtime.

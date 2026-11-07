@@ -45,9 +45,9 @@ internal sealed class RunScope : IAsyncDisposable
     public bool DropUnansweredUser { get; set; }
 
     /// <summary>Starts a run. A null <paramref name="hooks"/> means no hooks (agent runs); the other run kinds pass <see cref="HookSet.ForRuntime"/>.</summary>
-    public static async Task<RunScope> StartAsync(Runtime runtime, Instance instance, CancellationToken cancellationToken, HookSet? hooks = null)
+    public static async Task<RunScope> StartAsync(Runtime runtime, Instance instance, CancellationToken cancellationToken, HookSet? hooks = null, IInstanceLease? lease = null)
     {
-        IInstanceLease lease = await runtime.Store.AcquireAsync(instance.InstanceId, cancellationToken).ConfigureAwait(false);
+        lease ??= await runtime.Store.AcquireAsync(instance.InstanceId, cancellationToken).ConfigureAwait(false);
         try
         {
             // A negative total (a bad tool cost written into an older instance) counts as zero: the instance must still load.

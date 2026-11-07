@@ -15,6 +15,22 @@ public sealed partial class Runtime
     /// <summary>The tools agents can ask for. Starts with the agent tools (<c>task_complete</c>, <c>run_agent_async</c>, <c>await_agent</c>, <c>monitor_agent</c>, ...). A definition's <c>references</c> must resolve here, or loading the agent fails.</summary>
     public ToolRegistry Tools { get; set; } = new();
 
+    /// <summary>False by default. For trusted hosts that manage their own policy: children use the runtime's grants and their own definition's tools, without a parent ceiling. Explicit host start options may still narrow grants.</summary>
+    public bool IndependentSubAgentPolicy { get; set; }
+
+    /// <summary>False by default. Re-resolves an agent's tools at each turn boundary when the registry object or its version changed. References, grants and any saved tool ceiling still apply; missing tools are stripped during refresh.</summary>
+    public bool RefreshAgentToolsOnRegistryChange { get; set; }
+
+    /// <summary>False by default. Enables explicit startup recovery through <see cref="ResumeInterruptedAgentsAsync"/>. Setting this property alone does not start work.</summary>
+    public bool ResumeInterruptedAgents { get; set; }
+
+    /// <summary>Starts saved agents interrupted in the running state. Returns no runs when <see cref="ResumeInterruptedAgents"/> is false. Locked instances are skipped; call again after crashed database leases expire. Waiting agents and pending approvals are not restarted.</summary>
+    /// <param name="cancellationToken">Cancels discovery and lease acquisition, not the returned runs.</param>
+    /// <returns>Handles for recovered agents, which run in the background. Await each handle to observe completion or failure.</returns>
+    /// <remarks>Only agents saved with recovery metadata are selected. Recovery replays from the last saved boundary, not from inside a tool; external side effects may repeat. Monitors are in-memory and must be re-armed by the host.</remarks>
+    public Task<IReadOnlyList<AgentRun>> ResumeInterruptedAgentsAsync(CancellationToken cancellationToken = default) =>
+        ResumeInterruptedAgents ? AgentHost.ResumeInterruptedAsync(cancellationToken) : Task.FromResult<IReadOnlyList<AgentRun>>([]);
+
     /// <summary>The host's hooks. They wrap hooks a definition names, and apply to every agent this runtime starts afterwards.</summary>
     public HookRegistry Hooks { get; } = new();
 

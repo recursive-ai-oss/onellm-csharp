@@ -37,11 +37,11 @@ internal sealed class AgentHost
 
         LiveAgent? parent = options.SpawnerInstanceId is { } sid && _live.TryGetValue(sid, out LiveAgent? p) ? p : null;
         ICapabilities ceiling = _runtime.Capabilities;
-        if (parent is not null)
+        if (!_runtime.IndependentSubAgentPolicy && parent is not null)
         {
             ceiling = CapabilityIntersection.Of(ceiling, parent.Setup.Capabilities);
         }
-        else if (options.SpawnerInstanceId is { } savedParent && await _runtime.Store.LoadAsync(savedParent, cancellationToken).ConfigureAwait(false) is { } parentInstance)
+        else if (!_runtime.IndependentSubAgentPolicy && options.SpawnerInstanceId is { } savedParent && await _runtime.Store.LoadAsync(savedParent, cancellationToken).ConfigureAwait(false) is { } parentInstance)
         {
             // The parent is resting, not live: the grants it was saved with still bound the child. Damaged grants bound it to nothing.
             switch (GrantSummary.Evaluate(parentInstance.ExtensionData, out ICapabilities? parentGrants))
@@ -82,7 +82,7 @@ internal sealed class AgentHost
             (instance.ExtensionData ??= [])["swarmUri"] = swarmUri;
         }
 
-        IReadOnlySet<string>? toolCeiling = options.ToolCeiling;
+        IReadOnlySet<string>? toolCeiling = _runtime.IndependentSubAgentPolicy ? null : options.ToolCeiling;
         AgentSetup setup = BuildSetup(instance, options, caps, lenient, toolCeiling);
         Dictionary<string, object?> saved = GrantSummary.Of(caps);
         if (toolCeiling is not null)
@@ -92,6 +92,7 @@ internal sealed class AgentHost
 
         (instance.ExtensionData ??= [])[GrantSummary.Key] = saved;
         instance.ExtensionData[GrantSummary.RecordedKey] = true;
+        instance.ExtensionData["agentRecovery"] = true;
         setup.Warnings.InsertRange(0, definition.Warnings);
         var agent = new LiveAgent(_runtime, this, instance, setup) { Options = options };
         _live[instance.InstanceId] = agent;
@@ -162,9 +163,9 @@ internal sealed class AgentHost
         }
     }
 
-    private async Task<LiveAgent?> LoadAsync(string instanceId)
+    private async Task<LiveAgent?> LoadAsync(string instanceId, bool reload = false)
     {
-        if (_live.TryGetValue(instanceId, out LiveAgent? live))
+        if (!reload && _live.TryGetValue(instanceId, out LiveAgent? live))
         {
             return live;
         }
@@ -176,7 +177,7 @@ internal sealed class AgentHost
         }
 
         LiveAgent? parent = instance.SpawnerInstanceId is { } sid && _live.TryGetValue(sid, out LiveAgent? p) ? p : null;
-        ICapabilities caps = parent is null ? _runtime.Capabilities : CapabilityIntersection.Of(_runtime.Capabilities, parent.Setup.Capabilities);
+        ICapabilities caps = _runtime.IndependentSubAgentPolicy || parent is null ? _runtime.Capabilities : CapabilityIntersection.Of(_runtime.Capabilities, parent.Setup.Capabilities);
         // What the instance was started with bounds it again: a read-only start stays read-only in any runtime that resumes it.
         // A recorded entry that is missing or damaged is not a licence to run with the runtime's grants: the instance does not run.
         object? savedGrants = instance.ExtensionData?.GetValueOrDefault(GrantSummary.Key);
@@ -199,6 +200,82 @@ internal sealed class AgentHost
 
         await ReindexChildrenAsync(instance.InstanceId, CancellationToken.None).ConfigureAwait(false);
         return agent;
+    }
+
+    public async Task<IReadOnlyList<AgentRun>> ResumeInterruptedAsync(CancellationToken cancellationToken)
+    {
+        var runs = new List<AgentRun>();
+        var interrupted = new Dictionary<string, InstanceSummary>(StringComparer.Ordinal);
+        await foreach (InstanceSummary summary in _runtime.Store.ListAsync(new InstanceQuery { State = InstanceStates.Running }, cancellationToken).ConfigureAwait(false))
+        {
+            interrupted[summary.InstanceId] = summary;
+        }
+
+        var spawners = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (string id in interrupted.Keys)
+        {
+            spawners[id] = (await _runtime.Store.LoadAsync(id, cancellationToken).ConfigureAwait(false))?.SpawnerInstanceId;
+        }
+
+        // Start children before their awaiting parents, so await_agent sees their active segment rather than a resting handle.
+        int Depth(InstanceSummary summary)
+        {
+            int depth = 0;
+            while (depth < 256 && spawners.GetValueOrDefault(summary.InstanceId) is { } parent && interrupted.TryGetValue(parent, out summary!))
+            {
+                depth++;
+            }
+
+            return depth;
+        }
+
+        foreach (InstanceSummary summary in interrupted.Values.OrderByDescending(Depth))
+        {
+            if (_live.TryGetValue(summary.InstanceId, out LiveAgent? existing) && existing.IsRunning)
+            {
+                continue;
+            }
+
+            IInstanceLease lease;
+            try
+            {
+                lease = await _runtime.Store.AcquireAsync(summary.InstanceId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (InstanceLockedException)
+            {
+                continue;
+            }
+
+            bool transferred = false;
+            try
+            {
+                // Recheck under the lease: the listing may predate another process finishing this instance.
+                Instance? saved = await _runtime.Store.LoadAsync(summary.InstanceId, cancellationToken).ConfigureAwait(false);
+                if (saved?.State != InstanceStates.Running || saved.ExtensionData?.GetValueOrDefault("agentRecovery") is not true)
+                {
+                    continue;
+                }
+
+                LiveAgent? agent = await LoadAsync(summary.InstanceId, reload: true).ConfigureAwait(false);
+                if (agent is not null)
+                {
+                    transferred = agent.StartSegment(initial: false, lease);
+                    if (transferred)
+                    {
+                        runs.Add(agent.Handle);
+                    }
+                }
+            }
+            finally
+            {
+                if (!transferred)
+                {
+                    await lease.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        return runs;
     }
 
     private async Task ReindexChildrenAsync(string parentId, CancellationToken cancellationToken)
@@ -249,13 +326,31 @@ internal sealed class AgentHost
         return definitionHooks;
     }
 
-    private AgentSetup BuildSetup(Instance instance, AgentStartOptions options, ICapabilities caps, bool lenient, IReadOnlySet<string>? toolCeiling)
+    internal void RefreshTools(LiveAgent agent)
     {
-        ResolvedModelPair pair = ResolvedModelPair.Of(_runtime, instance.Model!);
+        ToolRegistry registry = _runtime.Tools;
+        long version = registry.Version;
+        AgentSetup setup = agent.Setup;
         var warnings = new List<string>();
+        Dictionary<string, ITool> tools = ResolveTools(registry, agent.Instance, agent.Options, setup.Capabilities, lenient: true, setup.ToolCeiling, warnings);
+        setup.Tools = tools;
+        setup.ToolDefinitions = [.. tools.Values.Select(static t => t.Definition.ToProviderDefinition())];
+        setup.Registry = registry;
+        setup.RegistryVersion = version;
+        foreach (string warning in warnings)
+        {
+            if (!setup.Warnings.Contains(warning))
+            {
+                setup.Warnings.Add(warning);
+            }
+        }
+    }
+
+    private static Dictionary<string, ITool> ResolveTools(ToolRegistry registry, Instance instance, AgentStartOptions options, ICapabilities caps, bool lenient, IReadOnlySet<string>? toolCeiling, List<string> warnings)
+    {
         // The same resolver the definition loader offers decides what is granted, so a reference the runtime's grants do not cover
         // fails the load (strict) or is dropped with a warning (lenient).
-        ToolReferenceResolver resolver = _runtime.Tools.CreateResolver(caps, instance.References);
+        ToolReferenceResolver resolver = registry.CreateResolver(caps, instance.References);
         var fromRefs = new List<ITool>();
         foreach (ToolReference reference in instance.References)
         {
@@ -299,11 +394,25 @@ internal sealed class AgentHost
             tools[tool.Definition.Name] = tool;
         }
 
+        return tools;
+    }
+
+    private AgentSetup BuildSetup(Instance instance, AgentStartOptions options, ICapabilities caps, bool lenient, IReadOnlySet<string>? toolCeiling)
+    {
+        ToolRegistry registry = _runtime.Tools;
+        long registryVersion = registry.Version;
+        ResolvedModelPair pair = ResolvedModelPair.Of(_runtime, instance.Model!);
+        var warnings = new List<string>();
+        Dictionary<string, ITool> tools = ResolveTools(registry, instance, options, caps, lenient, toolCeiling, warnings);
+
         IReadOnlyList<IHook> definitionHooks = LoadDefinitionHooks(_runtime, instance, caps, lenient, warnings);
 
         IHook[] host = _runtime.Hooks.Snapshot;
         var setup = new AgentSetup
         {
+            Registry = registry,
+            RegistryVersion = registryVersion,
+            ToolCeiling = toolCeiling,
             Model = pair.Model,
             Provider = pair.Provider,
             Tools = tools,

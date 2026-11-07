@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- Add `AgentRun.StopAsync` to durably stop active or idle agents, disarm their monitors and suppress late monitor alerts until an explicit message or approval resumes them. `CancelAsync` keeps its segment-only behavior.
 - Opt-in `Runtime.IndependentSubAgentPolicy` for trusted hosts: children resolve their own definition's tools with runtime grants instead of a parent ceiling. Defaults stay restricted.
 - Opt-in `Runtime.RefreshAgentToolsOnRegistryChange`, with public `ToolRegistry.Version` and `Remove`, to refresh tool snapshots on the next turn after registration changes.
 - Opt-in `Runtime.ResumeInterruptedAgents` and `ResumeInterruptedAgentsAsync` for explicit startup recovery of interrupted agents under store leases. Recovery replays from saved boundaries; monitors remain in-memory.

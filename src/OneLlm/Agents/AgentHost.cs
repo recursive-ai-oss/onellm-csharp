@@ -504,6 +504,15 @@ internal sealed class AgentHost
 
     // ---- monitors -----------------------------------------------------------------------------------------------------------
 
+    public void DisarmOwnedMonitors(string watcherId)
+    {
+        foreach (AgentMonitor monitor in _monitors.Values.Where(m => m.WatcherId == watcherId))
+        {
+            monitor.Dispose();
+            _monitors.TryRemove(monitor.Id, out _);
+        }
+    }
+
     public AgentMonitor? FindMonitor(string id) => _monitors.GetValueOrDefault(id);
 
     public IReadOnlyList<AgentMonitor> ArmedOn(string targetId, string? watcherId) =>

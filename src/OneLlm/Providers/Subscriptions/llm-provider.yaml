@@ -1,0 +1,466 @@
+# Subscription quota usage has no per-token price. Availability depends on the account plan.
+providers:
+- name: claude-code
+  displayName: Claude subscription
+  modelPatterns:
+  - claude-code/*
+  capabilities:
+    streaming: true
+    tools: true
+    imageInputs: true
+    promptCaching: true
+  models:
+  - name: claude-code/claude-sonnet-5-5
+    displayName: Claude Sonnet 5.5 (Claude Code)
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://claude.ai/
+  - name: claude-code/claude-sonnet-5
+    displayName: Claude Sonnet 5 (Claude Code)
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: low
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://claude.ai/
+  - name: claude-code/claude-opus-5-5
+    displayName: Claude Opus 5.5 (Claude Code)
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://claude.ai/
+  - name: claude-code/claude-opus-5
+    displayName: Claude Opus 5 (Claude Code)
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://claude.ai/
+  - name: claude-code/claude-opus-4-8
+    displayName: Claude Opus 4.8 (Claude Code)
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - disabled
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: disabled
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://claude.ai/
+  - name: claude-code/claude-haiku-5-5
+    displayName: Claude Haiku 5.5 (Claude Code)
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://claude.ai/
+  - name: claude-code/claude-haiku-4-5
+    displayName: Claude Haiku 4.5 (Claude Code)
+    contextWindow: 200000
+    maxOutputTokens: 64000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: true
+    thinking:
+      efforts:
+      - disabled
+      - low
+      - medium
+      - high
+      defaultEffort: disabled
+      acceptsBudget: true
+      defaultEffortBudgets:
+        low: 2000
+        medium: 8000
+        high: 20000
+      minBudget: 1024
+      maxBudget: 32000
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://claude.ai/
+  - name: claude-code/claude-fable-5-1
+    displayName: Claude Fable 5.1 (Claude Code)
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: high
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://claude.ai/
+  - name: claude-code/claude-fable-5
+    displayName: Claude Fable 5 (Claude Code)
+    contextWindow: 1000000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: high
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://claude.ai/
+- name: codex
+  displayName: ChatGPT subscription
+  modelPatterns:
+  - codex/*
+  capabilities:
+    streaming: true
+    tools: true
+    imageInputs: true
+    promptCaching: true
+  models:
+  - name: codex/gpt-6-astra
+    displayName: GPT-6 Astra (ChatGPT)
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: high
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://chatgpt.com/
+  - name: codex/gpt-6.1-sol
+    displayName: GPT-6.1 Sol (ChatGPT)
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - none
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://chatgpt.com/
+  - name: codex/gpt-6.1-terra
+    displayName: GPT-6.1 Terra (ChatGPT)
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - none
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://chatgpt.com/
+  - name: codex/gpt-6-sol
+    displayName: GPT-6 Sol (ChatGPT)
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - none
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://chatgpt.com/
+  - name: codex/gpt-6-luna
+    displayName: GPT-6 Luna (ChatGPT)
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - none
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://chatgpt.com/
+  - name: codex/gpt-5.6-sol
+    displayName: GPT-5.6 Sol (ChatGPT)
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - none
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://chatgpt.com/
+  - name: codex/gpt-5.6-terra
+    displayName: GPT-5.6 Terra (ChatGPT)
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - none
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://chatgpt.com/
+  - name: codex/gpt-5.6-luna
+    displayName: GPT-5.6 Luna (ChatGPT)
+    contextWindow: 1050000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - none
+      - low
+      - medium
+      - high
+      - xhigh
+      - max
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://chatgpt.com/
+  - name: codex/gpt-5-codex
+    displayName: GPT-5 Codex (ChatGPT, known-good fallback)
+    contextWindow: 400000
+    maxOutputTokens: 128000
+    supportsCaching: true
+    supportsVision: true
+    supportsTools: true
+    supportsTemperature: false
+    thinking:
+      efforts:
+      - minimal
+      - low
+      - medium
+      - high
+      defaultEffort: medium
+      acceptsBudget: false
+    pricing:
+      inputPerMillion: 0
+      outputPerMillion: 0
+      cacheReadPerMillion: 0
+      cacheCreationPerMillion: 0
+      asOf: '2026-11-06'
+      source: https://chatgpt.com/

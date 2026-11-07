@@ -9,7 +9,7 @@ All notable changes to this project are documented in this file. The format foll
 - Opt-in `Runtime.IndependentSubAgentPolicy` for trusted hosts: children resolve their own definition's tools with runtime grants instead of a parent ceiling. Defaults stay restricted.
 - Opt-in `Runtime.RefreshAgentToolsOnRegistryChange`, with public `ToolRegistry.Version` and `Remove`, to refresh tool snapshots on the next turn after registration changes.
 - Opt-in `Runtime.ResumeInterruptedAgents` and `ResumeInterruptedAgentsAsync` for explicit startup recovery of interrupted agents under store leases. Recovery replays from saved boundaries; monitors remain in-memory.
-
+- Opt-in Claude Code and Codex subscription chat providers, with explicit account directories, OAuth refresh and atomic CLI credential persistence, streaming, tool replay, usage reporting and zero per-token catalog prices. See [subscription providers](docs/subscriptions.md) for endpoint limitations, refresh coordination and terms.
 
 ### Fixed
 

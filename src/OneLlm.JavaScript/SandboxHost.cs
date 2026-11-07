@@ -5,10 +5,11 @@ namespace OneLlm.JavaScript;
 
 /// <summary>
 /// The engine's window on the world for one run. Time comes from the runtime's <see cref="TimeProvider"/> (or a fixed instant), randomness is
-/// seeded on request, and the only module it can serve is the one the run was given. No other module can be imported.
+/// seeded on request, and by default only the entry module can be served. Trusted-host mode also resolves relative file imports.
 /// </summary>
 internal sealed class SandboxHost : DefaultHost
 {
+    private readonly JsSandboxOptions _options;
     private readonly TimeProvider _time;
     private readonly long _start;
     private readonly bool _deterministic;
@@ -28,6 +29,7 @@ internal sealed class SandboxHost : DefaultHost
     public SandboxHost(TimeProvider time, JsSandboxOptions options, HostModule? module, OutputBuffer output, RunScope scope)
         : base(options.Deterministic ? options.RandomSeed : null)
     {
+        _options = options;
         _time = time;
         _start = time.GetTimestamp();
         _deterministic = options.Deterministic;
@@ -110,8 +112,29 @@ internal sealed class SandboxHost : DefaultHost
         }
     }
 
-    public override HostModule? ResolveModule(string specifier, string? referrerId, IReadOnlyDictionary<string, string> attributes) =>
-        _module is not null && referrerId is null && string.Equals(specifier, _module.Id, StringComparison.Ordinal) ? _module : null;
+    public override HostModule? ResolveModule(string specifier, string? referrerId, IReadOnlyDictionary<string, string> attributes)
+    {
+        if (_module is not null && referrerId is null && string.Equals(specifier, _module.Id, StringComparison.Ordinal))
+        {
+            return _module;
+        }
+
+        if (!_options.TrustedHost || referrerId is null || !Path.IsPathFullyQualified(referrerId) ||
+            !(specifier.StartsWith("./", StringComparison.Ordinal) || specifier.StartsWith("../", StringComparison.Ordinal)))
+        {
+            return null;
+        }
+
+        string path = Path.GetFullPath(specifier, Path.GetDirectoryName(referrerId)!);
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (stream.Length > _options.MaxFileBytes || _scope.ChargeHost(stream.Length * 2) is not null)
+        {
+            return null;
+        }
+
+        using var reader = new StreamReader(stream, new UTF8Encoding(false, true));
+        return new HostModule(path, reader.ReadToEnd());
+    }
 
     public override void Print(string text) => _output.AddLine(text);
 }
@@ -129,7 +152,11 @@ internal sealed class OutputBuffer
 
     public void AddLine(string line)
     {
-        string text = line + "\n";
+        AddText(line + "\n");
+    }
+
+    public void AddText(string text)
+    {
         if (!_headFull)
         {
             int room = _half - _head.Length;

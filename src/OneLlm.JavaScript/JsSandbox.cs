@@ -17,7 +17,8 @@ namespace OneLlm.JavaScript;
 /// <para>What a script can do is exactly what the engine gives it (the ECMAScript built-ins) plus <c>ctx</c>:
 /// <c>ctx.log</c>, <c>ctx.readFile</c> / <c>ctx.writeFile</c> (declared <c>fileRead</c> / <c>fileWrite</c> and granted by the host, symlinks resolved),
 /// <c>ctx.fetch</c> (declared <c>network</c> and allowed by the egress policy, redirects re-checked) and <c>ctx.addCost</c>.
-/// There is no <c>require</c>, <c>process</c>, <c>import</c> of other files, timers or environment.</para>
+/// By default there is no <c>require</c>, <c>process</c>, <c>import</c> of other files, timers or environment.
+/// Opting into <see cref="JsSandboxOptions.TrustedHost"/> bypasses grants and adds process execution, relative modules and registry calls; it is not a security sandbox.</para>
 /// <para>Limits: steps, allocation volume, call depth, string length and wall-clock time, all from <see cref="JsSandboxOptions"/>.
 /// The engine has no per-run cap on live memory; the allocation budget bounds bytes requested over the run, which stops allocation bombs
 /// but is a looser bound than a resident-set limit.</para>
@@ -424,13 +425,13 @@ public sealed class JsSandbox
             JsValue value = await body(engine, linked.Token);
             if (value.IsUndefined)
             {
-                return new JsRunResult(null, false, output.ToString());
+                return new JsRunResult(null, false, env.Scrub(output.ToString()));
             }
 
             string? json = JsonBridge.Stringify(realm, stringify, value, undefinedAsNull ? JsonBridge.NullForUndefined(realm) : default);
             if (json is null)
             {
-                return new JsRunResult(null, false, output.ToString());
+                return new JsRunResult(null, false, env.Scrub(output.ToString()));
             }
 
             if (json.Length > Options.MaxResultChars)
@@ -441,7 +442,7 @@ public sealed class JsSandbox
             JsonNode? parsed;
             try
             {
-                parsed = JsonNode.Parse(json);
+                parsed = env.ScrubNode(JsonNode.Parse(json));
             }
             catch (JsonException)
             {
@@ -449,11 +450,12 @@ public sealed class JsSandbox
                 throw new JsSandboxException(JsSandboxFailure.Result, $"{fileName}: the result is nested more than 64 levels deep.", fileName);
             }
 
-            return new JsRunResult(parsed, true, output.ToString());
+            return new JsRunResult(parsed, true, env.Scrub(output.ToString()));
         }
         catch (Exception e) when (e is JsException or JsLimitException or OperationCanceledException)
         {
-            throw MapFailure(e, scope, fileName, cancellationToken);
+            JsSandboxException failure = MapFailure(e, scope, fileName, cancellationToken);
+            throw env.NeedsRedaction ? new JsSandboxException(failure.Kind, env.Scrub(failure.Message), failure.File, failure.Line, failure.Column) : failure;
         }
         catch (InvalidOperationException e) when (e.Message.StartsWith("Internal engine error", StringComparison.Ordinal))
         {

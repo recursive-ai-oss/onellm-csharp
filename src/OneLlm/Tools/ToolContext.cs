@@ -6,7 +6,7 @@ namespace OneLlm.Tools;
 /// What one tool call may use: who is calling, the host's grants, the clock, a place to report cost and progress. One context is
 /// made per call, so line items added to it belong to that call.
 /// </summary>
-public sealed class ToolContext
+public sealed partial class ToolContext
 {
     private readonly object _gate = new();
     private readonly List<CostLine> _costLines = [];
@@ -77,9 +77,9 @@ public sealed class ToolContext
 
     /// <summary>Writes an informational line to <see cref="LogSink"/>.</summary>
     /// <param name="message">The line.</param>
-    public void Log(string message) => LogSink?.Write(ToolCallId, ToolLogLevel.Information, message);
+    public void Log(string message) => LogSink?.Write(ToolCallId, ToolLogLevel.Information, ScrubSecrets(message));
 
     /// <summary>Writes a progress note to <see cref="LogSink"/>.</summary>
     /// <param name="message">The note.</param>
-    public void Progress(string message) => LogSink?.Write(ToolCallId, ToolLogLevel.Progress, message);
+    public void Progress(string message) => LogSink?.Write(ToolCallId, ToolLogLevel.Progress, ScrubSecrets(message));
 }

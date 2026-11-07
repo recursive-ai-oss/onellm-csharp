@@ -73,7 +73,7 @@ public sealed class JsHookSource : IDefinitionHookSource
     {
         ArgumentNullException.ThrowIfNull(path);
         ArgumentNullException.ThrowIfNull(capabilities);
-        string file = Path.GetFileName(path);
+        string file = _sandbox.Options.TrustedHost ? Path.GetFullPath(path) : Path.GetFileName(path);
         string source;
         try
         {
@@ -141,11 +141,11 @@ public sealed class JsHookSource : IDefinitionHookSource
             string path = Path.GetFullPath(Path.Combine(baseDir, reference.File));
             // A definition names the file, and a definition can be written by a model, so the file is read through the run's read grants (roots,
             // symlinks, protected names), not as the host. LoadFile stays the host's own entry point for files the host chose.
-            string file = Path.GetFileName(path);
+            string file = _sandbox.Options.TrustedHost ? Path.GetFullPath(path) : Path.GetFileName(path);
             string source;
             try
             {
-                using FileStream stream = GuardedFile.OpenRead(capabilities, path);
+                using FileStream stream = GuardedFile.OpenRead(_sandbox.Options.TrustedHost ? new TrustedCapabilities(capabilities.WorkingDirectory) : capabilities, path);
                 byte[] bytes = new byte[checked((int)Math.Min(stream.Length, MaxHookFileBytes + 1))];
                 stream.ReadExactly(bytes);
                 if (bytes.Length > MaxHookFileBytes)

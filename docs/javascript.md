@@ -141,3 +141,72 @@ The package is annotated trim- and AOT-compatible: OneEcma is, and nothing here 
 ## What errors reveal
 
 A host function that fails (a missing file, a refused request, a bad argument) reaches the script as a plain `Error` with a short message such as `ctx.readFile: no such file`: no host stack frames, no absolute paths, no .NET exception type names. The model and the records see the same text. A result nested deeper than 64 levels is a `JsSandboxException` of kind `Result`. An instance whose recorded cost total is negative resumes with the total counted as zero.
+
+## Trusted hosts (opt-in)
+
+`new JsSandboxOptions { TrustedHost = true }` opens tools and hooks for code the host trusts. **This mode is not a security boundary.** It bypasses `requires`, file roots, protected paths and network grants, including private/loopback destinations. Definitions do not turn it on; only host code does. With the option off and no host-context resolver, the original `ctx` surface and capability checks are unchanged.
+
+```csharp
+var store = new MemorySecretStore(); // OneLlm.Secrets; nonpersistent, thread-safe
+store.Set("owner-id", "api", new Secret("value-from-host"));
+var options = new JsSandboxOptions
+{
+    TrustedHost = true,
+    EnableToolEndpoint = true,       // false by default
+    ExecTimeLimit = TimeSpan.FromSeconds(5),
+    ResolveHostContext = context => new JsHostContext
+    {
+        Tools = runtime.Tools,
+        Identity = new JsonObject { ["principal"] = "opaque-id" },
+        Secrets = new SecretScope(store, ["owner-id"]),
+    },
+};
+runtime.Tools.Add(JsTools.Load("tools/example.js", options));
+runtime.DefinitionHooks = new JsHookSource(options, runtime.TimeProvider);
+await using var watcher = new JsToolWatcher(runtime.Tools, ["tools"], options,
+    runtime.TimeProvider);
+watcher.Error += (file, error) => ReportBadTool(file, error.Message);
+```
+
+The resolver runs once per invocation, not during module inspection. It must derive the identity and secret owners from trusted host state, never from script inputs. Hooks have an instance ID; use that to resolve host state. Native tools called by script receive the **original `ToolContext`**, including instance ID, host `Services`, clock, grants and cost sink. Identity JSON is an additional script-facing view, not authorization data accepted from a subprocess. `Tools = null` uses `context.Runtime.Tools` when present. Invoked native tools retain their own policies and must honor cancellation.
+
+Additional members:
+
+| Member | Behaviour |
+|---|---|
+| `await ctx.exec(command)` | Runs a shell command (`/bin/sh -c`, or `cmd.exe /c` on Windows). |
+| `await ctx.exec(executable, arguments)` | Runs a process directly with an array of argument strings, no shell parsing. |
+| `await ctx.callTool(name, inputs)` | Looks up any registered tool, without limiting names to the calling definition. Returns `{ isError, endsLoop, parts }`; parts contain `{text}`, `{json}`, or `{unsupported:true}` for non-text/JSON parts. Loop-ending results do not end the outer loop automatically. |
+| `ctx.identity` | Host-provided JSON, or null. |
+| `await ctx.secret(name)` | Returns the first matching secret in the host-selected owner order; absent and inaccessible names fail identically. Available in restricted mode too, **only when a host-context resolver is installed**. Script cannot choose an owner. |
+
+`ctx.exec` returns `{stdout, stderr, exitCode, timedOut}`. Output is bounded independently for stdout and stderr by `MaxOutputChars` (head and tail); it is drained while the process runs. The working directory is the original context's working directory, or the process working directory. `ExecTimeLimit` defaults to five seconds on the caller's clock. Expiry kills the process tree and returns `timedOut: true` with the exit code after termination; run cancellation/deadline instead ends the run. `TimeLimit`, fuel, memory, file/body/output quotas and the shared run limiter remain active. Process trees and script limits stop accidents, not deliberate evasion by trusted native code or detached daemons.
+
+### Relative modules
+
+Trusted tool/hook files may use standard ECMAScript imports such as `import { helper } from './shared.mjs'`. OneEcma's native module resolver loads UTF-8 files relative to the importing file, including `../`; imports are bounded by `MaxFileBytes` and the aggregate host-result budget. There is no package or Node resolver, built-in `fs`/`child_process` module, extension inference, or second JS engine. Use `ctx` for host operations. The entry file's absolute path is its module ID in trusted mode (and can appear in diagnostics); restricted mode continues to use just the file name and refuses other modules. Helpers should use `.mjs`, since `.js` files are treated as tool entries by the watcher.
+
+### Tool folders
+
+`JsToolWatcher` polls direct children every 250 ms by default (configurable, injected clock). It performs an initial asynchronous scan, adds/replaces through `ToolRegistry.Add`, and deletes through `Remove(name)` after checking the current registration. Content fingerprints detect same-size edits; changes to `.js`, `.mjs` and `.tool.yaml` reload entries, including import dependants. Only `.js` entries register. Later folders win duplicate names. Invalid files raise `Error` without stopping other tools; an invalid edit retains its last good tool until repaired or deleted. Entries larger than `MaxFileBytes` are invalid. A failed folder enumeration is retried and is not taken as proof of deletion. Disposing waits for the current load and checks that registrations still belong to the watcher before removing them. Hosts must serialize competing mutations of the same tool name if they need an atomic ownership check across those operations. `ToolRegistry.Version` advances on publication/removal for hosts using turn-start refresh. Hosts refresh turn-visible tool sets using their registry-change mechanism; this watcher does not edit a running turn.
+
+### Secret storage and redaction
+
+Core `ISecretStore.GetAsync(ownerId, name, cancellationToken)` returns `Secret?`. The supplied `MemorySecretStore` is a simple volatile implementation and test double; durable storage and authorization remain the host's responsibility. `SecretScope` snapshots readable owner IDs, uses ordinal names, and searches owners in host-specified order. Never share another run's scope just because it uses the same tool file.
+
+Resolved values are registered on the calling context with `RegisterSecret`; `ScrubSecrets` applies the existing `Secret` scrubbing rules. JS return values (including JSON string values/keys), console output, errors and `ctx.log` are scrubbed before reaching the model or records. Context log/progress calls from native callees are scrubbed too. The subprocess callback token is also registered for redaction. `Secret` does not protect against deliberate exfiltration or transformations of values: trusted scripts may use secrets in requests and processes. Do not put secrets in inputs, file names, literal source code, cost metadata or host logs, and native tools must not bypass the context's log sink.
+
+### Subprocess callback endpoint
+
+With **both** `TrustedHost` and `EnableToolEndpoint` on, each `ctx.exec` starts a temporary IPv4-loopback-only HTTP listener. The child receives `ONELLM_TOOL_ENDPOINT` and `ONELLM_TOOL_TOKEN` in its environment (never command-line arguments). Send:
+
+```http
+POST / HTTP/1.1
+Authorization: Bearer <ONELLM_TOOL_TOKEN>
+Content-Type: application/json
+Content-Length: ...
+
+{"name":"tool_name","inputs":{}}
+```
+
+The JSON response has the same shape as `ctx.callTool`. Content length is required and request bodies are bounded by `MaxFileBytes`. Well-formed requests with missing/wrong tokens receive 401; malformed requests and host failures receive 400 without exception details. The endpoint captures the calling context; request fields cannot replace its identity or secret scope. It stops when the process call ends, is cancelled, or times out. The random 256-bit token, per-process lifetime and loopback binding prevent accidental cross-run callbacks; they do not isolate mutually hostile code running as the same OS user. This shape needs no web framework dependency, and lets any child process use ordinary HTTP rather than a language-specific bridge.

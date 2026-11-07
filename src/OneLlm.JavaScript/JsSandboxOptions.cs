@@ -10,6 +10,18 @@ namespace OneLlm.JavaScript;
 /// </remarks>
 public sealed class JsSandboxOptions
 {
+    /// <summary>Opt-in trusted-host mode: bypasses declared capabilities and file/network grants and enables exec and callTool. Default false. This is not a security sandbox.</summary>
+    public bool TrustedHost { get; init; }
+
+    /// <summary>Resolves per-call host services (identity, registry and secret scope). Null supplies none. Called once per run, never during module inspection.</summary>
+    public Func<OneLlm.Tools.ToolContext, JsHostContext>? ResolveHostContext { get; init; }
+
+    /// <summary>Maximum duration of one ctx.exec process, measured on the caller's clock. Default five seconds; the run deadline can shorten it. A process timeout kills the tree and returns timedOut=true.</summary>
+    public TimeSpan ExecTimeLimit { get; init; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>Enables a temporary authenticated loopback callback endpoint during ctx.exec in trusted mode. Default false. Its URL and bearer token are passed only to the child environment.</summary>
+    public bool EnableToolEndpoint { get; init; }
+
     /// <summary>The step budget: one unit per call, per loop iteration and per unit of work in long-running built-ins. Default 200 million.</summary>
     public long Fuel { get; init; } = 200_000_000;
 

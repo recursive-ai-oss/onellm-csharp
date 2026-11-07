@@ -34,10 +34,11 @@ public class AgentRuntimeOptionsTests
         Assert.True(spawn.IsError == !enabled, string.Join(" ", spawn.Result.OfType<TextPart>().Select(static t => t.Text)));
         if (enabled)
         {
-            await foreach (var child in env.Rt.Store.ListAsync(new() { CallerInstanceId = result.Instance.InstanceId }))
-            {
-                await Within((await env.Rt.GetAgentAsync(child.InstanceId))!.AwaitAsync());
-            }
+            // Spawning publishes the live handle before returning, but the first store save may still be pending.
+            string spawnText = string.Concat(spawn.Result.OfType<TextPart>().Select(static t => t.Text));
+            string childId = spawnText.Split("Instance Id: ", 2)[1].Split('\n', 2)[0].Trim();
+            AgentRun child = Assert.IsType<AgentRun>(await env.Rt.GetAgentAsync(childId));
+            await Within(child.AwaitAsync());
             Assert.NotNull(observed);
             Assert.True(observed.ShellEnabled);
             Assert.NotEmpty(observed.WriteRoots);

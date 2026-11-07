@@ -93,6 +93,28 @@ public sealed class CapabilityIntersection : ICapabilities
 public sealed class ToolRegistry
 {
     private readonly object _gate = new();
+    private long _version;
+
+    /// <summary>A monotonically increasing change counter. Add, replacement, routine mapping and successful removal advance it. Read atomically; compare for inequality, not elapsed changes.</summary>
+    public long Version => System.Threading.Interlocked.Read(ref _version);
+
+    /// <summary>Removes a tool by name. Existing routine mappings remain, so a later add restores their resolution.</summary>
+    /// <param name="name">The registered name.</param>
+    /// <returns>True when a tool was removed; false when absent.</returns>
+    public bool Remove(string name)
+    {
+        lock (_gate)
+        {
+            if (!_tools.Remove(name))
+            {
+                return false;
+            }
+
+            System.Threading.Interlocked.Increment(ref _version);
+            return true;
+        }
+    }
+
     private readonly Dictionary<string, ITool> _tools = new(StringComparer.Ordinal);
     private readonly Dictionary<string, List<string>> _routines = new(StringComparer.OrdinalIgnoreCase);
 
@@ -135,6 +157,7 @@ public sealed class ToolRegistry
         lock (_gate)
         {
             _tools[tool.Definition.Name] = tool;
+            System.Threading.Interlocked.Increment(ref _version);
         }
 
         return this;
@@ -174,6 +197,8 @@ public sealed class ToolRegistry
                 _tools[tool.Definition.Name] = tool;
                 names.Add(tool.Definition.Name);
             }
+
+            System.Threading.Interlocked.Increment(ref _version);
         }
 
         return this;
@@ -214,6 +239,7 @@ public sealed class ToolRegistry
             foreach (string name in BuiltinTools.Names)
             {
                 _tools.Remove(name);
+                System.Threading.Interlocked.Increment(ref _version);
             }
         }
 

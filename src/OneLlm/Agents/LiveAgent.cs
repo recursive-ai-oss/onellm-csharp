@@ -17,13 +17,19 @@ namespace OneLlm.Agents;
 /// <summary>Everything a run needs that is decided when the agent is created: the model, tools, hooks, grants and strategy.</summary>
 internal sealed class AgentSetup
 {
+    public required ToolRegistry Registry { get; set; }
+
+    public required long RegistryVersion { get; set; }
+
+    public IReadOnlySet<string>? ToolCeiling { get; init; }
+
     public required ResolvedModel Model { get; init; }
 
     public required IChatProvider Provider { get; init; }
 
-    public required IReadOnlyDictionary<string, ITool> Tools { get; init; }
+    public required IReadOnlyDictionary<string, ITool> Tools { get; set; }
 
-    public required IReadOnlyList<ToolDefinition> ToolDefinitions { get; init; }
+    public required IReadOnlyList<ToolDefinition> ToolDefinitions { get; set; }
 
     public required HookSet Hooks { get; init; }
 
@@ -381,7 +387,7 @@ internal sealed partial class LiveAgent
 
     // ---- segments -----------------------------------------------------------------------------------------------------------
 
-    public void StartSegment(bool initial)
+    public bool StartSegment(bool initial, IInstanceLease? lease = null)
     {
         TaskCompletionSource<AgentResult> done;
         CancellationToken token;
@@ -390,7 +396,7 @@ internal sealed partial class LiveAgent
         {
             if (_running)
             {
-                return;
+                return false;
             }
 
             _running = true;
@@ -406,7 +412,7 @@ internal sealed partial class LiveAgent
             {
                 try
                 {
-                    await SegmentMainAsync(initial, done, token).ConfigureAwait(false);
+                    await SegmentMainAsync(initial, done, lease, token).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -414,15 +420,16 @@ internal sealed partial class LiveAgent
                 }
             },
             CancellationToken.None);
+        return true;
     }
 
-    private async Task SegmentMainAsync(bool initial, TaskCompletionSource<AgentResult> done, CancellationToken token)
+    private async Task SegmentMainAsync(bool initial, TaskCompletionSource<AgentResult> done, IInstanceLease? lease, CancellationToken token)
     {
         AgentResult? result = null;
         Exception? failure = null;
         try
         {
-            result = await RunSegmentAsync(initial, token).ConfigureAwait(false);
+            result = await RunSegmentAsync(initial, lease, token).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

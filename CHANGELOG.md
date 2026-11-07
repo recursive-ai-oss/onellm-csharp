@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in `Runtime.IndependentSubAgentPolicy` for trusted hosts: children resolve their own definition's tools with runtime grants instead of a parent ceiling. Defaults stay restricted.
+- Opt-in `Runtime.RefreshAgentToolsOnRegistryChange`, with public `ToolRegistry.Version` and `Remove`, to refresh tool snapshots on the next turn after registration changes.
+- Opt-in `Runtime.ResumeInterruptedAgents` and `ResumeInterruptedAgentsAsync` for explicit startup recovery of interrupted agents under store leases. Recovery replays from saved boundaries; monitors remain in-memory.
+
+
 ### Fixed
 
 - Changelog correction for 1.0.1: every spend limit picks up a new value, not only `Runtime.SpendCap`. `SpendCap` is read at each model call; `MaxCostPerCall` and `InstanceSpendCap` are read when each run starts, which for `Ask`, `Stream` and each `Chat` turn is each call. Decider runs also fire `OnMessage` and `OnStateChange`, not only `OnCost`.

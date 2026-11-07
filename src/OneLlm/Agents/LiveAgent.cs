@@ -57,6 +57,8 @@ internal sealed partial class LiveAgent
     private TaskCompletionSource<AgentResult>? _segment;
     private TaskCompletionSource _signal = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Action? _cancel;
+    private readonly Channel<byte> _deliveryGate = Channel.CreateBounded<byte>(1);
+    private bool _explicitlyStopped;
     private bool _running;
     private bool _stopping;
     private int _waiters;
@@ -67,6 +69,7 @@ internal sealed partial class LiveAgent
         Host = host;
         Instance = instance;
         Setup = setup;
+        _explicitlyStopped = instance.ExtensionData?.GetValueOrDefault("agentExplicitlyStopped") is true;
     }
 
     public Runtime Runtime { get; }
@@ -226,6 +229,30 @@ internal sealed partial class LiveAgent
 
     public async Task EnqueueAsync(Message message, CancellationToken cancellationToken)
     {
+        await _deliveryGate.Writer.WriteAsync(0, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (_explicitlyStopped && message.Source?.Reason == "monitor")
+            {
+                return;
+            }
+
+            lock (_gate)
+            {
+                _explicitlyStopped = false;
+                Instance.ExtensionData?.Remove("agentExplicitlyStopped");
+            }
+
+            await EnqueueCoreAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _deliveryGate.Reader.TryRead(out _);
+        }
+    }
+
+    private async Task EnqueueCoreAsync(Message message, CancellationToken cancellationToken)
+    {
         Task? finishing = null;
         lock (_gate)
         {
@@ -268,7 +295,7 @@ internal sealed partial class LiveAgent
     {
         lock (_gate)
         {
-            if (_running || _inbox.IsEmpty || Instance.PendingApprovals.Count > 0)
+            if (_explicitlyStopped || _running || _inbox.IsEmpty || Instance.PendingApprovals.Count > 0)
             {
                 return;
             }
@@ -278,6 +305,19 @@ internal sealed partial class LiveAgent
     }
 
     public async Task DecideAsync(string? toolCallId, bool approve, string? reason, CancellationToken cancellationToken)
+    {
+        await _deliveryGate.Writer.WriteAsync(0, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await DecideCoreAsync(toolCallId, approve, reason, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _deliveryGate.Reader.TryRead(out _);
+        }
+    }
+
+    private async Task DecideCoreAsync(string? toolCallId, bool approve, string? reason, CancellationToken cancellationToken)
     {
         PendingApproval pending;
         lock (_gate)
@@ -291,6 +331,8 @@ internal sealed partial class LiveAgent
             pending = toolCallId is null
                 ? undecided.Count == 1 ? undecided[0] : throw new InvalidOperationException(undecided.Count == 0 ? "No tool call is waiting for a decision." : "Several tool calls are waiting; name one by id.")
                 : undecided.FirstOrDefault(p => p.ToolCallId == toolCallId) ?? throw new InvalidOperationException($"Tool call '{toolCallId}' is not waiting for a decision.");
+            _explicitlyStopped = false;
+            Instance.ExtensionData?.Remove("agentExplicitlyStopped");
             ApprovalDecision.Set(pending, approve, reason);
         }
 
@@ -313,6 +355,41 @@ internal sealed partial class LiveAgent
         if (allDecided)
         {
             StartSegment(initial: false);
+        }
+    }
+
+    public async Task StopAsync()
+    {
+        await _deliveryGate.Writer.WriteAsync(0).ConfigureAwait(false);
+        try
+        {
+            lock (_gate)
+            {
+                _explicitlyStopped = true;
+            }
+
+            await CancelAsync().ConfigureAwait(false);
+            Host.DisarmOwnedMonitors(Instance.InstanceId);
+            await using (await Runtime.Store.AcquireAsync(Instance.InstanceId).ConfigureAwait(false))
+            {
+                lock (_gate)
+                {
+                    _inbox.Clear();
+                    Instance.State = InstanceStates.Stopped;
+                    Instance.ExtensionData ??= [];
+                    Instance.ExtensionData["agentExplicitlyStopped"] = true;
+                    Instance.ExtensionData["agentStoppedAt"] = Runtime.TimeProvider.GetUtcNow().ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+                }
+
+                await Runtime.Store.SaveAsync(Instance).ConfigureAwait(false);
+            }
+
+            Emit(AgentEventKind.StateChanged, state: InstanceStates.Stopped);
+            Host.OnSettled(this);
+        }
+        finally
+        {
+            _deliveryGate.Reader.TryRead(out _);
         }
     }
 

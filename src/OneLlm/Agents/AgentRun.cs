@@ -73,4 +73,11 @@ public sealed class AgentRun
     /// <summary>Cancels the running segment. The instance is saved as <c>stopped</c> with <c>cancelled: true</c> and keeps the partial output. Does nothing when the agent is resting.</summary>
     /// <returns>A task that completes when the run has settled.</returns>
     public Task CancelAsync() => _agent.CancelAsync();
+
+    /// <summary>
+    /// Stops active or resting agents durably and disarms their monitors. Automatic monitor alerts cannot resume the instance.
+    /// A later explicit message or approval may resume it; held approvals remain held. Unlike <see cref="CancelAsync"/>, this also stops idle agents.
+    /// </summary>
+    /// <returns>A task that completes when the stopped state is saved.</returns>
+    public Task StopAsync() => _agent.StopAsync();
 }

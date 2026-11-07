@@ -93,3 +93,7 @@ out, across processes; the operating system drops it if the holder dies.
 
 Messages are immutable once appended. A save re-serializes the header and any message it has not written before, and reuses the
 text of the others, so adding a turn to a long instance costs the new turn plus the write of the file.
+
+## Agent recovery marker
+
+Agents started by the runtime carry the additive top-level `agentRecovery: true` extension field. With `Runtime.ResumeInterruptedAgents` enabled, `ResumeInterruptedAgentsAsync` discovers marked instances in `running`, acquires a lease, rechecks the saved state, and resumes from the last saved boundary. Other run kinds and older instances without the marker are not selected. Waiting instances and pending approvals retain their normal message/approval paths. See `docs/agents.md` for replay and in-memory monitor limits.

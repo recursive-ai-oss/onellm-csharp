@@ -48,6 +48,9 @@ internal static partial class AgentExercise
                 """)]),
             Providers = new ProviderRegistry(),
             Store = new FileInstanceStore(storeDir),
+            IndependentSubAgentPolicy = true,
+            RefreshAgentToolsOnRegistryChange = true,
+            ResumeInterruptedAgents = true,
         };
         runtime.Providers.Set("scripted", provider);
         runtime.Tools.Add<Vault>();
@@ -79,6 +82,10 @@ internal static partial class AgentExercise
                     _ => Calls("c2", "withdraw", """{"account":"main","amount":5}"""),
                 };
             Runtime one = NewRuntime(first, dir);
+            if ((await one.ResumeInterruptedAgentsAsync()).Count != 0 || one.Tools.Version == 0 || one.Tools.Remove("absent"))
+            {
+                return false;
+            }
             AgentRun run = await one.StartAgentAsync(banker, null, new AgentStartOptions { Prompt = "move money" });
             AgentResult held = await run.AwaitAsync();
             bool ok = held.StopReason == AgentStopReason.WaitingForApproval && held.PendingApprovals.Count == 1;

@@ -92,13 +92,13 @@ internal sealed class RunAgentAsyncTool : ITool
                     {
                         Prompt = prompt,
                         // The child can hold what its parent holds and nothing more.
-                        Capabilities = context.Capabilities,
+                        Capabilities = rt.IndependentSubAgentPolicy ? null : context.Capabilities,
                         SpawnerInstanceId = context.InstanceId,
                         CallerToolCallId = context.ToolCallId,
                         DelegationPrompt = prompt,
                         // A definition the host registered picks its own tools; one read from a file (which the agent may have written)
                         // gets at most the tools of the agent that starts it.
-                        ToolCeiling = !registered && context.Agent is { } caller ? new HashSet<string>(caller.Setup.Tools.Keys, StringComparer.Ordinal) : null,
+                        ToolCeiling = !rt.IndependentSubAgentPolicy && !registered && context.Agent is { } caller ? new HashSet<string>(caller.Setup.Tools.Keys, StringComparer.Ordinal) : null,
                         WorkingDirectory = ToolArgs.String(inputs, "workingDir") is { Length: > 0 } wd ? wd : null,
                         SwarmUri = ToolArgs.String(inputs, "swarm") is { Length: > 0 } sw ? sw : null,
                     },

@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Added
 
+- Opt-in `Runtime.IndependentSubAgentPolicy` for trusted hosts: children resolve their own definition's tools with runtime grants instead of a parent ceiling. Defaults stay restricted.
+- Opt-in `Runtime.RefreshAgentToolsOnRegistryChange`, with public `ToolRegistry.Version` and `Remove`, to refresh tool snapshots on the next turn after registration changes.
+- Opt-in `Runtime.ResumeInterruptedAgents` and `ResumeInterruptedAgentsAsync` for explicit startup recovery of interrupted agents under store leases. Recovery replays from saved boundaries; monitors remain in-memory.
+- Opt-in Claude Code and Codex subscription chat providers, with explicit account directories, OAuth refresh and atomic CLI credential persistence, streaming, tool replay, usage reporting and zero per-token catalog prices. See [subscription providers](docs/subscriptions.md) for endpoint limitations, refresh coordination and terms.
 - Opt-in `JsSandboxOptions.TrustedHost` for trusted JavaScript tools and hooks: shell/direct process execution with bounded output and timeouts, unrestricted file/network APIs, relative ES modules, registry tool calls preserving caller context, and an optional authenticated loopback callback endpoint for child processes.
 - `ISecretStore`, `MemorySecretStore` and host-selected `SecretScope`; `ctx.secret` resolves only within that scope and redacts resolved values from JavaScript results, diagnostics and logs. Tool contexts can register secrets for log redaction.
 - `JsToolWatcher` reconciles host-selected tool folders, replaces changed tools and removes deleted entries, retaining last-good definitions on invalid edits. Uses the registry’s existing add/remove and version signal.

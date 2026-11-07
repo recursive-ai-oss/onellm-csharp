@@ -27,7 +27,7 @@ internal sealed partial class LiveAgent
     /// <summary>The options the agent was started with (prompt, source, strategy override).</summary>
     public AgentStartOptions Options { get; set; } = new();
 
-    private async Task<AgentResult> RunSegmentAsync(bool initial, CancellationToken token)
+    private async Task<AgentResult> RunSegmentAsync(bool initial, IInstanceLease? lease, CancellationToken token)
     {
         string? previous = Instance.State;
         _turns = 0;
@@ -39,7 +39,7 @@ internal sealed partial class LiveAgent
         _endText = null;
         int maxIterations = Instance.MaxIterations is { } m and > 0 ? m : DefaultMaxIterations;
 
-        _scope = await RunScope.StartAsync(Runtime, Instance, token).ConfigureAwait(false);
+        _scope = await RunScope.StartAsync(Runtime, Instance, token, lease: lease).ConfigureAwait(false);
         try
         {
             try
@@ -82,6 +82,11 @@ internal sealed partial class LiveAgent
                         {
                             reason = AgentStopReason.MaxIterations;
                             break;
+                        }
+
+                        if (Runtime.RefreshAgentToolsOnRegistryChange && (!ReferenceEquals(Setup.Registry, Runtime.Tools) || Setup.RegistryVersion != Runtime.Tools.Version))
+                        {
+                            Host.RefreshTools(this);
                         }
 
                         _turns++;

@@ -18,7 +18,8 @@ namespace OneLlm.JavaScript;
 /// (USD; give a string for an exact decimal), <c>parallelSafe</c> and <c>timeout</c> (seconds).</para>
 /// <para>What <c>invoke</c> returns: a string becomes text, <c>undefined</c> becomes an empty result, anything else becomes a JSON part (and the typed result
 /// when the tool ends the loop). A throw becomes an error result with a positioned report. Loading a file reads it as the host and runs its top level once under the
-/// sandbox limits; it never grants anything: the tool can use only the capabilities its <c>requires</c> list names, and only where the host granted them.</para>
+/// sandbox limits. By default it never grants anything: the tool can use only the capabilities its <c>requires</c> list names, and only where the host granted them.
+/// Host code can opt into <see cref="JsSandboxOptions.TrustedHost"/> to bypass those checks.</para>
 /// </remarks>
 public static class JsTools
 {
@@ -33,7 +34,7 @@ public static class JsTools
     public static ITool Load(string path, JsSandboxOptions? options = null, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(path);
-        string file = Path.GetFileName(path);
+        string file = options?.TrustedHost == true ? Path.GetFullPath(path) : Path.GetFileName(path);
         string source;
         try
         {
@@ -191,7 +192,7 @@ internal sealed class JsTool : ICapabilityTool
     private JsTool(ToolSpec spec, ToolCapability requires, string source, string file, JsSandbox sandbox)
     {
         Definition = spec;
-        Requires = requires;
+        Requires = sandbox.Options.TrustedHost ? ToolCapability.None : requires;
         _source = source;
         _file = file;
         _sandbox = sandbox;

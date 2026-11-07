@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. The format foll
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in `JsSandboxOptions.TrustedHost` for trusted JavaScript tools and hooks: shell/direct process execution with bounded output and timeouts, unrestricted file/network APIs, relative ES modules, registry tool calls preserving caller context, and an optional authenticated loopback callback endpoint for child processes.
+- `ISecretStore`, `MemorySecretStore` and host-selected `SecretScope`; `ctx.secret` resolves only within that scope and redacts resolved values from JavaScript results, diagnostics and logs. Tool contexts can register secrets for log redaction.
+- `JsToolWatcher` reconciles host-selected tool folders, replaces changed tools and removes deleted entries, retaining last-good definitions on invalid edits. Uses the registry’s existing add/remove and version signal.
+
 ### Fixed
 
 - Changelog correction for 1.0.1: every spend limit picks up a new value, not only `Runtime.SpendCap`. `SpendCap` is read at each model call; `MaxCostPerCall` and `InstanceSpendCap` are read when each run starts, which for `Ask`, `Stream` and each `Chat` turn is each call. Decider runs also fire `OnMessage` and `OnStateChange`, not only `OnCost`.

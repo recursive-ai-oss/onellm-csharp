@@ -10,10 +10,10 @@ namespace OneLlm.JavaScript;
 
 /// <summary>
 /// Builds the only host surface a script sees: <c>ctx</c> (log, file reads and writes, fetch, cost) and a <c>console</c>. Each function
-/// checks two things before it acts: the tool declared the capability, and the host granted it (through <see cref="ICapabilities"/>, which
-/// resolves symlinks before comparing paths). Nothing else of the host is reachable: no process, environment, clock or network object.
+/// checks two things before it acts in the default restricted mode: the tool declared the capability, and the host granted it (through <see cref="ICapabilities"/>, which
+/// resolves symlinks before comparing paths). The opt-in trusted mode bypasses those checks and extends ctx with process and registry calls.
 /// </summary>
-internal sealed class HostEnv
+internal sealed partial class HostEnv
 {
     private readonly ToolContext _context;
     private readonly ToolCapability _declared;
@@ -56,7 +56,7 @@ internal sealed class HostEnv
             switch (_scope.CountLog(line.Length))
             {
                 case 0:
-                    _context.Log(line);
+                    _context.Log(Scrub(line));
                     break;
                 case 1:
                     _context.Log("[ctx.log: the output limit for this run was reached; later lines are dropped]");
@@ -142,6 +142,8 @@ internal sealed class HostEnv
             return JsMarshal.FromTask(realm, "ctx.fetch", () => FetchAsync(realm, url, method, headers, body), (r, res) => FetchResultToJs(r, res));
         });
 
+        InstallTrusted(engine, ctx, stringify);
+
         realm.DefineData(realm.Global, "ctx", JsValue.FromObject(ctx), JsAttributes.Method);
 
         JsObject console = realm.NewObject();
@@ -209,9 +211,11 @@ internal sealed class HostEnv
     private static string Str(JsRealm realm, ReadOnlySpan<JsValue> args, int index, string fn, string name) =>
         index < args.Length && args[index].IsString ? args[index].AsString : throw TypeError(realm, $"ctx.{fn}: '{name}' must be a string");
 
+    private ICapabilities EffectiveCapabilities => _options.TrustedHost ? new TrustedCapabilities(_context.Capabilities.WorkingDirectory) : _context.Capabilities;
+
     private void Require(ToolCapability needed, string fn, string word)
     {
-        if ((_declared & needed) != needed)
+        if (!_options.TrustedHost && (_declared & needed) != needed)
         {
             throw new CapabilityMissingException($"ctx.{fn}", $"'{word}' in the tool's requires list");
         }
@@ -258,7 +262,7 @@ internal sealed class HostEnv
 
     private string ReadText(JsRealm realm, string path)
     {
-        ICapabilities caps = _context.Capabilities;
+        ICapabilities caps = EffectiveCapabilities;
         using FileStream stream = OpenRegular(caps, path, write: false);
         long length = stream.Length;
         if (length > _options.MaxFileBytes)
@@ -297,7 +301,7 @@ internal sealed class HostEnv
             throw RangeError(realm, "ctx.writeFile: " + over);
         }
 
-        ICapabilities caps = _context.Capabilities;
+        ICapabilities caps = EffectiveCapabilities;
         using FileStream stream = OpenRegular(caps, path, write: true);
         stream.Write(bytes);
     }
@@ -392,7 +396,7 @@ internal sealed class HostEnv
             throw new HostMessage($"ctx.fetch: '{url}' is not an absolute URL.");
         }
 
-        using HttpResponseMessage response = await EgressClient.SendAsync(_context.Capabilities, new HttpMethod(method), uri, headers, body, _scope.RunToken);
+        using HttpResponseMessage response = await EgressClient.SendAsync(EffectiveCapabilities, new HttpMethod(method), uri, headers, body, _scope.RunToken);
         (byte[] bytes, bool truncated) = await EgressClient.ReadBodyAsync(response, _options.MaxFetchBytes, _scope.RunToken);
         var map = new List<KeyValuePair<string, string>>();
         foreach (var h in response.Headers)
@@ -458,13 +462,15 @@ internal sealed class HostEnv
 
         try
         {
-            return CostLine.Create(counter, quantity, per, unit, mult, OptionalText(realm, o, "label"), OptionalText(realm, o, "source"), OptionalText(realm, o, "asOf"));
+            return CostLine.Create(Scrub(counter), quantity, per, unit, mult, ScrubOptional(OptionalText(realm, o, "label")), ScrubOptional(OptionalText(realm, o, "source")), ScrubOptional(OptionalText(realm, o, "asOf")));
         }
         catch (OverflowException)
         {
             throw TypeError(realm, "ctx.addCost: the amount is too large");
         }
     }
+
+    private string? ScrubOptional(string? value) => value is null ? null : Scrub(value);
 
     private static string RequiredText(JsRealm realm, JsObject o, string key)
     {
